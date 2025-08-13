@@ -3,6 +3,7 @@
 ## **Quick Deployment on VPS**
 
 ### **Step 1: Clone the Unified Repository**
+
 ```bash
 # On your VPS
 cd ~
@@ -11,6 +12,7 @@ cd EZnotes-full-server
 ```
 
 ### **Step 2: Deploy Everything**
+
 ```bash
 # Make deployment script executable
 chmod +x deploy.sh
@@ -20,6 +22,7 @@ chmod +x deploy.sh
 ```
 
 ### **Step 3: Access Your Application**
+
 - **Frontend**: `http://83.229.115.190` (port 80) - Served by Node.js
 - **Backend API**: `http://83.229.115.190:3001`
 - **Health Check**: `http://83.229.115.190:3001/health`
@@ -54,6 +57,7 @@ docker-compose up -d --build
 ## **Troubleshooting**
 
 If something goes wrong:
+
 1. Check logs: `docker-compose logs`
 2. Check status: `docker-compose ps`
 3. Restart: `docker-compose restart`

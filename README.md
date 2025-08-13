@@ -42,12 +42,12 @@ chmod +x deploy.sh
 
 ## 🐳 **Services**
 
-| Service        | Port | Description                  |
-| -------------- | ---- | ---------------------------- |
+| Service        | Port | Description                       |
+| -------------- | ---- | --------------------------------- |
 | **Frontend**   | 80   | React application (Node.js serve) |
-| **Backend**    | 3001 | Node.js API server           |
-| **PostgreSQL** | 5433 | Database                     |
-| **Redis**      | 6380 | Cache and queue              |
+| **Backend**    | 3001 | Node.js API server                |
+| **PostgreSQL** | 5433 | Database                          |
+| **Redis**      | 6380 | Cache and queue                   |
 
 ## 🔧 **Configuration**
 
