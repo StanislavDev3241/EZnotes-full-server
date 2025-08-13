@@ -10,6 +10,7 @@ const { pool } = require("../config/database");
 const { fileProcessingQueue } = require("../config/queue");
 const path = require("path");
 const fs = require("fs-extra");
+const fetch = require("node-fetch"); // Add fetch for Node.js compatibility
 
 const router = express.Router();
 
@@ -57,54 +58,70 @@ router.post(
       tempFilePath = null; // Clear temp path since file was moved
 
       // Save file info to database
-      const fileResult = await pool.query(
-        `
-      INSERT INTO files (filename, original_name, file_path, file_size, file_type, user_id, status)
-      VALUES ($1, $2, $3, $4, $5, $6, 'uploaded')
-      RETURNING id
-    `,
-        [
-          fileInfo.filename,
-          fileInfo.originalName,
-          uploadPath,
-          fileInfo.fileSize,
-          fileInfo.fileType,
-          userId,
-        ]
-      );
+      let fileResult;
+      try {
+        fileResult = await pool.query(
+          `
+        INSERT INTO files (filename, original_name, file_path, file_size, file_type, user_id, status)
+        VALUES ($1, $2, $3, $4, $5, $6, 'uploaded')
+        RETURNING id
+      `,
+          [
+            fileInfo.filename,
+            fileInfo.originalName,
+            uploadPath,
+            fileInfo.fileSize,
+            fileInfo.fileType,
+            userId,
+          ]
+        );
+      } catch (dbError) {
+        console.error("Database error saving file:", dbError);
+        throw new Error(`Failed to save file to database: ${dbError.message}`);
+      }
 
       const fileId = fileResult.rows[0].id;
 
       // Create task in database
-      await pool.query(
-        `
-      INSERT INTO tasks (file_id, user_id, task_type, status, priority)
-      VALUES ($1, $2, 'file_processing', 'pending', 1)
-    `,
-        [fileId, userId]
-      );
+      try {
+        await pool.query(
+          `
+        INSERT INTO tasks (file_id, user_id, task_type, status, priority)
+        VALUES ($1, $2, 'file_processing', 'pending', 1)
+      `,
+          [fileId, userId]
+        );
+      } catch (dbError) {
+        console.error("Database error creating task:", dbError);
+        throw new Error(`Failed to create task: ${dbError.message}`);
+      }
 
       // Add job to processing queue
-      await fileProcessingQueue.add(
-        "process-file",
-        {
-          fileId,
-          filename: fileInfo.filename,
-          originalName: fileInfo.originalName,
-          filePath: uploadPath,
-          fileSize: fileInfo.fileSize,
-          fileType: fileInfo.fileType,
-          userId: userId,
-        },
-        {
-          priority: 1,
-          attempts: 3,
-          backoff: {
-            type: "exponential",
-            delay: 2000,
+      try {
+        await fileProcessingQueue.add(
+          "process-file",
+          {
+            fileId,
+            filename: fileInfo.filename,
+            originalName: fileInfo.originalName,
+            filePath: uploadPath,
+            fileSize: fileInfo.fileSize,
+            fileType: fileInfo.fileType,
+            userId: userId,
           },
-        }
-      );
+          {
+            priority: 1,
+            attempts: 3,
+            backoff: {
+              type: "exponential",
+              delay: 2000,
+            },
+          }
+        );
+      } catch (queueError) {
+        console.error("Queue error adding job:", queueError);
+        throw new Error(`Failed to add job to queue: ${queueError.message}`);
+      }
 
       // Send file URL to Make.com webhook
       const makeWebhookUrl = process.env.MAKE_WEBHOOK_URL;
