@@ -5,18 +5,72 @@ const { noteGenerationQueue } = require("../config/queue");
 
 const router = express.Router();
 
-// CORS middleware for webhook endpoints
-const webhookCors = (req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+// Get notes for anonymous users (no authentication required) - PUT THIS FIRST
+router.get("/anonymous", async (req, res) => {
+  try {
+    console.log("👤 Anonymous user requesting notes");
+    console.log("📋 Request headers:", req.headers);
+    console.log("📋 Request method:", req.method);
+    console.log("📋 Request URL:", req.url);
 
-  if (req.method === "OPTIONS") {
-    res.sendStatus(200);
-  } else {
-    next();
+    const result = await pool.query(
+      `
+      SELECT f.*,
+             n.id as note_id,
+             n.note_type,
+             n.content,
+             n.created_at as note_created_at,
+             t.status as task_status,
+             t.error_message
+      FROM files f
+      LEFT JOIN notes n ON f.id = n.file_id
+      LEFT JOIN tasks t ON f.id = t.file_id AND t.task_type = 'file_processing'
+      WHERE f.user_id IS NULL
+      ORDER BY f.created_at DESC
+    `
+    );
+
+    console.log(`📋 Found ${result.rows.length} files for anonymous user`);
+
+    const files = result.rows.map((row) => ({
+      id: row.id,
+      filename: row.filename,
+      originalName: row.original_name,
+      fileSize: row.file_size,
+      fileType: row.file_type,
+      status: row.status,
+      createdAt: row.created_at,
+      note: row.note_id
+        ? {
+            id: row.note_id,
+            type: row.note_type,
+            content: JSON.parse(row.content),
+            createdAt: row.note_created_at,
+          }
+        : null,
+      taskStatus: row.task_status,
+      errorMessage: row.error_message,
+    }));
+
+    console.log(
+      `📝 Returning ${files.length} files with notes for anonymous user`
+    );
+    res.json({ notes: files });
+  } catch (error) {
+    console.error("Get anonymous notes error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
-};
+});
+
+// Simple test endpoint to verify routing
+router.get("/test-anonymous", (req, res) => {
+  console.log("🧪 Test anonymous endpoint accessed");
+  res.json({ 
+    message: "Anonymous test endpoint working",
+    timestamp: new Date().toISOString(),
+    status: "working"
+  });
+});
 
 // Test endpoint to verify webhook route is accessible
 router.get("/test", webhookCors, (req, res) => {
@@ -335,57 +389,18 @@ router.get("/user", authenticateToken, async (req, res) => {
   }
 });
 
-// Get notes for anonymous users (no authentication required)
-router.get("/anonymous", async (req, res) => {
-  try {
-    console.log("👤 Anonymous user requesting notes");
+// CORS middleware for webhook endpoints
+const webhookCors = (req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-    const result = await pool.query(
-      `
-      SELECT f.*,
-             n.id as note_id,
-             n.note_type,
-             n.content,
-             n.created_at as note_created_at,
-             t.status as task_status,
-             t.error_message
-      FROM files f
-      LEFT JOIN notes n ON f.id = n.file_id
-      LEFT JOIN tasks t ON f.id = t.file_id AND t.task_type = 'file_processing'
-      WHERE f.user_id IS NULL
-      ORDER BY f.created_at DESC
-    `
-    );
-
-    console.log(`📋 Found ${result.rows.length} files for anonymous user`);
-
-    const files = result.rows.map((row) => ({
-      id: row.id,
-      filename: row.filename,
-      originalName: row.original_name,
-      fileSize: row.file_size,
-      fileType: row.file_type,
-      status: row.status,
-      createdAt: row.created_at,
-      note: row.note_id
-        ? {
-            id: row.note_id,
-            type: row.note_type,
-            content: JSON.parse(row.content),
-            createdAt: row.note_created_at,
-          }
-        : null,
-      taskStatus: row.task_status,
-      errorMessage: row.error_message,
-    }));
-
-    console.log(`📝 Returning ${files.length} files with notes for anonymous user`);
-    res.json({ notes: files });
-  } catch (error) {
-    console.error("Get anonymous notes error:", error);
-    res.status(500).json({ error: "Internal server error" });
+  if (req.method === "OPTIONS") {
+    res.sendStatus(200);
+  } else {
+    next();
   }
-});
+};
 
 // Download notes as text file
 router.get("/download/:noteId", authenticateToken, async (req, res) => {

@@ -212,14 +212,16 @@ function App() {
       // Use anonymous endpoint for non-authenticated users
       const endpoint = isLoggedIn ? "/api/notes/user" : "/api/notes/anonymous";
       console.log(`📋 Fetching notes from: ${endpoint}`);
-      
+
       const response = await fetch(`${API_BASE_URL}${endpoint}`);
       if (response.ok) {
         const data = await response.json();
         console.log(`📝 Received notes data:`, data);
         setUserNotes(data.notes || []);
       } else {
-        console.error(`❌ Failed to fetch notes: ${response.status} ${response.statusText}`);
+        console.error(
+          `❌ Failed to fetch notes: ${response.status} ${response.statusText}`
+        );
       }
     } catch (err) {
       console.error("Failed to fetch user notes:", err);
