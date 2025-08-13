@@ -152,9 +152,9 @@ router.post(
 
           console.log(`📋 Make.com will process the file and respond with AI results`);
           console.log(`📋 Expected response from Make.com:`, {
-            status: "success|error",
-            notes: "AI generated notes object (if success)",
-            noteType: "soap|summary|both (optional)"
+            soap_note_text: "AI generated SOAP note content",
+            patient_summary_text: "AI generated patient summary content",
+            note: "Make.com sends results immediately in the response, not via callback"
           });
 
           // Make.com webhook without authentication (public webhook)
@@ -176,9 +176,18 @@ router.post(
               const makeResponse = await response.json();
               console.log(`📋 Make.com response:`, makeResponse);
 
-              if (makeResponse.status === "success" && makeResponse.notes) {
+              // Check for Make.com's actual response format
+              if (makeResponse.soap_note_text || makeResponse.patient_summary_text) {
                 console.log(`🎉 AI processing completed by Make.com!`);
                 
+                // Transform Make.com format to our expected format
+                const notes = {
+                  soapNote: makeResponse.soap_note_text || "",
+                  patientSummary: makeResponse.patient_summary_text || ""
+                };
+                
+                console.log(`📝 Transformed notes:`, notes);
+
                 // Save the generated notes directly
                 const noteResult = await pool.query(
                   `
@@ -186,10 +195,18 @@ router.post(
                   VALUES ($1, $2, $3, $4, 'generated')
                   RETURNING id
                 `,
-                  [fileId, userId, makeResponse.noteType || "general", JSON.stringify(makeResponse.notes)]
+                  [
+                    fileId,
+                    userId,
+                    "both", // Default to both since we have both types
+                    JSON.stringify(notes),
+                  ]
                 );
 
-                console.log(`📝 Notes saved to database with ID:`, noteResult.rows[0].id);
+                console.log(
+                  `📝 Notes saved to database with ID:`,
+                  noteResult.rows[0].id
+                );
 
                 // Update file status to processed
                 await pool.query(
@@ -209,10 +226,60 @@ router.post(
                   [fileId]
                 );
 
-                console.log(`✅ File ${fileId} fully processed with AI results`);
-              } else {
-                console.log(`⚠️ Make.com response indicates processing not complete:`, makeResponse);
+                console.log(
+                  `✅ File ${fileId} fully processed with AI results`
+                );
+              } else if (makeResponse.status === "success" && makeResponse.notes) {
+                // Handle the expected format as fallback
+                console.log(`🎉 AI processing completed by Make.com (expected format)!`);
                 
+                // Save the generated notes directly
+                const noteResult = await pool.query(
+                  `
+                  INSERT INTO notes (file_id, user_id, note_type, content, status)
+                  VALUES ($1, $2, $3, $4, 'generated')
+                  RETURNING id
+                `,
+                  [
+                    fileId,
+                    userId,
+                    makeResponse.noteType || "general",
+                    JSON.stringify(makeResponse.notes),
+                  ]
+                );
+
+                console.log(
+                  `📝 Notes saved to database with ID:`,
+                  noteResult.rows[0].id
+                );
+
+                // Update file status to processed
+                await pool.query(
+                  `
+                  UPDATE files SET status = 'processed', updated_at = CURRENT_TIMESTAMP
+                  WHERE id = $1
+                `,
+                  [fileId]
+                );
+
+                // Update task status to completed
+                await pool.query(
+                  `
+                  UPDATE tasks SET status = 'completed', processed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                  WHERE file_id = $1 AND task_type = 'file_processing'
+                `,
+                  [fileId]
+                );
+
+                console.log(
+                  `✅ File ${fileId} fully processed with AI results`
+                );
+              } else {
+                console.log(
+                  `⚠️ Make.com response indicates processing not complete:`,
+                  makeResponse
+                );
+
                 // Update task status to sent_to_make (still processing)
                 await pool.query(
                   `
@@ -223,8 +290,11 @@ router.post(
                 );
               }
             } catch (responseError) {
-              console.error(`❌ Error parsing Make.com response:`, responseError);
-              
+              console.error(
+                `❌ Error parsing Make.com response:`,
+                responseError
+              );
+
               // Update task status to sent_to_make (assume still processing)
               await pool.query(
                 `
@@ -280,7 +350,7 @@ router.post(
           status: "uploaded",
         },
         processingStatus: "sent_to_make",
-        note: "AI processing initiated - check status for completion"
+        note: "AI processing initiated - check status for completion",
       });
     } catch (error) {
       console.error("File upload error:", error);
