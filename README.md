@@ -22,10 +22,12 @@ clearlyai-unified/
 ## 🚀 **Quick Start**
 
 ### **Prerequisites**
+
 - Docker and Docker Compose installed
 - Git
 
 ### **Deployment**
+
 ```bash
 # Clone the repository
 git clone <your-repo-url>
@@ -40,16 +42,17 @@ chmod +x deploy.sh
 
 ## 🐳 **Services**
 
-| Service | Port | Description |
-|---------|------|-------------|
-| **Frontend** | 80 | React application with Nginx |
-| **Backend** | 3001 | Node.js API server |
-| **PostgreSQL** | 5433 | Database |
-| **Redis** | 6380 | Cache and queue |
+| Service        | Port | Description                  |
+| -------------- | ---- | ---------------------------- |
+| **Frontend**   | 80   | React application (Node.js serve) |
+| **Backend**    | 3001 | Node.js API server           |
+| **PostgreSQL** | 5433 | Database                     |
+| **Redis**      | 6380 | Cache and queue              |
 
 ## 🔧 **Configuration**
 
 ### **Environment Variables**
+
 All environment variables are configured in `docker-compose.yml`:
 
 - `NODE_ENV`: Production environment
@@ -59,6 +62,7 @@ All environment variables are configured in `docker-compose.yml`:
 - `MAKE_WEBHOOK_URL`: AI processing webhook
 
 ### **Database**
+
 - **Database**: `clearlyai_db`
 - **Username**: `clearlyAI`
 - **Password**: `clearly_postgres`
@@ -66,14 +70,17 @@ All environment variables are configured in `docker-compose.yml`:
 ## 📱 **Features**
 
 ### **Frontend**
+
 - ✅ File upload (audio/text)
 - ✅ Audio recording
 - ✅ SOAP note generation
 - ✅ Patient summary generation
 - ✅ HIPAA compliance
 - ✅ Admin/User role management
+- ✅ Served by Node.js (no Nginx required)
 
 ### **Backend**
+
 - ✅ File processing API
 - ✅ User authentication
 - ✅ Database management
@@ -109,8 +116,9 @@ docker-compose up -d --build
 3. **Database connection**: Check PostgreSQL container status
 
 ### **Logs**
+
 ```bash
-# Frontend logs
+# Frontend logs (Node.js serve)
 docker-compose logs frontend
 
 # Backend logs
@@ -122,7 +130,7 @@ docker-compose logs postgres
 
 ## 🌐 **Access Points**
 
-- **Application**: `http://your-server-ip`
+- **Application**: `http://your-server-ip` (served by Node.js)
 - **API Health**: `http://your-server-ip:3001/health`
 - **API Endpoints**: `http://your-server-ip:3001/api/*`
 
@@ -155,13 +163,21 @@ To modify the application:
 2. Rebuild containers: `docker-compose up -d --build`
 3. Test changes
 
+## 🚀 **Deployment Benefits**
+
+- **No Nginx required** - Frontend served by Node.js
+- **Simpler setup** - Fewer dependencies
+- **Easy scaling** - All services in Docker
+- **Consistent environment** - Same setup everywhere
+
 ## 🤝 **Support**
 
 For issues or questions:
+
 1. Check the logs: `docker-compose logs`
 2. Verify service status: `docker-compose ps`
 3. Check configuration in `docker-compose.yml`
 
 ---
 
-**Built with ❤️ using Docker, React, Node.js, and PostgreSQL** 
+**Built with ❤️ using Docker, React, Node.js, and PostgreSQL**

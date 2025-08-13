@@ -1,7 +1,7 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  # Frontend Service
+  # Frontend Service (No Nginx required)
   frontend:
     build:
       context: ./frontend
@@ -87,4 +87,4 @@ networks:
 
 volumes:
   postgres_data:
-  redis_data: 
+  redis_data:

@@ -51,10 +51,10 @@ docker-compose ps
 # Test the services
 echo "🧪 Testing services..."
 
-# Test frontend
+# Test frontend (served by Node.js, no Nginx required)
 echo "   Testing frontend..."
 if curl -s http://localhost > /dev/null; then
-    echo "   ✅ Frontend is running on http://localhost"
+    echo "   ✅ Frontend is running on http://localhost (Node.js serve)"
 else
     echo "   ❌ Frontend is not responding"
 fi
@@ -79,7 +79,7 @@ echo ""
 echo "✅ Deployment completed!"
 echo ""
 echo "🌐 Access your application:"
-echo "   Frontend: http://localhost (or your VPS IP)"
+echo "   Frontend: http://localhost (or your VPS IP) - Served by Node.js"
 echo "   Backend API: http://localhost:3001"
 echo "   Health Check: http://localhost:3001/health"
 echo ""
@@ -91,4 +91,6 @@ echo "   Status: docker-compose ps"
 echo ""
 echo "📊 Monitor containers:"
 echo "   docker stats"
-echo "   docker-compose top" 
+echo "   docker-compose top"
+echo ""
+echo "💡 Note: Frontend is served by Node.js (no Nginx required)" 

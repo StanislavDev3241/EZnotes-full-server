@@ -6,8 +6,8 @@
 ```bash
 # On your VPS
 cd ~
-git clone https://github.com/StanislavDev3241/clearlyai-unified.git
-cd clearlyai-unified
+git clone https://github.com/StanislavDev3241/EZnotes-full-server.git
+cd EZnotes-full-server
 ```
 
 ### **Step 2: Deploy Everything**
@@ -20,13 +20,13 @@ chmod +x deploy.sh
 ```
 
 ### **Step 3: Access Your Application**
-- **Frontend**: `http://83.229.115.190` (port 80)
+- **Frontend**: `http://83.229.115.190` (port 80) - Served by Node.js
 - **Backend API**: `http://83.229.115.190:3001`
 - **Health Check**: `http://83.229.115.190:3001/health`
 
 ## **What Gets Deployed**
 
-✅ **Frontend**: React app with Nginx (port 80)
+✅ **Frontend**: React app served by Node.js (port 80) - **No Nginx required!**
 ✅ **Backend**: Node.js API server (port 3001)  
 ✅ **Database**: PostgreSQL (port 5433)
 ✅ **Cache**: Redis (port 6380)
@@ -64,7 +64,14 @@ If something goes wrong:
 🔒 **No mixed content** - Frontend and backend on same server
 🐳 **Simple Docker deployment** - One command deploys everything
 📱 **Easy updates** - Pull latest code and redeploy
+🚫 **No Nginx required** - Frontend served by Node.js
+
+## **System Requirements**
+
+- **Docker** and **Docker Compose** installed
+- **Ports available**: 80, 3001, 5433, 6380
+- **No additional software** (Nginx, etc.) required
 
 ---
 
-**Ready to deploy! Just run `./deploy.sh`** 🚀 
+**Ready to deploy! Just run `./deploy.sh`** 🚀

@@ -1,4 +1,4 @@
-# Frontend Dockerfile for VPS deployment
+# Frontend Dockerfile for VPS deployment (No Nginx required)
 FROM node:18-alpine as build
 
 # Set working directory
@@ -16,17 +16,17 @@ COPY . .
 # Build the app
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine
+# Production stage - Use Node.js to serve static files
+FROM node:18-alpine
 
-# Copy built app to nginx
-COPY --from=build /app/dist /usr/share/nginx/html
+# Install serve package globally
+RUN npm install -g serve
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy built app
+COPY --from=build /app/dist /app/dist
 
 # Expose port 80
 EXPOSE 80
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"] 
+# Start the app using serve
+CMD ["serve", "-s", "/app/dist", "-l", "80"] 
