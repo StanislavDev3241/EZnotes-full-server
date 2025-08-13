@@ -24,8 +24,8 @@ interface OutputSelection {
 }
 
 function App() {
-  // API Configuration - Use relative URLs for Docker deployment
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+  // API Configuration - Point to backend server on port 3001
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001";
   const API_ENDPOINTS = {
     login: `${API_BASE_URL}/api/auth/login`,
     upload: `${API_BASE_URL}/api/upload`,
