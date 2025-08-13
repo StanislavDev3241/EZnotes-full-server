@@ -228,22 +228,59 @@ router.post(
 router.get("/status/:fileId", optionalAuth, async (req, res) => {
   try {
     const { fileId } = req.params;
+    
+    console.log(`📊 Status check for file ${fileId}:`, {
+      userId: req.user ? req.user.id : 'anonymous',
+      isAuthenticated: !!req.user
+    });
 
-    const fileResult = await pool.query(
-      `
-      SELECT f.*, t.status as task_status, t.error_message
-      FROM files f
-      LEFT JOIN tasks t ON f.id = t.file_id AND t.task_type = 'file_processing'
-      WHERE f.id = $1 AND f.user_id = $2
-    `,
-      [fileId, req.user ? req.user.id : null] // Pass null for anonymous users
-    );
+    // For anonymous users, allow checking files with null user_id
+    // For authenticated users, require user_id match
+    let fileResult;
+    if (req.user) {
+      // Authenticated user - check their own files
+      console.log(`🔐 Authenticated user ${req.user.id} checking file ${fileId}`);
+      fileResult = await pool.query(
+        `
+        SELECT f.*, t.status as task_status, t.error_message
+        FROM files f
+        LEFT JOIN tasks t ON f.id = t.file_id AND t.task_type = 'file_processing'
+        WHERE f.id = $1 AND f.user_id = $2
+      `,
+        [fileId, req.user.id]
+      );
+    } else {
+      // Anonymous user - check files with null user_id
+      console.log(`👤 Anonymous user checking file ${fileId}`);
+      fileResult = await pool.query(
+        `
+        SELECT f.*, t.status as task_status, t.error_message
+        FROM files f
+        LEFT JOIN tasks t ON f.id = t.file_id AND t.task_type = 'file_processing'
+        WHERE f.id = $1 AND f.user_id IS NULL
+      `,
+        [fileId]
+      );
+    }
+
+    console.log(`📋 File lookup result:`, {
+      fileId,
+      rowsFound: fileResult.rows.length,
+      fileData: fileResult.rows[0] ? {
+        id: fileResult.rows[0].id,
+        userId: fileResult.rows[0].user_id,
+        status: fileResult.rows[0].status,
+        taskStatus: fileResult.rows[0].task_status
+      } : null
+    });
 
     if (fileResult.rows.length === 0) {
+      console.log(`❌ File ${fileId} not found for user:`, req.user ? req.user.id : 'anonymous');
       return res.status(404).json({ error: "File not found" });
     }
 
     const file = fileResult.rows[0];
+    console.log(`✅ File ${fileId} found, status:`, file.status, 'task status:', file.task_status);
 
     res.json({
       file: {
