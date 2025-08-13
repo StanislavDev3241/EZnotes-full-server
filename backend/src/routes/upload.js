@@ -134,6 +134,21 @@ router.post(
           const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${
             fileInfo.filename
           }`;
+          
+          const webhookPayload = {
+            fileId,
+            fileUrl,
+            originalName: fileInfo.originalName,
+            fileSize: fileInfo.fileSize,
+            fileType: fileInfo.fileType,
+            userId: userId,
+            timestamp: new Date().toISOString(),
+          };
+
+          console.log(`📤 Sending to Make.com webhook:`, {
+            url: makeWebhookUrl,
+            payload: webhookPayload
+          });
 
           // Make.com webhook without authentication (public webhook)
           const response = await fetch(makeWebhookUrl, {
@@ -141,15 +156,7 @@ router.post(
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              fileId,
-              fileUrl,
-              originalName: fileInfo.originalName,
-              fileSize: fileInfo.fileSize,
-              fileType: fileInfo.fileType,
-              userId: userId,
-              timestamp: new Date().toISOString(),
-            }),
+            body: JSON.stringify(webhookPayload),
           });
 
           if (response.ok) {
@@ -191,9 +198,11 @@ router.post(
           UPDATE tasks SET status = 'make_error', error_message = $1, updated_at = CURRENT_TIMESTAMP
           WHERE file_id = $2 AND task_type = 'file_processing'
         `,
-            [`Make.com webhook error: ${webhookError.message}`, fileId]
+            [`Make.com webhook error: ${webhookError.message}`]
           );
         }
+      } else {
+        console.warn("⚠️ MAKE_WEBHOOK_URL not configured - skipping Make.com integration");
       }
 
       res.json({
@@ -206,6 +215,8 @@ router.post(
           fileType: fileInfo.fileType,
           status: "uploaded",
         },
+        webhookUrl: `${req.protocol}://${req.get("host")}/api/notes/webhook`,
+        expectedStatus: "sent_to_make"
       });
     } catch (error) {
       console.error("File upload error:", error);
@@ -228,10 +239,10 @@ router.post(
 router.get("/status/:fileId", optionalAuth, async (req, res) => {
   try {
     const { fileId } = req.params;
-    
+
     console.log(`📊 Status check for file ${fileId}:`, {
-      userId: req.user ? req.user.id : 'anonymous',
-      isAuthenticated: !!req.user
+      userId: req.user ? req.user.id : "anonymous",
+      isAuthenticated: !!req.user,
     });
 
     // For anonymous users, allow checking files with null user_id
@@ -239,7 +250,9 @@ router.get("/status/:fileId", optionalAuth, async (req, res) => {
     let fileResult;
     if (req.user) {
       // Authenticated user - check their own files
-      console.log(`🔐 Authenticated user ${req.user.id} checking file ${fileId}`);
+      console.log(
+        `🔐 Authenticated user ${req.user.id} checking file ${fileId}`
+      );
       fileResult = await pool.query(
         `
         SELECT f.*, t.status as task_status, t.error_message
@@ -266,21 +279,31 @@ router.get("/status/:fileId", optionalAuth, async (req, res) => {
     console.log(`📋 File lookup result:`, {
       fileId,
       rowsFound: fileResult.rows.length,
-      fileData: fileResult.rows[0] ? {
-        id: fileResult.rows[0].id,
-        userId: fileResult.rows[0].user_id,
-        status: fileResult.rows[0].status,
-        taskStatus: fileResult.rows[0].task_status
-      } : null
+      fileData: fileResult.rows[0]
+        ? {
+            id: fileResult.rows[0].id,
+            userId: fileResult.rows[0].user_id,
+            status: fileResult.rows[0].status,
+            taskStatus: fileResult.rows[0].task_status,
+          }
+        : null,
     });
 
     if (fileResult.rows.length === 0) {
-      console.log(`❌ File ${fileId} not found for user:`, req.user ? req.user.id : 'anonymous');
+      console.log(
+        `❌ File ${fileId} not found for user:`,
+        req.user ? req.user.id : "anonymous"
+      );
       return res.status(404).json({ error: "File not found" });
     }
 
     const file = fileResult.rows[0];
-    console.log(`✅ File ${fileId} found, status:`, file.status, 'task status:', file.task_status);
+    console.log(
+      `✅ File ${fileId} found, status:`,
+      file.status,
+      "task status:",
+      file.task_status
+    );
 
     res.json({
       file: {

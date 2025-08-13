@@ -5,14 +5,52 @@ const { noteGenerationQueue } = require("../config/queue");
 
 const router = express.Router();
 
+// CORS middleware for webhook endpoints
+const webhookCors = (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+};
+
+// Test endpoint to verify webhook route is accessible
+router.get("/test", webhookCors, (req, res) => {
+  console.log("🧪 Webhook test endpoint accessed");
+  res.json({ 
+    message: "Webhook endpoint is accessible",
+    timestamp: new Date().toISOString(),
+    status: "working"
+  });
+});
+
 // Webhook endpoint for Make.com to send generated notes
-router.post("/webhook", async (req, res) => {
+router.post("/webhook", webhookCors, async (req, res) => {
   try {
+    console.log("🔔 Make.com webhook received:", {
+      body: req.body,
+      headers: req.headers,
+      timestamp: new Date().toISOString()
+    });
+
     const { fileId, notes, noteType, status, error } = req.body;
 
     if (!fileId) {
+      console.error("❌ Webhook missing fileId:", req.body);
       return res.status(400).json({ error: "File ID is required" });
     }
+
+    console.log(`📁 Processing webhook for file ${fileId}:`, {
+      status,
+      noteType,
+      hasNotes: !!notes,
+      notesKeys: notes ? Object.keys(notes) : null,
+      error
+    });
 
     // Verify file exists
     const fileResult = await pool.query(
@@ -23,12 +61,21 @@ router.post("/webhook", async (req, res) => {
     );
 
     if (fileResult.rows.length === 0) {
+      console.error(`❌ File ${fileId} not found in database`);
       return res.status(404).json({ error: "File not found" });
     }
 
     const file = fileResult.rows[0];
+    console.log(`📋 File found:`, {
+      id: file.id,
+      filename: file.filename,
+      userId: file.user_id,
+      currentStatus: file.status
+    });
 
     if (status === "success" && notes) {
+      console.log(`✅ Processing successful notes for file ${fileId}`);
+      
       // Save generated notes
       const noteResult = await pool.query(
         `
@@ -39,23 +86,31 @@ router.post("/webhook", async (req, res) => {
         [fileId, file.user_id, noteType || "general", JSON.stringify(notes)]
       );
 
+      console.log(`📝 Notes saved to database with ID:`, noteResult.rows[0].id);
+
       // Update file status
-      await pool.query(
+      const fileUpdateResult = await pool.query(
         `
         UPDATE files SET status = 'processed', updated_at = CURRENT_TIMESTAMP
         WHERE id = $1
+        RETURNING status
       `,
         [fileId]
       );
 
+      console.log(`📁 File status updated to:`, fileUpdateResult.rows[0].status);
+
       // Update task status
-      await pool.query(
+      const taskUpdateResult = await pool.query(
         `
         UPDATE tasks SET status = 'completed', processed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
         WHERE file_id = $1 AND task_type = 'file_processing'
+        RETURNING status
       `,
         [fileId]
       );
+
+      console.log(`🔄 Task status updated to:`, taskUpdateResult.rows[0]?.status || 'no task found');
 
       console.log(`✅ Notes generated successfully for file: ${file.filename}`);
 
@@ -68,35 +123,55 @@ router.post("/webhook", async (req, res) => {
         noteType: noteType || "general",
         noteId: noteResult.rows[0].id,
       });
+
+      console.log(`📬 Admin notification queued for file: ${file.filename}`);
+
     } else if (status === "error") {
+      console.error(`❌ Processing error status for file ${fileId}:`, error);
+      
       // Update file status
-      await pool.query(
+      const fileUpdateResult = await pool.query(
         `
         UPDATE files SET status = 'failed', updated_at = CURRENT_TIMESTAMP
         WHERE id = $1
+        RETURNING status
       `,
         [fileId]
       );
 
+      console.log(`📁 File status updated to:`, fileUpdateResult.rows[0].status);
+
       // Update task status
-      await pool.query(
+      const taskUpdateResult = await pool.query(
         `
         UPDATE tasks SET status = 'failed', error_message = $1, updated_at = CURRENT_TIMESTAMP
         WHERE file_id = $1 AND task_type = 'file_processing'
-      `,
+        RETURNING status
+        `,
         [error || "Note generation failed"]
       );
 
+      console.log(`🔄 Task status updated to:`, taskUpdateResult.rows[0]?.status || 'no task found');
       console.error(
         `❌ Note generation failed for file: ${file.filename}: ${error}`
       );
+    } else {
+      console.warn(`⚠️ Unexpected webhook status:`, { status, hasNotes: !!notes, fileId });
     }
 
+    console.log(`✅ Webhook processed successfully for file ${fileId}`);
     res.json({ message: "Webhook processed successfully" });
   } catch (error) {
-    console.error("Webhook processing error:", error);
+    console.error("❌ Webhook processing error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
+});
+
+// Alternative webhook endpoint (in case Make.com needs a different path)
+router.post("/make-webhook", webhookCors, async (req, res) => {
+  console.log("🔔 Alternative Make.com webhook endpoint accessed");
+  // Redirect to main webhook handler
+  return router.post("/webhook")(req, res);
 });
 
 // Get notes for a specific file
