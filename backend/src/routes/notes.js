@@ -7,11 +7,11 @@ const router = express.Router();
 
 // CORS middleware for webhook endpoints
 const webhookCors = (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  if (req.method === 'OPTIONS') {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  if (req.method === "OPTIONS") {
     res.sendStatus(200);
   } else {
     next();
@@ -21,10 +21,33 @@ const webhookCors = (req, res, next) => {
 // Test endpoint to verify webhook route is accessible
 router.get("/test", webhookCors, (req, res) => {
   console.log("🧪 Webhook test endpoint accessed");
-  res.json({ 
+  res.json({
     message: "Webhook endpoint is accessible",
     timestamp: new Date().toISOString(),
-    status: "working"
+    status: "working",
+    webhookFormat: {
+      method: "POST",
+      url: "/api/notes/webhook",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: {
+        fileId: "number (required)",
+        notes: "object with AI generated content (required for success)",
+        noteType: "string: 'soap', 'summary', or 'both' (optional)",
+        status: "string: 'success' or 'error' (required)",
+        error: "string error message (required if status is 'error')"
+      },
+      example: {
+        fileId: 14,
+        notes: {
+          soapNote: "AI generated SOAP note content...",
+          patientSummary: "AI generated patient summary..."
+        },
+        noteType: "both",
+        status: "success"
+      }
+    }
   });
 });
 
@@ -34,7 +57,7 @@ router.post("/webhook", webhookCors, async (req, res) => {
     console.log("🔔 Make.com webhook received:", {
       body: req.body,
       headers: req.headers,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
     const { fileId, notes, noteType, status, error } = req.body;
@@ -49,7 +72,7 @@ router.post("/webhook", webhookCors, async (req, res) => {
       noteType,
       hasNotes: !!notes,
       notesKeys: notes ? Object.keys(notes) : null,
-      error
+      error,
     });
 
     // Verify file exists
@@ -70,12 +93,12 @@ router.post("/webhook", webhookCors, async (req, res) => {
       id: file.id,
       filename: file.filename,
       userId: file.user_id,
-      currentStatus: file.status
+      currentStatus: file.status,
     });
 
     if (status === "success" && notes) {
       console.log(`✅ Processing successful notes for file ${fileId}`);
-      
+
       // Save generated notes
       const noteResult = await pool.query(
         `
@@ -98,7 +121,10 @@ router.post("/webhook", webhookCors, async (req, res) => {
         [fileId]
       );
 
-      console.log(`📁 File status updated to:`, fileUpdateResult.rows[0].status);
+      console.log(
+        `📁 File status updated to:`,
+        fileUpdateResult.rows[0].status
+      );
 
       // Update task status
       const taskUpdateResult = await pool.query(
@@ -110,7 +136,10 @@ router.post("/webhook", webhookCors, async (req, res) => {
         [fileId]
       );
 
-      console.log(`🔄 Task status updated to:`, taskUpdateResult.rows[0]?.status || 'no task found');
+      console.log(
+        `🔄 Task status updated to:`,
+        taskUpdateResult.rows[0]?.status || "no task found"
+      );
 
       console.log(`✅ Notes generated successfully for file: ${file.filename}`);
 
@@ -125,10 +154,9 @@ router.post("/webhook", webhookCors, async (req, res) => {
       });
 
       console.log(`📬 Admin notification queued for file: ${file.filename}`);
-
     } else if (status === "error") {
       console.error(`❌ Processing error status for file ${fileId}:`, error);
-      
+
       // Update file status
       const fileUpdateResult = await pool.query(
         `
@@ -139,7 +167,10 @@ router.post("/webhook", webhookCors, async (req, res) => {
         [fileId]
       );
 
-      console.log(`📁 File status updated to:`, fileUpdateResult.rows[0].status);
+      console.log(
+        `📁 File status updated to:`,
+        fileUpdateResult.rows[0].status
+      );
 
       // Update task status
       const taskUpdateResult = await pool.query(
@@ -151,12 +182,19 @@ router.post("/webhook", webhookCors, async (req, res) => {
         [error || "Note generation failed"]
       );
 
-      console.log(`🔄 Task status updated to:`, taskUpdateResult.rows[0]?.status || 'no task found');
+      console.log(
+        `🔄 Task status updated to:`,
+        taskUpdateResult.rows[0]?.status || "no task found"
+      );
       console.error(
         `❌ Note generation failed for file: ${file.filename}: ${error}`
       );
     } else {
-      console.warn(`⚠️ Unexpected webhook status:`, { status, hasNotes: !!notes, fileId });
+      console.warn(`⚠️ Unexpected webhook status:`, {
+        status,
+        hasNotes: !!notes,
+        fileId,
+      });
     }
 
     console.log(`✅ Webhook processed successfully for file ${fileId}`);
@@ -171,6 +209,29 @@ router.post("/webhook", webhookCors, async (req, res) => {
 router.post("/make-webhook", webhookCors, async (req, res) => {
   console.log("🔔 Alternative Make.com webhook endpoint accessed");
   // Redirect to main webhook handler
+  return router.post("/webhook")(req, res);
+});
+
+// Manual webhook test endpoint (for testing webhook processing)
+router.post("/test-webhook", webhookCors, async (req, res) => {
+  console.log("🧪 Manual webhook test endpoint accessed");
+  console.log("📋 Test webhook payload:", req.body);
+  
+  // Simulate what Make.com should send
+  const testPayload = {
+    fileId: req.body.fileId || 14,
+    notes: req.body.notes || {
+      soapNote: "This is a TEST SOAP note generated by AI for testing purposes.",
+      patientSummary: "This is a TEST patient summary generated by AI for testing purposes."
+    },
+    noteType: req.body.noteType || "both",
+    status: req.body.status || "success"
+  };
+  
+  console.log("🧪 Simulating Make.com webhook with payload:", testPayload);
+  
+  // Process the test webhook
+  req.body = testPayload;
   return router.post("/webhook")(req, res);
 });
 
@@ -253,10 +314,10 @@ router.get("/user", authenticateToken, async (req, res) => {
     // Get files with notes
     const result = await pool.query(
       `
-      SELECT f.*, 
-             n.id as note_id, 
-             n.note_type, 
-             n.content, 
+      SELECT f.*,
+             n.id as note_id,
+             n.note_type,
+             n.content,
              n.created_at as note_created_at,
              t.status as task_status,
              t.error_message

@@ -134,7 +134,7 @@ router.post(
           const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${
             fileInfo.filename
           }`;
-          
+
           const webhookPayload = {
             fileId,
             fileUrl,
@@ -143,11 +143,22 @@ router.post(
             fileType: fileInfo.fileType,
             userId: userId,
             timestamp: new Date().toISOString(),
+            // Add callback URL so Make.com knows where to send results
+            callbackUrl: `${req.protocol}://${req.get("host")}/api/notes/webhook`,
+            webhookUrl: `${req.protocol}://${req.get("host")}/api/notes/webhook`,
           };
 
           console.log(`📤 Sending to Make.com webhook:`, {
             url: makeWebhookUrl,
-            payload: webhookPayload
+            payload: webhookPayload,
+          });
+
+          console.log(`📋 Make.com should call back to: ${webhookPayload.callbackUrl}`);
+          console.log(`📋 Expected webhook payload from Make.com:`, {
+            fileId: fileId,
+            notes: "AI generated notes object",
+            noteType: "soap|summary|both",
+            status: "success|error"
           });
 
           // Make.com webhook without authentication (public webhook)
@@ -202,7 +213,9 @@ router.post(
           );
         }
       } else {
-        console.warn("⚠️ MAKE_WEBHOOK_URL not configured - skipping Make.com integration");
+        console.warn(
+          "⚠️ MAKE_WEBHOOK_URL not configured - skipping Make.com integration"
+        );
       }
 
       res.json({
@@ -216,7 +229,7 @@ router.post(
           status: "uploaded",
         },
         webhookUrl: `${req.protocol}://${req.get("host")}/api/notes/webhook`,
-        expectedStatus: "sent_to_make"
+        expectedStatus: "sent_to_make",
       });
     } catch (error) {
       console.error("File upload error:", error);
