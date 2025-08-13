@@ -7,7 +7,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "8080:80"  # Changed from "80:80" to "8080:80" to avoid conflicts
     depends_on:
       - backend
     networks:
@@ -24,7 +24,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
-      FRONTEND_URL: http://localhost
+      FRONTEND_URL: http://localhost:8080  # Updated to match new port
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: clearlyai_db
