@@ -143,9 +143,6 @@ router.post(
             fileType: fileInfo.fileType,
             userId: userId,
             timestamp: new Date().toISOString(),
-            // Add callback URL so Make.com knows where to send results
-            callbackUrl: `${req.protocol}://${req.get("host")}/api/notes/webhook`,
-            webhookUrl: `${req.protocol}://${req.get("host")}/api/notes/webhook`,
           };
 
           console.log(`📤 Sending to Make.com webhook:`, {
@@ -153,12 +150,11 @@ router.post(
             payload: webhookPayload,
           });
 
-          console.log(`📋 Make.com should call back to: ${webhookPayload.callbackUrl}`);
-          console.log(`📋 Expected webhook payload from Make.com:`, {
-            fileId: fileId,
-            notes: "AI generated notes object",
-            noteType: "soap|summary|both",
-            status: "success|error"
+          console.log(`📋 Make.com will process the file and respond with AI results`);
+          console.log(`📋 Expected response from Make.com:`, {
+            status: "success|error",
+            notes: "AI generated notes object (if success)",
+            noteType: "soap|summary|both (optional)"
           });
 
           // Make.com webhook without authentication (public webhook)
@@ -175,14 +171,69 @@ router.post(
               `✅ File sent to Make.com successfully: ${fileInfo.filename}`
             );
 
-            // Update task status
-            await pool.query(
-              `
-            UPDATE tasks SET status = 'sent_to_make', updated_at = CURRENT_TIMESTAMP
-            WHERE file_id = $1 AND task_type = 'file_processing'
-          `,
-              [fileId]
-            );
+            // Get the response from Make.com (this contains the AI results!)
+            try {
+              const makeResponse = await response.json();
+              console.log(`📋 Make.com response:`, makeResponse);
+
+              if (makeResponse.status === "success" && makeResponse.notes) {
+                console.log(`🎉 AI processing completed by Make.com!`);
+                
+                // Save the generated notes directly
+                const noteResult = await pool.query(
+                  `
+                  INSERT INTO notes (file_id, user_id, note_type, content, status)
+                  VALUES ($1, $2, $3, $4, 'generated')
+                  RETURNING id
+                `,
+                  [fileId, userId, makeResponse.noteType || "general", JSON.stringify(makeResponse.notes)]
+                );
+
+                console.log(`📝 Notes saved to database with ID:`, noteResult.rows[0].id);
+
+                // Update file status to processed
+                await pool.query(
+                  `
+                  UPDATE files SET status = 'processed', updated_at = CURRENT_TIMESTAMP
+                  WHERE id = $1
+                `,
+                  [fileId]
+                );
+
+                // Update task status to completed
+                await pool.query(
+                  `
+                  UPDATE tasks SET status = 'completed', processed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+                  WHERE file_id = $1 AND task_type = 'file_processing'
+                `,
+                  [fileId]
+                );
+
+                console.log(`✅ File ${fileId} fully processed with AI results`);
+              } else {
+                console.log(`⚠️ Make.com response indicates processing not complete:`, makeResponse);
+                
+                // Update task status to sent_to_make (still processing)
+                await pool.query(
+                  `
+                  UPDATE tasks SET status = 'sent_to_make', updated_at = CURRENT_TIMESTAMP
+                  WHERE file_id = $1 AND task_type = 'file_processing'
+                `,
+                  [fileId]
+                );
+              }
+            } catch (responseError) {
+              console.error(`❌ Error parsing Make.com response:`, responseError);
+              
+              // Update task status to sent_to_make (assume still processing)
+              await pool.query(
+                `
+                UPDATE tasks SET status = 'sent_to_make', updated_at = CURRENT_TIMESTAMP
+                WHERE file_id = $1 AND task_type = 'file_processing'
+              `,
+                [fileId]
+              );
+            }
           } else {
             console.error(
               `❌ Failed to send file to Make.com: ${response.status} ${response.statusText}`
@@ -228,8 +279,8 @@ router.post(
           fileType: fileInfo.fileType,
           status: "uploaded",
         },
-        webhookUrl: `${req.protocol}://${req.get("host")}/api/notes/webhook`,
-        expectedStatus: "sent_to_make",
+        processingStatus: "sent_to_make",
+        note: "AI processing initiated - check status for completion"
       });
     } catch (error) {
       console.error("File upload error:", error);
