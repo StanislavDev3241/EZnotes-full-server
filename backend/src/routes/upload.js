@@ -44,9 +44,13 @@ router.post(
       if (req.user) {
         userId = req.user.id;
         fileInfo.userId = userId;
-        console.log(`📁 Authenticated upload by user ${req.user.email}: ${fileInfo.originalName} (${fileInfo.filename})`);
+        console.log(
+          `📁 Authenticated upload by user ${req.user.email}: ${fileInfo.originalName} (${fileInfo.filename})`
+        );
       } else {
-        console.log(`📁 Anonymous upload: ${fileInfo.originalName} (${fileInfo.filename})`);
+        console.log(
+          `📁 Anonymous upload: ${fileInfo.originalName} (${fileInfo.filename})`
+        );
       }
 
       console.log(

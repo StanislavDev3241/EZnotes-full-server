@@ -12,11 +12,12 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p uploads temp logs
+# Create necessary directories with correct permissions
+RUN mkdir -p uploads temp logs && \
+    chown -R node:node /app && \
+    chmod -R 755 /app/uploads /app/temp /app/logs
 
-# Set permissions
-RUN chown -R node:node /app
+# Switch to node user
 USER node
 
 # Expose port
