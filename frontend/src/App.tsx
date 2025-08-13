@@ -159,6 +159,53 @@ function App() {
     }
   };
 
+  // Poll upload status until processing is complete
+  const pollUploadStatus = useCallback(
+    async (fileId: string) => {
+      const maxAttempts = 60; // 5 minutes max (5s intervals)
+      let attempts = 0;
+
+      const poll = async (): Promise<any> => {
+        try {
+          const response = await fetch(
+            `${API_BASE_URL}/api/upload/status/${fileId}`
+          );
+          if (response.ok) {
+            const data = await response.json();
+            const { taskStatus, status } = data.file;
+
+            console.log(`📊 Upload status for ${fileId}:`, {
+              taskStatus,
+              status,
+            });
+
+            if (taskStatus === "completed" || status === "processed") {
+              console.log("✅ AI processing completed, fetching notes...");
+              return true; // Processing complete
+            } else if (taskStatus === "failed" || status === "failed") {
+              throw new Error("AI processing failed");
+            } else if (attempts >= maxAttempts) {
+              throw new Error("Processing timeout - please check status later");
+            }
+
+            // Still processing, wait and try again
+            attempts++;
+            await new Promise((resolve) => setTimeout(resolve, 5000)); // 5 second intervals
+            return poll();
+          } else {
+            throw new Error(`Status check failed: ${response.status}`);
+          }
+        } catch (error) {
+          console.error("Status polling error:", error);
+          throw error;
+        }
+      };
+
+      return poll();
+    },
+    [API_BASE_URL]
+  );
+
   // Fetch user's own notes
   const fetchUserNotes = async () => {
     try {
@@ -697,77 +744,57 @@ function App() {
       });
 
       // Process the result from XMLHttpRequest
-      if (result.soap_note_text && result.patient_summary_text) {
-        setOutput({
-          soapNote: result.soap_note_text,
-          patientSummary: result.patient_summary_text,
-        });
-        setUploadProgress(100);
-        setUploadStatus("complete");
-        // Refresh user notes after successful upload
-        fetchUserNotes();
-        // Trigger HIPAA compliance after successful generation
-        setTimeout(() => handleHipaaCompliance(), 500);
-      } else if (result.soapNote && result.patientSummary) {
-        setOutput({
-          soapNote: result.soapNote,
-          patientSummary: result.patientSummary,
-        });
-        setUploadProgress(100);
-        setUploadStatus("complete");
-        // Refresh user notes after successful upload
-        fetchUserNotes();
-        // Trigger HIPAA compliance after successful generation
-        setTimeout(() => handleHipaaCompliance(), 500);
+      if (result.file && result.file.id) {
+        // File uploaded successfully, now wait for AI processing
+        console.log("📁 File uploaded, waiting for AI processing...");
+        setUploadProgress(90);
+        setUploadStatus("processing");
+
+        try {
+          // Poll status until AI processing is complete
+          await pollUploadStatus(result.file.id);
+
+          // AI processing complete, fetch the generated notes
+          console.log("🎉 AI processing complete, fetching notes...");
+          await fetchUserNotes();
+
+          // Set status to complete
+          setUploadProgress(100);
+          setUploadStatus("complete");
+
+          // Trigger HIPAA compliance after successful generation
+          setTimeout(() => handleHipaaCompliance(), 500);
+        } catch (error) {
+          console.error("❌ AI processing failed:", error);
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error occurred";
+          setError(`AI processing failed: ${errorMessage}`);
+          setUploadStatus("error");
+        }
       } else {
-        const mockResponse: OutputData = {
-          soapNote: `SOAP Note - ${file?.name || "Unknown File"}
-
-SUBJECTIVE:
-Patient presents for routine dental examination and cleaning.
-
-OBJECTIVE:
-- Vital signs: BP 120/80, HR 72, Temp 98.6°F
-- Oral examination reveals good oral hygiene
-- No visible cavities or signs of periodontal disease
-- Gingiva appears healthy with no bleeding on probing
-
-ASSESSMENT:
-- Patient in good oral health
-- No active dental disease detected
-- Recommend continued preventive care
-
-PLAN:
-- Completed routine dental cleaning
-- Applied fluoride treatment
-- Scheduled 6-month follow-up appointment
-- Reinforced oral hygiene instructions`,
-          patientSummary: `Your Dental Visit Summary
-
-Today's Visit:
-• We completed your routine dental cleaning and examination
-• Your teeth and gums are in excellent health
-• No cavities or other dental problems were found
-
-What We Did:
-• Thoroughly cleaned your teeth and removed any plaque buildup
-• Applied a fluoride treatment to strengthen your teeth
-• Conducted a complete oral health examination
-
-Next Steps:
-• Continue your daily brushing and flossing routine
-• Schedule your next cleaning in 6 months
-• Call us if you experience any dental pain or concerns
-
-Your oral health is excellent! Keep up the great work with your daily dental care routine.`,
-        };
-        setOutput(mockResponse);
-        setUploadProgress(100);
-        setUploadStatus("complete");
-        // Refresh user notes after successful upload
-        fetchUserNotes();
-        // Trigger HIPAA compliance after successful generation
-        setTimeout(() => handleHipaaCompliance(), 500);
+        // Fallback for backward compatibility
+        console.log("⚠️ Using fallback result processing");
+        if (result.soap_note_text && result.patient_summary_text) {
+          setOutput({
+            soapNote: result.soap_note_text,
+            patientSummary: result.patient_summary_text,
+          });
+          setUploadProgress(100);
+          setUploadStatus("complete");
+          fetchUserNotes();
+          setTimeout(() => handleHipaaCompliance(), 500);
+        } else if (result.soapNote && result.patientSummary) {
+          setOutput({
+            soapNote: result.soapNote,
+            patientSummary: result.patientSummary,
+          });
+          setUploadProgress(100);
+          setUploadStatus("complete");
+          fetchUserNotes();
+          setTimeout(() => handleHipaaCompliance(), 500);
+        } else {
+          throw new Error("Invalid upload response format");
+        }
       }
     } catch (err) {
       console.error("Error uploading file:", err);
@@ -1409,8 +1436,21 @@ Your oral health is excellent! Keep up the great work with your daily dental car
                     <p className="text-sm text-blue-600">
                       {uploadStatus === "uploading"
                         ? "Uploading file..."
+                        : uploadStatus === "processing"
+                        ? "🤖 AI is processing your file... This may take a few minutes"
+                        : uploadStatus === "complete"
+                        ? "✅ Processing complete!"
+                        : uploadStatus === "error"
+                        ? "❌ Processing failed"
                         : "Processing with AI..."}
                     </p>
+
+                    {/* Show processing status for better user experience */}
+                    {uploadStatus === "processing" && (
+                      <p className="text-xs text-blue-500 mt-1 text-center">
+                        🔄 Polling for completion... Please wait
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
