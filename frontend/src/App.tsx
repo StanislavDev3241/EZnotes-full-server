@@ -624,13 +624,6 @@ function App() {
       const webhookUrl = API_ENDPOINTS.upload;
       const apiKey = localStorage.getItem("adminToken"); // Use auth token if admin, otherwise null
 
-      // Dynamic timeout: 1MB = 1 minute + 5% buffer for safety
-      const fileSizeMB = file.size / (1024 * 1024);
-      const baseTimeoutMinutes = fileSizeMB;
-      const bufferTime = baseTimeoutMinutes * 0.05; // 5% extra time
-      const totalTimeoutMinutes = baseTimeoutMinutes + bufferTime;
-      const timeoutDuration = totalTimeoutMinutes * 60 * 1000 + 10000; // Convert to milliseconds + 10 seconds extra
-
       // Single upload attempt with XMLHttpRequest
       const result = await new Promise<any>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -683,20 +676,12 @@ function App() {
         xhr.addEventListener("error", () =>
           reject(new Error("Network error during upload"))
         );
-        xhr.addEventListener("timeout", () =>
-          reject(
-            new Error(
-              "Upload timed out. Large medical files may take longer to process. Try smaller files or check your connection."
-            )
-          )
-        );
 
         xhr.open("POST", webhookUrl);
         // Only add Authorization header if admin token exists
         if (apiKey) {
           xhr.setRequestHeader("Authorization", `Bearer ${apiKey}`);
         }
-        xhr.timeout = timeoutDuration;
 
         const formData = new FormData();
         formData.append("file", file);
@@ -1421,17 +1406,11 @@ Your oral health is excellent! Keep up the great work with your daily dental car
                       </div>
                     )}
 
-                    <p className="text-xs text-gray-500 mt-1 text-center">
+                    <p className="text-sm text-blue-600">
                       {uploadStatus === "uploading"
                         ? "Uploading file..."
                         : "Processing with AI..."}
                     </p>
-                    {uploadStatus === "uploading" && file && (
-                      <p className="text-xs text-blue-600 mt-1 text-center">
-                        ⏱️ Timeout:{" "}
-                        {Math.round((file.size / (1024 * 1024)) * 1.05)} minutes
-                      </p>
-                    )}
                   </div>
                 )}
               </div>
