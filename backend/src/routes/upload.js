@@ -150,11 +150,13 @@ router.post(
             payload: webhookPayload,
           });
 
-          console.log(`📋 Make.com will process the file and respond with AI results`);
+          console.log(
+            `📋 Make.com will process the file and respond with AI results`
+          );
           console.log(`📋 Expected response from Make.com:`, {
             soap_note_text: "AI generated SOAP note content",
             patient_summary_text: "AI generated patient summary content",
-            note: "Make.com sends results immediately in the response, not via callback"
+            note: "Make.com sends results immediately in the response, not via callback",
           });
 
           // Make.com webhook without authentication (public webhook)
@@ -177,15 +179,18 @@ router.post(
               console.log(`📋 Make.com response:`, makeResponse);
 
               // Check for Make.com's actual response format
-              if (makeResponse.soap_note_text || makeResponse.patient_summary_text) {
+              if (
+                makeResponse.soap_note_text ||
+                makeResponse.patient_summary_text
+              ) {
                 console.log(`🎉 AI processing completed by Make.com!`);
-                
+
                 // Transform Make.com format to our expected format
                 const notes = {
                   soapNote: makeResponse.soap_note_text || "",
-                  patientSummary: makeResponse.patient_summary_text || ""
+                  patientSummary: makeResponse.patient_summary_text || "",
                 };
-                
+
                 console.log(`📝 Transformed notes:`, notes);
 
                 // Save the generated notes directly
@@ -229,10 +234,15 @@ router.post(
                 console.log(
                   `✅ File ${fileId} fully processed with AI results`
                 );
-              } else if (makeResponse.status === "success" && makeResponse.notes) {
+              } else if (
+                makeResponse.status === "success" &&
+                makeResponse.notes
+              ) {
                 // Handle the expected format as fallback
-                console.log(`🎉 AI processing completed by Make.com (expected format)!`);
-                
+                console.log(
+                  `🎉 AI processing completed by Make.com (expected format)!`
+                );
+
                 // Save the generated notes directly
                 const noteResult = await pool.query(
                   `
