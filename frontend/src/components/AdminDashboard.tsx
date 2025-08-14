@@ -542,9 +542,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                     <span className="text-2xl">📝</span>
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold">
-                      Medical Notes
-                    </h3>
+                    <h3 className="text-xl font-bold">Medical Notes</h3>
                     <p className="text-blue-100 text-sm">
                       {selectedNote.file.originalName}
                     </p>
@@ -558,7 +556,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                 </button>
               </div>
             </div>
-            
+
             {/* Content */}
             <div className="p-6 overflow-y-auto max-h-[calc(95vh-140px)]">
               <div className="space-y-6">
@@ -570,32 +568,56 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                     <div className="bg-white p-3 rounded border">
-                      <span className="text-gray-600 text-xs uppercase tracking-wide">File Name</span>
-                      <p className="font-medium text-gray-900 mt-1 break-all">{selectedNote.file.originalName}</p>
+                      <span className="text-gray-600 text-xs uppercase tracking-wide">
+                        File Name
+                      </span>
+                      <p className="font-medium text-gray-900 mt-1 break-all">
+                        {selectedNote.file.originalName}
+                      </p>
                     </div>
                     <div className="bg-white p-3 rounded border">
-                      <span className="text-gray-600 text-xs uppercase tracking-wide">File Size</span>
-                      <p className="font-medium text-gray-900 mt-1">{formatFileSize(selectedNote.file.fileSize)}</p>
+                      <span className="text-gray-600 text-xs uppercase tracking-wide">
+                        File Size
+                      </span>
+                      <p className="font-medium text-gray-900 mt-1">
+                        {formatFileSize(selectedNote.file.fileSize)}
+                      </p>
                     </div>
                     <div className="bg-white p-3 rounded border">
-                      <span className="text-gray-600 text-xs uppercase tracking-wide">File Type</span>
-                      <p className="font-medium text-gray-900 mt-1">{selectedNote.file.fileType}</p>
+                      <span className="text-gray-600 text-xs uppercase tracking-wide">
+                        File Type
+                      </span>
+                      <p className="font-medium text-gray-900 mt-1">
+                        {selectedNote.file.fileType}
+                      </p>
                     </div>
                     <div className="bg-white p-3 rounded border">
-                      <span className="text-gray-600 text-xs uppercase tracking-wide">User</span>
-                      <p className="font-medium text-gray-900 mt-1 break-all">{selectedNote.user.email}</p>
+                      <span className="text-gray-600 text-xs uppercase tracking-wide">
+                        User
+                      </span>
+                      <p className="font-medium text-gray-900 mt-1 break-all">
+                        {selectedNote.user.email}
+                      </p>
                     </div>
                     <div className="bg-white p-3 rounded border">
-                      <span className="text-gray-600 text-xs uppercase tracking-wide">Generated</span>
-                      <p className="font-medium text-gray-900 mt-1">{new Date(selectedNote.createdAt).toLocaleDateString()}</p>
+                      <span className="text-gray-600 text-xs uppercase tracking-wide">
+                        Generated
+                      </span>
+                      <p className="font-medium text-gray-900 mt-1">
+                        {new Date(selectedNote.createdAt).toLocaleDateString()}
+                      </p>
                     </div>
                     <div className="bg-white p-3 rounded border">
-                      <span className="text-gray-600 text-xs uppercase tracking-wide">Status</span>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mt-1 ${
-                        selectedNote.status === "generated"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}>
+                      <span className="text-gray-600 text-xs uppercase tracking-wide">
+                        Status
+                      </span>
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full mt-1 ${
+                          selectedNote.status === "generated"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
                         {selectedNote.status}
                       </span>
                     </div>
@@ -610,9 +632,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                       SOAP Note
                     </h4>
                     <div className="bg-white rounded-lg p-4 border border-blue-200 shadow-sm">
-                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
+                      <div className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed max-h-96 overflow-y-auto">
                         {selectedNote.content.soapNote}
-                      </pre>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Length: {selectedNote.content.soapNote.length} characters
+                      </div>
                     </div>
                   </div>
                 )}
@@ -625,20 +650,43 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                       Patient Summary
                     </h4>
                     <div className="bg-white rounded-lg p-4 border border-green-200 shadow-sm">
-                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
+                      <div className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed max-h-96 overflow-y-auto">
                         {selectedNote.content.patientSummary}
-                      </pre>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Length: {selectedNote.content.patientSummary.length} characters
+                      </div>
                     </div>
                   </div>
                 )}
+
+                {/* Debug Information */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-yellow-800 mb-2 flex items-center">
+                    <span className="mr-2">🐛</span>
+                    Debug Information
+                  </h4>
+                  <div className="text-xs text-gray-700 space-y-1">
+                    <div>Content Keys: {Object.keys(selectedNote.content).join(', ')}</div>
+                    <div>SOAP Note exists: {selectedNote.content.soapNote ? 'Yes' : 'No'}</div>
+                    <div>Patient Summary exists: {selectedNote.content.patientSummary ? 'Yes' : 'No'}</div>
+                    {selectedNote.content.soapNote && (
+                      <div>SOAP Note preview: {selectedNote.content.soapNote.substring(0, 100)}...</div>
+                    )}
+                    {selectedNote.content.patientSummary && (
+                      <div>Patient Summary preview: {selectedNote.content.patientSummary.substring(0, 100)}...</div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-            
+
             {/* Footer */}
             <div className="bg-gray-50 border-t border-gray-200 p-4">
               <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
                 <div className="text-sm text-gray-600">
-                  <span className="font-medium">Generated:</span> {new Date(selectedNote.createdAt).toLocaleString()}
+                  <span className="font-medium">Generated:</span>{" "}
+                  {new Date(selectedNote.createdAt).toLocaleString()}
                 </div>
                 <div className="flex gap-2">
                   <button
