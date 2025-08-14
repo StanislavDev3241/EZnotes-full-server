@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 -- Email: cmesmile50@gmail.com
 -- Password: clearly2025
 INSERT INTO users (email, password_hash, role) 
-VALUES ('cmesmile50@gmail.com', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin')
+VALUES ('cmesmile50@gmail.com', '$2a$10$vilAB8CGWHQwlHEvwunl8uRUd//prjPIeMrVeRQ2NEyrlUmUqDIiG', 'admin')
 ON CONFLICT (email) DO UPDATE SET 
   password_hash = EXCLUDED.password_hash,
   role = EXCLUDED.role,
