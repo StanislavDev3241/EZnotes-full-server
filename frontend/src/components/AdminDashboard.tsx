@@ -145,22 +145,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
   const downloadNote = (note: AdminNote) => {
     try {
       let content = "";
-      
+
       if (note.content.soapNote) {
         content += `=== SOAP NOTE ===\n\n${note.content.soapNote}\n\n`;
       }
-      
+
       if (note.content.patientSummary) {
         content += `=== PATIENT SUMMARY ===\n\n${note.content.patientSummary}\n\n`;
       }
-      
-      content += `\n---\nFile: ${note.file.originalName}\nUser: ${note.user.email}\nGenerated: ${new Date(note.createdAt).toLocaleString()}`;
-      
+
+      content += `\n---\nFile: ${note.file.originalName}\nUser: ${
+        note.user.email
+      }\nGenerated: ${new Date(note.createdAt).toLocaleString()}`;
+
       const blob = new Blob([content], { type: "text/plain" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${note.file.originalName.replace(/\.[^/.]+$/, "")}_notes.txt`;
+      a.download = `${note.file.originalName.replace(
+        /\.[^/.]+$/,
+        ""
+      )}_notes.txt`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -396,22 +401,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                 <table className="min-w-full bg-white border border-gray-200 rounded-lg">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                      <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                         File Info
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                      <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                         Notes Content
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                      <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                         Status
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                      <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                         User
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                      <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                         Date
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                      <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
                         Actions
                       </th>
                     </tr>
@@ -419,9 +424,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                   <tbody className="divide-y divide-gray-200">
                     {notes.map((note) => (
                       <tr key={note.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-4 whitespace-nowrap">
+                        <td className="px-2 sm:px-4 py-4 whitespace-nowrap">
                           <div>
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-sm font-medium text-gray-900 break-all">
                               {note.file.originalName}
                             </div>
                             <div className="text-xs text-gray-500">
@@ -432,15 +437,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-2 sm:px-4 py-4">
                           <div className="space-y-2">
                             {note.content.soapNote && (
                               <div>
                                 <span className="text-xs font-medium text-blue-600">
                                   SOAP Note:
                                 </span>
-                                <div className="text-xs text-gray-700 max-h-20 overflow-y-auto">
-                                  {note.content.soapNote.substring(0, 200)}...
+                                <div className="text-xs text-gray-700 max-h-32 overflow-y-auto border border-gray-200 rounded p-2 bg-gray-50">
+                                  {note.content.soapNote}
                                 </div>
                               </div>
                             )}
@@ -449,18 +454,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                                 <span className="text-xs font-medium text-green-600">
                                   Summary:
                                 </span>
-                                <div className="text-xs text-gray-700 max-h-20 overflow-y-auto">
-                                  {note.content.patientSummary.substring(
-                                    0,
-                                    200
-                                  )}
-                                  ...
+                                <div className="text-xs text-gray-700 max-h-32 overflow-y-auto border border-gray-200 rounded p-2 bg-gray-50">
+                                  {note.content.patientSummary}
                                 </div>
                               </div>
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
+                        <td className="px-2 sm:px-4 py-4 whitespace-nowrap">
                           <span
                             className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                               note.status === "generated"
@@ -471,34 +472,37 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                             {note.status}
                           </span>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                        <td className="px-2 sm:px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900 break-all">
                             {note.user.email}
                           </div>
                           <div className="text-xs text-gray-500">
                             ID: {note.user.id}
                           </div>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(note.createdAt).toLocaleDateString()}
-                          <br />
-                          <span className="text-xs">
+                        <td className="px-2 sm:px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div className="text-xs sm:text-sm">
+                            {new Date(note.createdAt).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs">
                             {new Date(note.createdAt).toLocaleTimeString()}
-                          </span>
+                          </div>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={() => viewNote(note)}
-                            className="text-blue-600 hover:text-blue-900 mr-3"
-                          >
-                            View
-                          </button>
-                          <button
-                            onClick={() => downloadNote(note)}
-                            className="text-green-600 hover:text-green-900"
-                          >
-                            Download
-                          </button>
+                        <td className="px-2 sm:px-4 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+                            <button
+                              onClick={() => viewNote(note)}
+                              className="text-blue-600 hover:text-blue-900 text-xs sm:text-sm px-2 py-1 rounded border border-blue-200 hover:border-blue-300"
+                            >
+                              👁️ View
+                            </button>
+                            <button
+                              onClick={() => downloadNote(note)}
+                              className="text-green-600 hover:text-green-900 text-xs sm:text-sm px-2 py-1 rounded border border-green-200 hover:border-green-300"
+                            >
+                              📥 Download
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -528,41 +532,51 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
 
       {/* Note View Modal */}
       {showNoteModal && selectedNote && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b border-gray-200">
-              <h3 className="text-xl font-bold text-gray-900">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[95vh] overflow-hidden">
+            <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 truncate">
                 📝 Notes for {selectedNote.file.originalName}
               </h3>
               <button
                 onClick={() => setShowNoteModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold p-1"
               >
                 ×
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-              <div className="space-y-6">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-120px)]">
+              <div className="space-y-4 sm:space-y-6">
                 {/* File Info */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-medium text-gray-900 mb-2">File Information</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
+                  <h4 className="font-medium text-gray-900 mb-2">
+                    File Information
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
                     <div>
                       <span className="text-gray-600">Name:</span>
-                      <span className="ml-2 font-medium">{selectedNote.file.originalName}</span>
+                      <span className="ml-2 font-medium break-all">
+                        {selectedNote.file.originalName}
+                      </span>
                     </div>
                     <div>
                       <span className="text-gray-600">Size:</span>
-                      <span className="ml-2 font-medium">{formatFileSize(selectedNote.file.fileSize)}</span>
+                      <span className="ml-2 font-medium">
+                        {formatFileSize(selectedNote.file.fileSize)}
+                      </span>
                     </div>
                     <div>
                       <span className="text-gray-600">Type:</span>
-                      <span className="ml-2 font-medium">{selectedNote.file.fileType}</span>
+                      <span className="ml-2 font-medium">
+                        {selectedNote.file.fileType}
+                      </span>
                     </div>
                     <div>
                       <span className="text-gray-600">User:</span>
-                      <span className="ml-2 font-medium">{selectedNote.user.email}</span>
+                      <span className="ml-2 font-medium break-all">
+                        {selectedNote.user.email}
+                      </span>
                     </div>
                     <div>
                       <span className="text-gray-600">Generated:</span>
@@ -572,7 +586,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                     </div>
                     <div>
                       <span className="text-gray-600">Status:</span>
-                      <span className="ml-2 font-medium">{selectedNote.status}</span>
+                      <span className="ml-2 font-medium">
+                        {selectedNote.status}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -580,9 +596,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                 {/* SOAP Note */}
                 {selectedNote.content.soapNote && (
                   <div>
-                    <h4 className="font-medium text-blue-600 mb-3">SOAP Note</h4>
-                    <div className="bg-blue-50 rounded-lg p-4">
-                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
+                    <h4 className="font-medium text-blue-600 mb-3">
+                      SOAP Note
+                    </h4>
+                    <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
+                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans overflow-x-auto">
                         {selectedNote.content.soapNote}
                       </pre>
                     </div>
@@ -592,9 +610,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                 {/* Patient Summary */}
                 {selectedNote.content.patientSummary && (
                   <div>
-                    <h4 className="font-medium text-green-600 mb-3">Patient Summary</h4>
-                    <div className="bg-green-50 rounded-lg p-4">
-                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
+                    <h4 className="font-medium text-green-600 mb-3">
+                      Patient Summary
+                    </h4>
+                    <div className="bg-green-50 rounded-lg p-3 sm:p-4">
+                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans overflow-x-auto">
                         {selectedNote.content.patientSummary}
                       </pre>
                     </div>
@@ -603,16 +623,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
               </div>
             </div>
             
-            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-gray-200 bg-gray-50">
               <button
                 onClick={() => downloadNote(selectedNote)}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm sm:text-base"
               >
                 📥 Download Note
               </button>
               <button
                 onClick={() => setShowNoteModal(false)}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm sm:text-base"
               >
                 Close
               </button>
