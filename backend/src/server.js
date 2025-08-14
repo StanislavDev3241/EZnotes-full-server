@@ -8,9 +8,9 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Increase timeout for large file uploads
+// Increase timeout for large file uploads and AI processing
 const server = require("http").createServer(app);
-server.timeout = 300000; // 5 minutes timeout
+server.timeout = 900000; // 15 minutes timeout (accommodates 10 min Make.com + buffer)
 server.keepAliveTimeout = 65000; // 65 seconds keep-alive
 server.headersTimeout = 66000; // 66 seconds headers timeout
 
@@ -39,12 +39,15 @@ app.use(morgan("combined"));
 app.use(express.json({ limit: "200mb" }));
 app.use(express.urlencoded({ extended: true, limit: "200mb" }));
 
-// Add timeout middleware for uploads
+// Add timeout middleware for uploads and AI processing
 app.use((req, res, next) => {
-  // Set timeout for upload requests
+  // Set timeout for upload requests and AI processing
   if (req.path === "/api/upload" && req.method === "POST") {
-    req.setTimeout(300000); // 5 minutes for uploads
-    res.setTimeout(300000);
+    req.setTimeout(900000); // 15 minutes for uploads + AI processing
+    res.setTimeout(900000);
+  } else if (req.path === "/api/upload/webhook" && req.method === "POST") {
+    req.setTimeout(900000); // 15 minutes for Make.com webhooks
+    res.setTimeout(900000);
   } else {
     req.setTimeout(60000); // 1 minute for other requests
     res.setTimeout(60000);
@@ -98,7 +101,7 @@ app.use("*", (req, res) => {
 server.listen(PORT, () => {
   console.log(`🚀 ClearlyAI Server running on port ${PORT}`);
   console.log(`📁 Environment: ${process.env.NODE_ENV || "development"}`);
-  console.log(`⏱️ Upload timeout: 5 minutes`);
+  console.log(`⏱️ Upload timeout: 15 minutes (accommodates 10 min Make.com processing)`);
   console.log(`📏 Max file size: ${process.env.MAX_FILE_SIZE || "100"}MB`);
   console.log(
     `🌐 Frontend URL: ${

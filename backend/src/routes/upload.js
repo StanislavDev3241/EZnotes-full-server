@@ -59,6 +59,8 @@ const sendToMakeCom = async (fileInfo, fileId) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(webhookPayload),
+      // Increase timeout for Make.com AI processing (up to 10 minutes)
+      signal: AbortSignal.timeout(900000), // 15 minutes total timeout
     });
 
     if (response.ok) {
@@ -371,9 +373,13 @@ router.post(
       } = req.body;
 
       // Validate and clean fileName to prevent corruption
-      const cleanFileName = fileName ? fileName.trim().replace(/\s+/g, ' ') : '';
+      const cleanFileName = fileName
+        ? fileName.trim().replace(/\s+/g, " ")
+        : "";
       if (cleanFileName !== fileName) {
-        console.warn(`⚠️ FileName cleaned from "${fileName}" to "${cleanFileName}"`);
+        console.warn(
+          `⚠️ FileName cleaned from "${fileName}" to "${cleanFileName}"`
+        );
       }
 
       console.log("📋 Parsed chunk metadata:", {
@@ -568,25 +574,30 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
     const { fileId, fileName, fileSize, action } = req.body;
 
     // Validate and clean fileName to prevent corruption
-    let cleanFileName = fileName ? fileName.trim().replace(/\s+/g, ' ') : '';
+    let cleanFileName = fileName ? fileName.trim().replace(/\s+/g, " ") : "";
     if (cleanFileName !== fileName) {
-      console.warn(`⚠️ Finalize: FileName cleaned from "${fileName}" to "${cleanFileName}"`);
+      console.warn(
+        `⚠️ Finalize: FileName cleaned from "${fileName}" to "${cleanFileName}"`
+      );
     }
-    
+
     // Additional validation to prevent corrupted filenames
     if (!cleanFileName || cleanFileName.length === 0) {
       return res.status(400).json({
         error: "Invalid filename",
         received: fileName,
-        message: "Filename is empty or invalid"
+        message: "Filename is empty or invalid",
       });
     }
-    
+
     // Check for suspicious patterns in filename
-    if (cleanFileName.includes('originalName') || cleanFileName.includes('%20')) {
+    if (
+      cleanFileName.includes("originalName") ||
+      cleanFileName.includes("%20")
+    ) {
       console.warn(`⚠️ Suspicious filename detected: "${cleanFileName}"`);
       // Try to extract just the actual filename part
-      const actualFileName = cleanFileName.split('originalName')[0].trim();
+      const actualFileName = cleanFileName.split("originalName")[0].trim();
       if (actualFileName && actualFileName !== cleanFileName) {
         console.warn(`⚠️ Extracted actual filename: "${actualFileName}"`);
         cleanFileName = actualFileName;
@@ -933,6 +944,10 @@ router.delete("/:fileId", optionalAuth, async (req, res) => {
 
 // Webhook endpoint for Make.com to update task status when AI processing is complete
 router.post("/webhook", async (req, res) => {
+  // Set longer timeout for webhook processing
+  req.setTimeout(900000); // 15 minutes
+  res.setTimeout(900000);
+  
   try {
     console.log("📥 Received webhook from Make.com:", req.body);
 
