@@ -183,6 +183,64 @@ const AdminPage: React.FC<AdminPageProps> = ({
     }
   };
 
+  const downloadSoapNote = (note: AdminNote) => {
+    try {
+      if (!note.content.soapNote) {
+        alert("No SOAP note available for this file.");
+        return;
+      }
+
+      let content = `=== SOAP NOTE ===\n\n${note.content.soapNote}\n\n`;
+      content += `\n---\nFile: ${note.file.originalName}\nUser: ${
+        note.user.email
+      }\nGenerated: ${new Date(note.createdAt).toLocaleString()}`;
+
+      const blob = new Blob([content], { type: "text/plain" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${note.file.originalName.replace(
+        /\.[^/.]+$/,
+        ""
+      )}_soap_note.txt`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error("Error downloading SOAP note:", err);
+    }
+  };
+
+  const downloadPatientSummary = (note: AdminNote) => {
+    try {
+      if (!note.content.patientSummary) {
+        alert("No patient summary available for this file.");
+        return;
+      }
+
+      let content = `=== PATIENT SUMMARY ===\n\n${note.content.patientSummary}\n\n`;
+      content += `\n---\nFile: ${note.file.originalName}\nUser: ${
+        note.user.email
+      }\nGenerated: ${new Date(note.createdAt).toLocaleString()}`;
+
+      const blob = new Blob([content], { type: "text/plain" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${note.file.originalName.replace(
+        /\.[^/.]+$/,
+        ""
+      )}_patient_summary.txt`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error("Error downloading patient summary:", err);
+    }
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
@@ -436,18 +494,34 @@ const AdminPage: React.FC<AdminPageProps> = ({
                       </div>
                     </td>
                     <td className="px-2 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex flex-col gap-2 min-w-[120px]">
+                      <div className="flex flex-col gap-2 min-w-[140px]">
                         <button
                           onClick={() => viewNoteDetails(note)}
                           className="text-blue-600 hover:text-blue-900 text-xs px-3 py-2 rounded border border-blue-200 hover:border-blue-300 transition-colors font-medium"
                         >
                           👁️ View
                         </button>
+                        {note.content.soapNote && (
+                          <button
+                            onClick={() => downloadSoapNote(note)}
+                            className="text-purple-600 hover:text-purple-900 text-xs px-3 py-2 rounded border border-purple-200 hover:border-purple-300 transition-colors font-medium"
+                          >
+                            📝 SOAP Note
+                          </button>
+                        )}
+                        {note.content.patientSummary && (
+                          <button
+                            onClick={() => downloadPatientSummary(note)}
+                            className="text-green-600 hover:text-green-900 text-xs px-3 py-2 rounded border border-green-200 hover:border-green-300 transition-colors font-medium"
+                          >
+                            📋 Summary
+                          </button>
+                        )}
                         <button
                           onClick={() => downloadNote(note)}
-                          className="text-green-600 hover:text-green-900 text-xs px-3 py-2 rounded border border-green-200 hover:border-green-300 transition-colors font-medium"
+                          className="text-orange-600 hover:text-orange-900 text-xs px-3 py-2 rounded border border-orange-200 hover:border-orange-300 transition-colors font-medium"
                         >
-                          📥 Download
+                          📥 All Notes
                         </button>
                       </div>
                     </td>
@@ -461,15 +535,20 @@ const AdminPage: React.FC<AdminPageProps> = ({
 
       {/* Note Details Modal */}
       {showNoteDetails && selectedNote && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl lg:max-w-6xl max-h-[95vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[95vw] lg:max-w-[90vw] xl:max-w-[85vw] h-[90vh] lg:h-[85vh] overflow-hidden flex flex-col">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 sm:p-6">
+            <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 text-white p-4 sm:p-6 flex-shrink-0">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg sm:text-xl font-bold">Note Details</h3>
+                <div>
+                  <h3 className="text-lg sm:text-xl lg:text-2xl font-bold">Note Details</h3>
+                  <p className="text-blue-100 text-sm mt-1">
+                    {selectedNote.file.originalName}
+                  </p>
+                </div>
                 <button
                   onClick={() => setShowNoteDetails(false)}
-                  className="text-white hover:text-blue-100 text-2xl sm:text-3xl font-bold p-1 hover:bg-blue-600 rounded transition-colors"
+                  className="text-white hover:text-blue-100 text-2xl sm:text-3xl font-bold p-2 hover:bg-blue-600 rounded-full transition-all duration-200 hover:scale-110"
                 >
                   ×
                 </button>
@@ -477,37 +556,59 @@ const AdminPage: React.FC<AdminPageProps> = ({
             </div>
 
             {/* Content */}
-            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-140px)]">
-              <div className="space-y-4 sm:space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <div className="space-y-4 sm:space-y-6 max-w-6xl mx-auto">
                 {/* File Information */}
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <h4 className="font-bold text-gray-800 mb-3 text-sm sm:text-base">File Information</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="font-medium text-gray-600">Name:</span>
-                      <span className="ml-2 text-gray-800 break-all">{selectedNote.file.originalName}</span>
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 sm:p-6 border border-gray-200 shadow-sm">
+                  <h4 className="font-bold text-gray-800 mb-4 text-base sm:text-lg flex items-center">
+                    <span className="text-blue-600 mr-2">📁</span>
+                    File Information
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                    <div className="bg-white rounded-lg p-3 border border-gray-200">
+                      <span className="font-medium text-gray-600 block mb-1">Name:</span>
+                      <span className="text-gray-800 break-all text-xs sm:text-sm">
+                        {selectedNote.file.originalName}
+                      </span>
                     </div>
-                    <div>
-                      <span className="font-medium text-gray-600">Size:</span>
-                      <span className="ml-2 text-gray-800">{formatFileSize(selectedNote.file.fileSize)}</span>
+                    <div className="bg-white rounded-lg p-3 border border-gray-200">
+                      <span className="font-medium text-gray-600 block mb-1">Size:</span>
+                      <span className="text-gray-800 text-xs sm:text-sm">
+                        {formatFileSize(selectedNote.file.fileSize)}
+                      </span>
                     </div>
-                    <div>
-                      <span className="font-medium text-gray-600">Type:</span>
-                      <span className="ml-2 text-gray-800">{selectedNote.file.fileType}</span>
+                    <div className="bg-white rounded-lg p-3 border border-gray-200">
+                      <span className="font-medium text-gray-600 block mb-1">Type:</span>
+                      <span className="text-gray-800 text-xs sm:text-sm">
+                        {selectedNote.file.fileType}
+                      </span>
                     </div>
-                    <div>
-                      <span className="font-medium text-gray-600">User:</span>
-                      <span className="ml-2 text-gray-800">{selectedNote.user.email}</span>
+                    <div className="bg-white rounded-lg p-3 border border-gray-200">
+                      <span className="font-medium text-gray-600 block mb-1">User:</span>
+                      <span className="text-gray-800 break-all text-xs sm:text-sm">
+                        {selectedNote.user.email}
+                      </span>
                     </div>
                   </div>
                 </div>
 
                 {/* SOAP Note */}
                 {selectedNote.content.soapNote && (
-                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                    <h4 className="font-bold text-blue-800 mb-3 text-sm sm:text-base">SOAP Note</h4>
-                    <div className="bg-white rounded-lg p-3 sm:p-4 border border-blue-200">
-                      <div className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed max-h-80 overflow-y-auto">
+                  <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-4 sm:p-6 border border-blue-200 shadow-sm">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-bold text-blue-800 text-base sm:text-lg flex items-center">
+                        <span className="text-blue-600 mr-2">🎯</span>
+                        SOAP Note
+                      </h4>
+                      <button
+                        onClick={() => downloadSoapNote(selectedNote)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center"
+                      >
+                        📥 Download SOAP
+                      </button>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 sm:p-6 border border-blue-200 shadow-sm">
+                      <div className="text-sm sm:text-base text-gray-800 whitespace-pre-wrap font-sans leading-relaxed max-h-[40vh] overflow-y-auto">
                         {selectedNote.content.soapNote}
                       </div>
                     </div>
@@ -516,12 +617,21 @@ const AdminPage: React.FC<AdminPageProps> = ({
 
                 {/* Patient Summary */}
                 {selectedNote.content.patientSummary && (
-                  <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                    <h4 className="font-bold text-green-800 mb-3 text-sm sm:text-base">
-                      Patient Summary
-                    </h4>
-                    <div className="bg-white rounded-lg p-3 sm:p-4 border border-green-200">
-                      <div className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed max-h-80 overflow-y-auto">
+                  <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-4 sm:p-6 border border-green-200 shadow-sm">
+                    <div className="flex justify-between items-center mb-4">
+                      <h4 className="font-bold text-green-800 text-base sm:text-lg flex items-center">
+                        <span className="text-green-600 mr-2">📋</span>
+                        Patient Summary
+                      </h4>
+                      <button
+                        onClick={() => downloadPatientSummary(selectedNote)}
+                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center"
+                      >
+                        📥 Download Summary
+                      </button>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 sm:p-6 border border-green-200 shadow-sm">
+                      <div className="text-sm sm:text-base text-gray-800 whitespace-pre-wrap font-sans leading-relaxed max-h-[40vh] overflow-y-auto">
                         {selectedNote.content.patientSummary}
                       </div>
                     </div>
@@ -531,20 +641,25 @@ const AdminPage: React.FC<AdminPageProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="bg-gray-50 border-t border-gray-200 p-4">
-              <div className="flex flex-col sm:flex-row justify-end gap-3">
-                <button
-                  onClick={() => downloadNote(selectedNote)}
-                  className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
-                >
-                  📥 Download Note
-                </button>
-                <button
-                  onClick={() => setShowNoteDetails(false)}
-                  className="w-full sm:w-auto px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium"
-                >
-                  Close
-                </button>
+            <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-t border-gray-200 p-4 sm:p-6 flex-shrink-0">
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div className="text-sm text-gray-600">
+                  Generated: {new Date(selectedNote.createdAt).toLocaleString()}
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => downloadNote(selectedNote)}
+                    className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-200 font-medium text-sm sm:text-base shadow-lg hover:shadow-xl"
+                  >
+                    📥 Download All Notes
+                  </button>
+                  <button
+                    onClick={() => setShowNoteDetails(false)}
+                    className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl hover:from-gray-600 hover:to-gray-700 transition-all duration-200 font-medium text-sm sm:text-base shadow-lg hover:shadow-xl"
+                  >
+                    ✕ Close
+                  </button>
+                </div>
               </div>
             </div>
           </div>

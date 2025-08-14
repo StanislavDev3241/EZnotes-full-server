@@ -1,5 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Upload, Copy, Download, Mic, Square, Play, Pause, X } from "lucide-react";
+import {
+  Upload,
+  Copy,
+  Download,
+  Mic,
+  Square,
+  Play,
+  Pause,
+  X,
+} from "lucide-react";
 import AdminPage from "./components/AdminPage";
 
 interface OutputData {
@@ -1867,7 +1876,135 @@ function App() {
             </div>
           </section>
 
+          {/* How It Works Section */}
+          <section className="bg-gray-50 py-16">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                  How It Works
+                </h2>
+                <p className="text-xl text-gray-600">
+                  Generate professional medical notes in three simple steps
+                </p>
+              </div>
+              
+              <div className="grid md:grid-cols-3 gap-8">
+                <div className="text-center">
+                  <div className="bg-clearly-blue rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                    <span className="text-white text-2xl font-bold">1</span>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Upload or Record</h3>
+                  <p className="text-gray-600">
+                    Upload your audio file or record directly on the website. We support MP3, M4A, WAV, and text files.
+                  </p>
+                </div>
+                
+                <div className="text-center">
+                  <div className="bg-clearly-blue rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                    <span className="text-white text-2xl font-bold">2</span>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">AI Processing</h3>
+                  <p className="text-gray-600">
+                    Our advanced AI analyzes your content and generates comprehensive SOAP notes and patient summaries.
+                  </p>
+                </div>
+                
+                <div className="text-center">
+                  <div className="bg-clearly-blue rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                    <span className="text-white text-2xl font-bold">3</span>
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Download & Use</h3>
+                  <p className="text-gray-600">
+                    Download your generated notes in a clean, professional format ready for medical records.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
 
+          {/* Features Section */}
+          <section className="bg-white py-16">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                  Key Features
+                </h2>
+                <p className="text-xl text-gray-600">
+                  Everything you need for efficient medical note generation
+                </p>
+              </div>
+              
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <div className="text-clearly-blue text-3xl mb-4">🎯</div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">SOAP Notes</h3>
+                  <p className="text-gray-600">
+                    Generate comprehensive SOAP (Subjective, Objective, Assessment, Plan) notes automatically.
+                  </p>
+                </div>
+                
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <div className="text-clearly-blue text-3xl mb-4">📋</div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Patient Summaries</h3>
+                  <p className="text-gray-600">
+                    Create clear, concise patient appointment summaries for easy reference.
+                  </p>
+                </div>
+                
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <div className="text-clearly-blue text-3xl mb-4">🔒</div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">HIPAA Compliant</h3>
+                  <p className="text-gray-600">
+                    Your data is secure and processed in compliance with healthcare privacy standards.
+                  </p>
+                </div>
+                
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <div className="text-clearly-blue text-3xl mb-4">🎙️</div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Audio Recording</h3>
+                  <p className="text-gray-600">
+                    Record audio directly on the website with real-time audio level monitoring.
+                  </p>
+                </div>
+                
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <div className="text-clearly-blue text-3xl mb-4">📁</div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Multiple Formats</h3>
+                  <p className="text-gray-600">
+                    Support for various audio formats and text files for maximum flexibility.
+                  </p>
+                </div>
+                
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <div className="text-clearly-blue text-3xl mb-4">⚡</div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Fast Processing</h3>
+                  <p className="text-gray-600">
+                    Get your notes generated in seconds with our optimized AI processing.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Get Started Section */}
+          <section className="bg-gradient-to-r from-clearly-blue to-blue-600 py-16">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+              <h2 className="text-3xl font-bold text-white mb-4">
+                Ready to Get Started?
+              </h2>
+              <p className="text-xl text-blue-100 mb-8">
+                Join healthcare professionals who are already saving time with ClearlyAI
+              </p>
+              <button
+                onClick={() => {
+                  document.querySelector('.upload-area')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="bg-white text-clearly-blue px-8 py-3 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors"
+              >
+                Start Generating Notes
+              </button>
+            </div>
+          </section>
         </div>
       )}
     </>
