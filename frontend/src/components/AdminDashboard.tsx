@@ -59,6 +59,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
   const [activeTab, setActiveTab] = useState<
     "overview" | "notes" | "files" | "users"
   >("overview");
+  const [selectedNote, setSelectedNote] = useState<AdminNote | null>(null);
+  const [showNoteModal, setShowNoteModal] = useState(false);
 
   useEffect(() => {
     fetchSystemStats();
@@ -132,6 +134,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
       }
     } catch (err) {
       console.error("Error downloading notes:", err);
+    }
+  };
+
+  const viewNote = (note: AdminNote) => {
+    setSelectedNote(note);
+    setShowNoteModal(true
+
+  const downloadNote = (note: AdminNote) => {
+    try {
+      let content = "";
+      
+      if (note.content.soapNote) {
+        content += `=== SOAP NOTE ===\n\n${note.content.soapNote}\n\n`;
+      }
+      
+      if (note.content.patientSummary) {
+        content += `=== PATIENT SUMMARY ===\n\n${note.content.patientSummary}\n\n`;
+      }
+      
+      content += `\n---\nFile: ${note.file.originalName}\nUser: ${note.user.email}\nGenerated: ${new Date(note.createdAt).toLocaleString()}`;
+      
+      const blob = new Blob([content], { type: "text/plain" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${note.file.originalName.replace(/\.[^/.]+$/, "")}_notes.txt`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error("Error downloading note:", err);
     }
   };
 
@@ -453,17 +487,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                           <button
-                            onClick={() => {
-                              console.log("Full notes for file:", note.content);
-                            }}
+                            onClick={() => viewNote(note)}
                             className="text-blue-600 hover:text-blue-900 mr-3"
                           >
                             View
                           </button>
                           <button
-                            onClick={() => {
-                              console.log("Download notes for file:", note.id);
-                            }}
+                            onClick={() => downloadNote(note)}
                             className="text-green-600 hover:text-green-900"
                           >
                             Download
@@ -494,7 +524,104 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
           )}
         </div>
       </div>
+
+      {/* Note View Modal */}
+      {showNoteModal && selectedNote && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b border-gray-200">
+              <h3 className="text-xl font-bold text-gray-900">
+                📝 Notes for {selectedNote.file.originalName}
+              </h3>
+              <button
+                onClick={() => setShowNoteModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div className="space-y-6">
+                {/* File Info */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-2">File Information</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600">Name:</span>
+                      <span className="ml-2 font-medium">{selectedNote.file.originalName}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Size:</span>
+                      <span className="ml-2 font-medium">{formatFileSize(selectedNote.file.fileSize)}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Type:</span>
+                      <span className="ml-2 font-medium">{selectedNote.file.fileType}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">User:</span>
+                      <span className="ml-2 font-medium">{selectedNote.user.email}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Generated:</span>
+                      <span className="ml-2 font-medium">
+                        {new Date(selectedNote.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600">Status:</span>
+                      <span className="ml-2 font-medium">{selectedNote.status}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SOAP Note */}
+                {selectedNote.content.soapNote && (
+                  <div>
+                    <h4 className="font-medium text-blue-600 mb-3">SOAP Note</h4>
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
+                        {selectedNote.content.soapNote}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+
+                {/* Patient Summary */}
+                {selectedNote.content.patientSummary && (
+                  <div>
+                    <h4 className="font-medium text-green-600 mb-3">Patient Summary</h4>
+                    <div className="bg-green-50 rounded-lg p-4">
+                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
+                        {selectedNote.content.patientSummary}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => downloadNote(selectedNote)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                📥 Download Note
+              </button>
+              <button
+                onClick={() => setShowNoteModal(false)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Close
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
+  );
+};
   );
 };
 

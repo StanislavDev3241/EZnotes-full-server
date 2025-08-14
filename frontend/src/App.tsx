@@ -50,7 +50,6 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-
   // Add upload progress tracking
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<
@@ -106,10 +105,6 @@ function App() {
   useEffect(() => {
     return cleanup;
   }, [cleanup]);
-
-
-
-
 
   // Poll upload status until processing is complete
   const pollUploadStatus = useCallback(
@@ -211,7 +206,6 @@ function App() {
       if (response.ok) {
         const data = await response.json();
         console.log(`📝 Received notes data:`, data);
-
       } else {
         console.error(
           `❌ Failed to fetch notes: ${response.status} ${response.statusText}`
@@ -227,8 +221,6 @@ function App() {
     localStorage.removeItem("adminToken");
     setIsAdmin(false);
     setIsLoggedIn(false);
-    
-    
   };
 
   // Check if admin token exists on component mount
@@ -237,7 +229,7 @@ function App() {
     if (token) {
       setIsAdmin(true);
       setIsLoggedIn(true);
-      
+
       fetchUserNotes(); // Fetch user notes for authenticated users
     }
     // Don't fetch notes for anonymous users
@@ -997,16 +989,15 @@ function App() {
             </div>
             {!isLoggedIn ? (
               <button
-                                  onClick={() => {
-                    // Admin login functionality
-                  }}
+                onClick={() => {
+                  // Admin login functionality
+                }}
                 className="bg-clearly-blue hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
               >
                 Admin Login
               </button>
             ) : (
               <div className="flex items-center space-x-4">
-
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">
                     {isAdmin ? "Admin" : "User"}
