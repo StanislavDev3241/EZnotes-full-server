@@ -197,16 +197,16 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
         // AI processing completed immediately
         console.log("🎉 AI processing completed immediately");
 
-        // Save notes to database
+        // Save notes to database using correct schema
         const notes = {
           soapNote: makeResponse.soap_note_text || "",
           patientSummary: makeResponse.patient_summary_text || "",
         };
 
         await pool.query(
-          `INSERT INTO notes (file_id, soap_note, patient_summary, user_id, created_at)
+          `INSERT INTO notes (file_id, note_type, content, user_id, created_at)
              VALUES ($1, $2, $3, $4, NOW())`,
-          [fileId, notes.soapNote, notes.patientSummary, userId]
+          [fileId, "ai_generated", JSON.stringify(notes), userId]
         );
 
         // Update file and task status
@@ -230,9 +230,9 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
 
         const notes = makeResponse.notes;
         await pool.query(
-          `INSERT INTO notes (file_id, soap_note, patient_summary, user_id, created_at)
+          `INSERT INTO notes (file_id, note_type, content, user_id, created_at)
              VALUES ($1, $2, $3, $4, NOW())`,
-          [fileId, notes.soapNote || "", notes.patientSummary || "", userId]
+          [fileId, "ai_generated", JSON.stringify(notes), userId]
         );
 
         await pool.query(
@@ -904,7 +904,7 @@ router.post("/webhook", async (req, res) => {
   try {
     console.log("📥 Received webhook from Make.com:", req.body);
 
-    const { fileId, status, notes, error } = req.body;
+          const { fileId, status, notes, soap_note_text, patient_summary_text, error } = req.body;
 
     if (!fileId) {
       return res
@@ -912,15 +912,36 @@ router.post("/webhook", async (req, res) => {
         .json({ error: "Missing fileId in webhook payload" });
     }
 
-    if (status === "completed" && notes) {
+    if (status === "completed" && (notes || soap_note_text || patient_summary_text)) {
       // AI processing completed successfully
       console.log(`🎉 AI processing completed for file ${fileId}`);
 
-      // Save notes to database
+      // Handle both response formats from Make.com
+      let notesData;
+      if (notes && notes.soapNote && notes.patientSummary) {
+        // Format: { notes: { soapNote: "...", patientSummary: "..." } }
+        notesData = {
+          soapNote: notes.soapNote || "",
+          patientSummary: notes.patientSummary || "",
+        };
+      } else if (soap_note_text || patient_summary_text) {
+        // Format: { soap_note_text: "...", patient_summary_text: "..." }
+        notesData = {
+          soapNote: soap_note_text || "",
+          patientSummary: patient_summary_text || "",
+        };
+      } else {
+        // Fallback to notes object if available
+        notesData = {
+          soapNote: notes?.soapNote || "",
+          patientSummary: notes?.patientSummary || "",
+        };
+      }
+      
       await pool.query(
-        `INSERT INTO notes (file_id, soap_note, patient_summary, user_id, created_at)
+        `INSERT INTO notes (file_id, note_type, content, user_id, created_at)
          VALUES ($1, $2, $3, $4, NOW())`,
-        [fileId, notes.soapNote || "", notes.patientSummary || "", null]
+        [fileId, "ai_generated", JSON.stringify(notesData), null]
       );
 
       // Update file and task status
