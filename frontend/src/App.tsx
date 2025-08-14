@@ -925,7 +925,14 @@ function App() {
       const batch = chunks.slice(i, i + maxConcurrent);
       const batchPromises = batch.map(async (chunk) => {
         try {
-          await uploadChunk(chunk, fileId, webhookUrl, apiKey, file, totalChunks);
+          await uploadChunk(
+            chunk,
+            fileId,
+            webhookUrl,
+            apiKey,
+            file,
+            totalChunks
+          );
           completedChunks++;
           const progress = (completedChunks / totalChunks) * 90; // 90% for upload, 10% for processing
           setUploadProgress(progress);
@@ -948,7 +955,14 @@ function App() {
           for (const chunkIndex of failedChunks) {
             const chunk = chunks[chunkIndex];
             try {
-              await uploadChunk(chunk, fileId, webhookUrl, apiKey, file, totalChunks);
+              await uploadChunk(
+                chunk,
+                fileId,
+                webhookUrl,
+                apiKey,
+                file,
+                totalChunks
+              );
               completedChunks++;
               const progress = (completedChunks / totalChunks) * 90;
               setUploadProgress(progress);
@@ -1003,6 +1017,12 @@ function App() {
     formData.append("chunkSize", chunk.data.size.toString());
     formData.append("chunkStart", chunk.start.toString());
     formData.append("chunkEnd", chunk.end.toString());
+
+    // Debug FormData contents
+    console.log(`🔍 FormData contents for chunk ${chunk.index + 1}:`);
+    for (let [key, value] of formData.entries()) {
+      console.log(`  ${key}:`, value);
+    }
 
     console.log(`📤 Uploading chunk ${chunk.index + 1}/${totalChunks}: ${(chunk.data.size / 1024 / 1024).toFixed(2)}MB`);
 

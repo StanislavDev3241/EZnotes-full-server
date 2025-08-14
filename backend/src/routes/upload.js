@@ -252,18 +252,30 @@ router.post(
 );
 
 // Chunked upload endpoint for large files
-router.post("/chunk", optionalAuth, async (req, res) => {
+router.post("/chunk", optionalAuth, upload.single("chunk"), async (req, res) => {
   try {
-    if (!req.files || !req.files.chunk) {
+    console.log("🔍 Chunk endpoint called with:");
+    console.log("  - req.file:", req.file);
+    console.log("  - req.files:", req.files);
+    console.log("  - req.body:", req.body);
+    console.log("  - req.headers:", req.headers);
+
+    if (!req.file) {
       return res.status(400).json({ 
         error: "Missing chunk file",
-        received: Object.keys(req.files || {}),
-        body: Object.keys(req.body)
+        received: req.files ? Object.keys(req.files) : [],
+        body: Object.keys(req.body),
+        file: req.file,
+        headers: Object.keys(req.headers)
       });
     }
 
-    const chunkFile = req.files.chunk;
+    const chunkFile = req.file;
     const { chunkIndex, fileId, totalChunks, fileName, chunkSize, chunkStart, chunkEnd } = req.body;
+    
+    console.log("📋 Parsed chunk metadata:", {
+      chunkIndex, fileId, totalChunks, fileName, chunkSize, chunkStart, chunkEnd
+    });
     
     if (!chunkIndex || !fileId || !fileName) {
       return res.status(400).json({ 
@@ -283,15 +295,22 @@ router.post("/chunk", optionalAuth, async (req, res) => {
     
     // Handle both Buffer and File data
     let chunkBuffer;
-    if (chunkFile.data) {
-      // Multer file object
+    if (chunkFile.buffer) {
+      // Multer file object with buffer
+      chunkBuffer = chunkFile.buffer;
+      console.log("📦 Using chunkFile.buffer");
+    } else if (chunkFile.data) {
+      // Multer file object with data
       chunkBuffer = chunkFile.data;
+      console.log("📦 Using chunkFile.data");
     } else if (Buffer.isBuffer(chunkFile)) {
       // Direct Buffer
       chunkBuffer = chunkFile;
+      console.log("📦 Using direct Buffer");
     } else {
       // Try to convert other formats
       chunkBuffer = Buffer.from(chunkFile);
+      console.log("📦 Using Buffer.from conversion");
     }
 
     await fs.writeFile(chunkPath, chunkBuffer);
