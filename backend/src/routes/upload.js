@@ -251,11 +251,14 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
         await fs.access(tempFilePath);
         await fs.unlink(tempFilePath);
         console.log("🧹 Temp file cleaned up");
-      } catch (accessError) {
-        // File doesn't exist or can't be accessed, which is fine
-        console.log("ℹ️ Temp file already cleaned up or inaccessible");
-      } catch (cleanupError) {
-        console.error("❌ Error cleaning up temp file:", cleanupError);
+      } catch (error) {
+        if (error.code === 'ENOENT') {
+          // File doesn't exist, which is fine
+          console.log("ℹ️ Temp file already cleaned up");
+        } else {
+          // Other error occurred during cleanup
+          console.error("❌ Error cleaning up temp file:", error);
+        }
       }
     }
 
