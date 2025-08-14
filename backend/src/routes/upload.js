@@ -30,9 +30,14 @@ const sendToMakeCom = async (fileInfo, fileId) => {
   }
 
   try {
-    const fileUrl = `${
-      process.env.BACKEND_URL || "http://localhost:3001"
-    }/uploads/${fileInfo.filename}`;
+    // Use external server URL for Make.com webhook
+    const backendUrl =
+      process.env.BACKEND_URL ||
+      process.env.EXTERNAL_BACKEND_URL ||
+      "http://83.229.115.190:3001";
+    const fileUrl = `${backendUrl}/uploads/${fileInfo.filename}`;
+
+    console.log(`🌐 Generated file URL for Make.com: ${fileUrl}`);
 
     const webhookPayload = {
       fileId,
@@ -60,10 +65,10 @@ const sendToMakeCom = async (fileInfo, fileId) => {
       console.log(
         `✅ File sent to Make.com successfully: ${fileInfo.filename}`
       );
-      
+
       // Check if response is JSON
-      const contentType = response.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
         try {
           const makeResponse = await response.json();
           console.log(`📋 Make.com response:`, makeResponse);
@@ -71,12 +76,20 @@ const sendToMakeCom = async (fileInfo, fileId) => {
         } catch (jsonError) {
           console.warn(`⚠️ Make.com response is not valid JSON:`, jsonError);
           // Return a default response indicating processing started
-          return { status: "processing", message: "File sent to Make.com for processing" };
+          return {
+            status: "processing",
+            message: "File sent to Make.com for processing",
+          };
         }
       } else {
-        console.warn(`⚠️ Make.com response is not JSON (${contentType}), treating as processing started`);
+        console.warn(
+          `⚠️ Make.com response is not JSON (${contentType}), treating as processing started`
+        );
         // Return a default response indicating processing started
-        return { status: "processing", message: "File sent to Make.com for processing" };
+        return {
+          status: "processing",
+          message: "File sent to Make.com for processing",
+        };
       }
     } else {
       console.error(
@@ -238,56 +251,62 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
         });
       } else {
         // Still processing - Make.com received the file but processing is ongoing
-        console.log("⏳ AI processing in progress, updating status to 'sent_to_make'");
+        console.log(
+          "⏳ AI processing in progress, updating status to 'sent_to_make'"
+        );
         await pool.query(
           `UPDATE tasks SET status = 'sent_to_make' WHERE file_id = $1`,
           [fileId]
         );
-        
+
         // Update file status to reflect processing state
         await pool.query(
           `UPDATE files SET status = 'processing' WHERE id = $1`,
           [fileId]
         );
-        
+
         return res.json({
           success: true,
           file: { id: fileId, status: "processing" },
-          message: "File uploaded successfully and sent for AI processing. Processing in progress...",
-          taskStatus: "sent_to_make"
+          message:
+            "File uploaded successfully and sent for AI processing. Processing in progress...",
+          taskStatus: "sent_to_make",
         });
       }
     } catch (makeError) {
       console.error("❌ Error sending to Make.com:", makeError);
-      
+
       // Update task status to reflect the error
       await pool.query(
         `UPDATE tasks SET status = 'failed', error_message = $1 WHERE file_id = $2`,
         [makeError.message, fileId]
       );
-      
+
       // Update file status to reflect error state
-      await pool.query(
-        `UPDATE files SET status = 'failed' WHERE id = $1`,
-        [fileId]
-      );
-      
+      await pool.query(`UPDATE files SET status = 'failed' WHERE id = $1`, [
+        fileId,
+      ]);
+
       return res.json({
         success: true,
         file: { id: fileId, status: "failed" },
-        message: "File uploaded but failed to send for AI processing. Will retry later.",
+        message:
+          "File uploaded but failed to send for AI processing. Will retry later.",
         taskStatus: "failed",
-        error: makeError.message
+        error: makeError.message,
       });
     }
 
     // This should never be reached, but just in case
-    console.log("⚠️ Unexpected flow - Make.com integration completed without proper response");
+    console.log(
+      "⚠️ Unexpected flow - Make.com integration completed without proper response"
+    );
     res.json({
       success: true,
       file: { id: fileId, status: "uploaded" },
-      message: "File uploaded successfully but Make.com integration status unclear",
-      taskStatus: "unknown"
+      message:
+        "File uploaded successfully but Make.com integration status unclear",
+      taskStatus: "unknown",
     });
   } catch (error) {
     console.error("❌ Upload error:", error);
@@ -884,56 +903,54 @@ router.delete("/:fileId", optionalAuth, async (req, res) => {
 router.post("/webhook", async (req, res) => {
   try {
     console.log("📥 Received webhook from Make.com:", req.body);
-    
+
     const { fileId, status, notes, error } = req.body;
-    
+
     if (!fileId) {
-      return res.status(400).json({ error: "Missing fileId in webhook payload" });
+      return res
+        .status(400)
+        .json({ error: "Missing fileId in webhook payload" });
     }
-    
+
     if (status === "completed" && notes) {
       // AI processing completed successfully
       console.log(`🎉 AI processing completed for file ${fileId}`);
-      
+
       // Save notes to database
       await pool.query(
         `INSERT INTO notes (file_id, soap_note, patient_summary, user_id, created_at)
          VALUES ($1, $2, $3, $4, NOW())`,
         [fileId, notes.soapNote || "", notes.patientSummary || "", null]
       );
-      
+
       // Update file and task status
-      await pool.query(
-        `UPDATE files SET status = 'processed' WHERE id = $1`,
-        [fileId]
-      );
-      
+      await pool.query(`UPDATE files SET status = 'processed' WHERE id = $1`, [
+        fileId,
+      ]);
+
       await pool.query(
         `UPDATE tasks SET status = 'completed' WHERE file_id = $1`,
         [fileId]
       );
-      
+
       console.log(`✅ File ${fileId} status updated to 'processed'`);
-      
     } else if (status === "failed" || error) {
       // AI processing failed
       console.log(`❌ AI processing failed for file ${fileId}:`, error);
-      
-      await pool.query(
-        `UPDATE files SET status = 'failed' WHERE id = $1`,
-        [fileId]
-      );
-      
+
+      await pool.query(`UPDATE files SET status = 'failed' WHERE id = $1`, [
+        fileId,
+      ]);
+
       await pool.query(
         `UPDATE tasks SET status = 'failed', error_message = $1 WHERE file_id = $1`,
         [error || "AI processing failed", fileId]
       );
-      
+
       console.log(`❌ File ${fileId} status updated to 'failed'`);
     }
-    
+
     res.json({ success: true, message: "Webhook processed successfully" });
-    
   } catch (error) {
     console.error("❌ Webhook processing error:", error);
     res.status(500).json({ error: "Internal server error" });
