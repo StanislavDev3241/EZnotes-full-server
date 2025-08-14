@@ -177,6 +177,48 @@ router.get("/notes", async (req, res) => {
   }
 });
 
+// Delete a note (admin only)
+router.delete("/notes/:noteId", async (req, res) => {
+  try {
+    const { noteId } = req.params;
+    
+    // First check if the note exists
+    const noteCheck = await pool.query(
+      "SELECT id, file_id FROM notes WHERE id = $1",
+      [noteId]
+    );
+    
+    if (noteCheck.rows.length === 0) {
+      return res.status(404).json({ error: "Note not found" });
+    }
+    
+    const note = noteCheck.rows[0];
+    
+    // Delete the note
+    await pool.query("DELETE FROM notes WHERE id = $1", [noteId]);
+    
+    // Check if this was the last note for the file
+    const remainingNotes = await pool.query(
+      "SELECT COUNT(*) as count FROM notes WHERE file_id = $1",
+      [note.file_id]
+    );
+    
+    // If no more notes for this file, also delete the file
+    if (parseInt(remainingNotes.rows[0].count) === 0) {
+      await pool.query("DELETE FROM files WHERE id = $1", [note.file_id]);
+      await pool.query("DELETE FROM tasks WHERE file_id = $1", [note.file_id]);
+    }
+    
+    res.json({ 
+      message: "Note deleted successfully",
+      fileDeleted: parseInt(remainingNotes.rows[0].count) === 0
+    });
+  } catch (error) {
+    console.error("Admin delete note error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // Download all notes as ZIP (admin only)
 router.get("/download-all", async (req, res) => {
   try {

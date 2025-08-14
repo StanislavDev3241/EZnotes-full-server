@@ -161,7 +161,9 @@ const AdminPage: React.FC<AdminPageProps> = ({
         content += `=== PATIENT SUMMARY ===\n\n${note.content.patientSummary}\n\n`;
       }
 
-      content += `\n---\nFile: ${note.file.originalName}\nGenerated: ${new Date(note.createdAt).toLocaleString()}`;
+      content += `\n---\nFile: ${note.file.originalName}\nGenerated: ${new Date(
+        note.createdAt
+      ).toLocaleString()}`;
 
       const blob = new Blob([content], { type: "text/plain" });
       const url = window.URL.createObjectURL(blob);
@@ -188,7 +190,9 @@ const AdminPage: React.FC<AdminPageProps> = ({
       }
 
       let content = `=== SOAP NOTE ===\n\n${note.content.soapNote}\n\n`;
-      content += `\n---\nFile: ${note.file.originalName}\nGenerated: ${new Date(note.createdAt).toLocaleString()}`;
+      content += `\n---\nFile: ${note.file.originalName}\nGenerated: ${new Date(
+        note.createdAt
+      ).toLocaleString()}`;
 
       const blob = new Blob([content], { type: "text/plain" });
       const url = window.URL.createObjectURL(blob);
@@ -215,7 +219,9 @@ const AdminPage: React.FC<AdminPageProps> = ({
       }
 
       let content = `=== PATIENT SUMMARY ===\n\n${note.content.patientSummary}\n\n`;
-      content += `\n---\nFile: ${note.file.originalName}\nGenerated: ${new Date(note.createdAt).toLocaleString()}`;
+      content += `\n---\nFile: ${note.file.originalName}\nGenerated: ${new Date(
+        note.createdAt
+      ).toLocaleString()}`;
 
       const blob = new Blob([content], { type: "text/plain" });
       const url = window.URL.createObjectURL(blob);
@@ -231,6 +237,44 @@ const AdminPage: React.FC<AdminPageProps> = ({
       document.body.removeChild(a);
     } catch (err) {
       console.error("Error downloading patient summary:", err);
+    }
+  };
+
+  const deleteNote = async (note: AdminNote) => {
+    try {
+      const confirmed = window.confirm(
+        `Are you sure you want to delete this note?\n\nFile: ${note.file.originalName}\n\nThis action cannot be undone.`
+      );
+      
+      if (!confirmed) return;
+      
+      const token = localStorage.getItem("adminToken");
+      const response = await fetch(`${API_BASE_URL}/api/admin/notes/${note.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log("🔍 Note deleted:", data);
+        
+        // Remove the note from the local state
+        setNotes(prevNotes => prevNotes.filter(n => n.id !== note.id));
+        
+        // Show success message
+        alert(`Note deleted successfully${data.fileDeleted ? ' (file also deleted)' : ''}`);
+        
+        // Refresh the notes list
+        fetchAdminNotes();
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to delete note: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error("Error deleting note:", err);
+      alert("Error deleting note. Please try again.");
     }
   };
 
@@ -502,6 +546,12 @@ const AdminPage: React.FC<AdminPageProps> = ({
                         >
                           📥 All Notes
                         </button>
+                        <button
+                          onClick={() => deleteNote(note)}
+                          className="text-red-600 hover:text-red-900 text-xs px-3 py-2 rounded border border-red-200 hover:border-red-300 transition-colors font-medium"
+                        >
+                          🗑️ Delete
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -633,6 +683,17 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-200 font-medium text-sm sm:text-base shadow-lg hover:shadow-xl"
                   >
                     📥 Download All Notes
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Are you sure you want to delete this note?\n\nFile: ${selectedNote.file.originalName}\n\nThis action cannot be undone.`)) {
+                        deleteNote(selectedNote);
+                        setShowNoteDetails(false);
+                      }
+                    }}
+                    className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 font-medium text-sm sm:text-base shadow-lg hover:shadow-xl"
+                  >
+                    🗑️ Delete Note
                   </button>
                   <button
                     onClick={() => setShowNoteDetails(false)}
