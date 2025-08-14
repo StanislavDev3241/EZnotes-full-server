@@ -210,42 +210,52 @@ function App() {
   const fetchFileNotes = async (fileId: string) => {
     try {
       console.log(`📋 Fetching notes for file ${fileId}`);
-      
+
       // Use anonymous endpoint for non-authenticated users
-      const endpoint = isLoggedIn ? `/api/notes/file/${fileId}` : `/api/notes/file-anonymous/${fileId}`;
+      const endpoint = isLoggedIn
+        ? `/api/notes/file/${fileId}`
+        : `/api/notes/file-anonymous/${fileId}`;
       console.log(`📋 Using endpoint: ${endpoint}`);
-      
+
       const response = await fetch(`${API_BASE_URL}${endpoint}`);
       if (response.ok) {
         const data = await response.json();
         console.log(`📝 Received file notes data:`, data);
-        
+
         if (data.file && data.file.note) {
           // Set the output with the AI-generated notes
           setOutput({
             soapNote: data.file.note.content.soapNote || "",
-            patientSummary: data.file.note.content.patientSummary || ""
+            patientSummary: data.file.note.content.patientSummary || "",
           });
-          console.log(`✅ Notes loaded for file ${fileId}:`, data.file.note.content);
+          console.log(
+            `✅ Notes loaded for file ${fileId}:`,
+            data.file.note.content
+          );
         } else {
           console.log(`⚠️ No notes found for file ${fileId}`);
         }
       } else {
-        console.error(`❌ Failed to fetch file notes: ${response.status} ${response.statusText}`);
+        console.error(
+          `❌ Failed to fetch file notes: ${response.status} ${response.statusText}`
+        );
       }
     } catch (err) {
       console.error("Failed to fetch file notes:", err);
     }
   };
 
-  // Fetch user's own notes (for admin or authenticated users)
+  // Fetch user's own notes (for authenticated users only)
   const fetchUserNotes = async () => {
+    if (!isLoggedIn) {
+      console.log("👤 User not logged in, skipping notes fetch");
+      return;
+    }
+    
     try {
-      // Use anonymous endpoint for non-authenticated users
-      const endpoint = isLoggedIn ? "/api/notes/user" : "/api/notes/anonymous";
-      console.log(`📋 Fetching notes from: ${endpoint}`);
+      console.log(`📋 Fetching notes for authenticated user`);
       
-      const response = await fetch(`${API_BASE_URL}${endpoint}`);
+      const response = await fetch(`${API_BASE_URL}/api/notes/user`);
       if (response.ok) {
         const data = await response.json();
         console.log(`📝 Received notes data:`, data);
@@ -276,8 +286,9 @@ function App() {
       setIsAdmin(true);
       setIsLoggedIn(true);
       fetchAllNotes();
+      fetchUserNotes(); // Fetch user notes for authenticated users
     }
-    fetchUserNotes(); // Always fetch user notes
+    // Don't fetch notes for anonymous users
   }, []);
 
   // Log state changes for debugging
@@ -1733,18 +1744,58 @@ function App() {
             {isAdmin && showAllNotes ? "All Notes (Admin View)" : "My Notes"}
           </h2>
 
-          {isAdmin && showAllNotes ? (
-            <NotesList
-              notes={allNotes}
-              isAdmin={true}
-              onRefresh={fetchAllNotes}
-            />
-          ) : (
-            <NotesList
-              notes={userNotes}
-              isAdmin={false}
-              onRefresh={fetchUserNotes}
-            />
+          {/* Notes History - Only show for admin users */}
+          {isAdmin && (
+            <div className="max-w-6xl mx-auto mt-12">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  📋 All Notes (Admin View)
+                </h2>
+                <div className="flex gap-4 mb-4">
+                  <button
+                    onClick={fetchAllNotes}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    🔄 Refresh All Notes
+                  </button>
+                  <button
+                    onClick={handleAdminLogout}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    🚪 Admin Logout
+                  </button>
+                </div>
+              </div>
+              
+              <NotesList
+                notes={allNotes}
+                onRefresh={fetchAllNotes}
+                isAdmin={true}
+              />
+            </div>
+          )}
+
+          {/* User Notes - Only show for authenticated users (not anonymous) */}
+          {isLoggedIn && !isAdmin && userNotes.length > 0 && (
+            <div className="max-w-6xl mx-auto mt-12">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  📝 My Notes
+                </h2>
+                <button
+                  onClick={fetchUserNotes}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  🔄 Refresh My Notes
+                </button>
+              </div>
+              
+              <NotesList
+                notes={userNotes}
+                onRefresh={fetchUserNotes}
+                isAdmin={false}
+              />
+            </div>
           )}
         </div>
       </section>
@@ -1980,6 +2031,165 @@ function NotesList({
     );
   }
 
+  // Admin view with detailed table
+  if (isAdmin) {
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-gray-600">
+            {notes.length} note{notes.length !== 1 ? "s" : ""} found
+          </span>
+          <button
+            onClick={onRefresh}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            🔄 Refresh
+          </button>
+        </div>
+
+        {/* Admin Table View */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                  File Info
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                  Notes Content
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                  User
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                  Date
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {notes.map((note, index) => (
+                <tr key={note.id || index} className="hover:bg-gray-50">
+                  {/* File Info */}
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {note.originalName || note.filename || `File ${index + 1}`}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Size: {(note.fileSize / 1024).toFixed(1)} KB
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Type: {note.fileType}
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Notes Content */}
+                  <td className="px-4 py-4">
+                    {note.note ? (
+                      <div className="space-y-2">
+                        {note.note.content.soapNote && (
+                          <div>
+                            <span className="text-xs font-medium text-blue-600">SOAP Note:</span>
+                            <div className="text-xs text-gray-700 max-h-20 overflow-y-auto">
+                              {note.note.content.soapNote.substring(0, 200)}...
+                            </div>
+                          </div>
+                        )}
+                        {note.note.content.patientSummary && (
+                          <div>
+                            <span className="text-xs font-medium text-green-600">Summary:</span>
+                            <div className="text-xs text-gray-700 max-h-20 overflow-y-auto">
+                              {note.note.content.patientSummary.substring(0, 200)}...
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">No notes generated</span>
+                    )}
+                  </td>
+
+                  {/* Status */}
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        note.status === "processed"
+                          ? "bg-green-100 text-green-800"
+                          : note.status === "uploaded"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : note.status === "failed"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {note.status || "unknown"}
+                    </span>
+                    {note.taskStatus && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Task: {note.taskStatus}
+                      </div>
+                    )}
+                  </td>
+
+                  {/* User */}
+                  <td className="px-4 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {note.user_email || "Anonymous"}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      ID: {note.user_id || "N/A"}
+                    </div>
+                  </td>
+
+                  {/* Date */}
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(note.created_at || Date.now()).toLocaleDateString()}
+                    <br />
+                    <span className="text-xs">
+                      {new Date(note.created_at || Date.now()).toLocaleTimeString()}
+                    </span>
+                  </td>
+
+                  {/* Actions */}
+                  <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                    <button
+                      onClick={() => {
+                        if (note.note) {
+                          // Show full notes in a modal or expand view
+                          console.log("Full notes for file:", note.note.content);
+                        }
+                      }}
+                      className="text-blue-600 hover:text-blue-900 mr-3"
+                    >
+                      View
+                    </button>
+                    <button
+                      onClick={() => {
+                        // Download notes functionality
+                        console.log("Download notes for file:", note.id);
+                      }}
+                      className="text-green-600 hover:text-green-900"
+                    >
+                      Download
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  // Regular user view (simplified)
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -2001,33 +2211,42 @@ function NotesList({
         >
           <div className="flex justify-between items-start mb-2">
             <h3 className="font-semibold text-gray-800">
-              {note.filename || `Note ${index + 1}`}
+              {note.originalName || note.filename || `Note ${index + 1}`}
             </h3>
             <span className="text-xs text-gray-500">
               {new Date(note.created_at || Date.now()).toLocaleDateString()}
             </span>
           </div>
 
-          {note.content && <p className="text-gray-700 mb-3">{note.content}</p>}
+          {note.note && (
+            <div className="space-y-2">
+              {note.note.content.soapNote && (
+                <div>
+                  <span className="text-xs font-medium text-blue-600">SOAP Note:</span>
+                  <p className="text-gray-700 text-sm">{note.note.content.soapNote}</p>
+                </div>
+              )}
+              {note.note.content.patientSummary && (
+                <div>
+                  <span className="text-xs font-medium text-green-600">Patient Summary:</span>
+                  <p className="text-gray-700 text-sm">{note.note.content.patientSummary}</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {note.status && (
             <span
-              className={`inline-block px-2 py-1 text-xs rounded-full ${
-                note.status === "completed"
+              className={`inline-block px-2 py-1 text-xs rounded-full mt-2 ${
+                note.status === "processed"
                   ? "bg-green-100 text-green-800"
-                  : note.status === "processing"
+                  : note.status === "uploaded"
                   ? "bg-yellow-100 text-yellow-800"
                   : "bg-gray-100 text-gray-800"
               }`}
             >
               {note.status}
             </span>
-          )}
-
-          {isAdmin && note.user_email && (
-            <p className="text-xs text-gray-500 mt-2">
-              User: {note.user_email}
-            </p>
           )}
         </div>
       ))}

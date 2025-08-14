@@ -100,7 +100,7 @@ router.get("/file-anonymous/:fileId", async (req, res) => {
     console.log(`📋 File ${fileId} found for anonymous user:`, {
       filename: file.filename,
       status: file.status,
-      hasNotes: !!file.note_id
+      hasNotes: !!file.note_id,
     });
 
     const fileData = {
