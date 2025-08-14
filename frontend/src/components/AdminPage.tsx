@@ -36,6 +36,8 @@ const AdminPage: React.FC<AdminPageProps> = ({
   API_BASE_URL,
   onBackToMain,
 }) => {
+  console.log("🔍 AdminPage component rendering - API_BASE_URL:", API_BASE_URL);
+  
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [notes, setNotes] = useState<AdminNote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,13 +46,16 @@ const AdminPage: React.FC<AdminPageProps> = ({
   const [showNoteDetails, setShowNoteDetails] = useState(false);
 
   useEffect(() => {
+    console.log("🔍 AdminPage useEffect triggered - fetching data");
     fetchSystemStats();
     fetchAdminNotes();
   }, []);
 
   const fetchSystemStats = async () => {
+    console.log("🔍 fetchSystemStats called");
     try {
       const token = localStorage.getItem("adminToken");
+      console.log("🔍 Admin token:", !!token);
       const response = await fetch(`${API_BASE_URL}/api/admin/stats`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -59,7 +64,10 @@ const AdminPage: React.FC<AdminPageProps> = ({
 
       if (response.ok) {
         const data = await response.json();
+        console.log("🔍 Stats data received:", data);
         setStats(data);
+      } else {
+        console.log("🔍 Stats request failed:", response.status);
       }
     } catch (err) {
       console.error("Error fetching stats:", err);
@@ -67,9 +75,11 @@ const AdminPage: React.FC<AdminPageProps> = ({
   };
 
   const fetchAdminNotes = async () => {
+    console.log("🔍 fetchAdminNotes called");
     try {
       setLoading(true);
       const token = localStorage.getItem("adminToken");
+      console.log("🔍 Admin token for notes:", !!token);
       const response = await fetch(`${API_BASE_URL}/api/admin/notes`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -78,8 +88,10 @@ const AdminPage: React.FC<AdminPageProps> = ({
 
       if (response.ok) {
         const data = await response.json();
+        console.log("🔍 Notes data received:", data);
         setNotes(data);
       } else {
+        console.log("🔍 Notes request failed:", response.status);
         setError("Failed to fetch notes");
       }
     } catch (err) {
@@ -163,7 +175,10 @@ const AdminPage: React.FC<AdminPageProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
+  console.log("🔍 AdminPage render - loading:", loading, "error:", error, "stats:", !!stats, "notes count:", notes.length);
+
   if (loading) {
+    console.log("🔍 AdminPage showing loading state");
     return (
       <div className="min-h-screen bg-gray-50 flex justify-center items-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -172,6 +187,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
   }
 
   if (error) {
+    console.log("🔍 AdminPage showing error state:", error);
     return (
       <div className="min-h-screen bg-gray-50 flex justify-center items-center">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -181,6 +197,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
     );
   }
 
+  console.log("🔍 AdminPage rendering main content");
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}

@@ -58,19 +58,26 @@ function App() {
   // Check URL on component mount and handle routing
   useEffect(() => {
     const path = window.location.pathname;
+    console.log("🔍 URL routing effect - path:", path, "currentPage:", currentPage);
+    
     if (path === "/admin") {
       // Check if admin token exists
       const token = localStorage.getItem("adminToken");
+      console.log("🔍 Admin path detected - token exists:", !!token);
+      
       if (token) {
+        console.log("🔍 Setting admin state and page");
         setCurrentPage("admin");
         setIsAdmin(true);
         setIsLoggedIn(true);
       } else {
         // Redirect to main page if no admin token
+        console.log("🔍 No admin token, redirecting to main");
         window.history.pushState({}, "", "/");
         setCurrentPage("main");
       }
     } else {
+      console.log("🔍 Main path detected, setting main page");
       setCurrentPage("main");
     }
   }, []);
@@ -1137,10 +1144,15 @@ function App() {
 
       {/* Main App or Admin Page Routing */}
       {currentPage === "admin" ? (
-        <AdminPage
-          API_BASE_URL={API_BASE_URL}
-          onBackToMain={handleBackToMain}
-        />
+        (() => {
+          console.log("🔍 Rendering AdminPage - currentPage:", currentPage, "isAdmin:", isAdmin, "isLoggedIn:", isLoggedIn);
+          return (
+            <AdminPage
+              API_BASE_URL={API_BASE_URL}
+              onBackToMain={handleBackToMain}
+            />
+          );
+        })()
       ) : (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
           {/* Header */}
