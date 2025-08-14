@@ -50,6 +50,11 @@ const AdminPage: React.FC<AdminPageProps> = ({
     fetchAdminNotes();
   }, []);
 
+  // Debug: Monitor notes state changes
+  useEffect(() => {
+    console.log("🔍 Notes state updated - count:", notes.length);
+  }, [notes]);
+
   const fetchSystemStats = async () => {
     console.log("🔍 fetchSystemStats called");
     try {
@@ -245,32 +250,43 @@ const AdminPage: React.FC<AdminPageProps> = ({
       const confirmed = window.confirm(
         `Are you sure you want to delete this note?\n\nFile: ${note.file.originalName}\n\nThis action cannot be undone.`
       );
-      
+
       if (!confirmed) return;
-      
+
       const token = localStorage.getItem("adminToken");
-      const response = await fetch(`${API_BASE_URL}/api/admin/notes/${note.id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/admin/notes/${note.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (response.ok) {
         const data = await response.json();
         console.log("🔍 Note deleted:", data);
-        
-        // Remove the note from the local state
-        setNotes(prevNotes => prevNotes.filter(n => n.id !== note.id));
-        
+
+        // Remove the note from the local state immediately
+        setNotes((prevNotes) => {
+          const updatedNotes = prevNotes.filter((n) => n.id !== note.id);
+          console.log("🔍 Updated notes count:", updatedNotes.length);
+          return updatedNotes;
+        });
+
         // Show success message
-        alert(`Note deleted successfully${data.fileDeleted ? ' (file also deleted)' : ''}`);
-        
-        // Refresh the notes list
-        fetchAdminNotes();
+        alert(
+          `Note deleted successfully${
+            data.fileDeleted ? " (file also deleted)" : ""
+          }`
+        );
+
+        // Also refresh stats to update the total count
+        fetchSystemStats();
       } else {
         const errorData = await response.json();
-        alert(`Failed to delete note: ${errorData.error || 'Unknown error'}`);
+        alert(`Failed to delete note: ${errorData.error || "Unknown error"}`);
       }
     } catch (err) {
       console.error("Error deleting note:", err);
@@ -686,7 +702,11 @@ const AdminPage: React.FC<AdminPageProps> = ({
                   </button>
                   <button
                     onClick={() => {
-                      if (window.confirm(`Are you sure you want to delete this note?\n\nFile: ${selectedNote.file.originalName}\n\nThis action cannot be undone.`)) {
+                      if (
+                        window.confirm(
+                          `Are you sure you want to delete this note?\n\nFile: ${selectedNote.file.originalName}\n\nThis action cannot be undone.`
+                        )
+                      ) {
                         deleteNote(selectedNote);
                         setShowNoteDetails(false);
                       }
