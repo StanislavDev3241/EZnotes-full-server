@@ -74,23 +74,38 @@ const sendToMakeCom = async (fileInfo, fileId) => {
         try {
           const makeResponse = await response.json();
           console.log(`📋 Make.com response:`, makeResponse);
-          return makeResponse;
+          
+          // If Make.com returns immediate results, use them
+          if (makeResponse.soap_note_text || makeResponse.patient_summary_text) {
+            console.log("🎉 Make.com returned immediate results");
+            return makeResponse;
+          }
+          
+          // Otherwise, treat as asynchronous processing
+          console.log("⏳ Make.com processing asynchronously - waiting for webhook");
+          return {
+            status: "processing",
+            message: "File sent to Make.com for asynchronous processing",
+            webhookExpected: true
+          };
         } catch (jsonError) {
           console.warn(`⚠️ Make.com response is not valid JSON:`, jsonError);
           // Return a default response indicating processing started
           return {
             status: "processing",
             message: "File sent to Make.com for processing",
+            webhookExpected: true
           };
         }
       } else {
         console.warn(
-          `⚠️ Make.com response is not JSON (${contentType}), treating as processing started`
+          `⚠️ Make.com response is not JSON (${contentType}), treating as asynchronous processing`
         );
         // Return a default response indicating processing started
         return {
           status: "processing",
           message: "File sent to Make.com for processing",
+          webhookExpected: true
         };
       }
     } else {
@@ -252,10 +267,10 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
           notes: notes,
         });
       } else {
-        // Still processing - Make.com received the file but processing is ongoing
-        console.log(
-          "⏳ AI processing in progress, updating status to 'sent_to_make'"
-        );
+        // Normal case: Make.com is processing asynchronously via webhook
+        console.log("⏳ AI processing started asynchronously - waiting for webhook");
+        
+        // Update task status to indicate processing started
         await pool.query(
           `UPDATE tasks SET status = 'sent_to_make' WHERE file_id = $1`,
           [fileId]
@@ -270,9 +285,9 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
         return res.json({
           success: true,
           file: { id: fileId, status: "processing" },
-          message:
-            "File uploaded successfully and sent for AI processing. Processing in progress...",
+          message: "File uploaded successfully and sent for AI processing. Processing in progress...",
           taskStatus: "sent_to_make",
+          note: "Results will be available when AI processing completes. This may take several minutes."
         });
       }
     } catch (makeError) {
@@ -464,7 +479,7 @@ router.post(
           console.log(`📁 Reading chunk from disk: ${chunkFile.path}`);
           chunkBuffer = await fs.readFile(chunkFile.path);
           console.log("📦 Successfully read chunk from disk");
-          
+
           // Don't clean up the temporary file here - it will be cleaned up after finalization
           // This ensures the chunk is available for the finalize endpoint
         } catch (readError) {
@@ -519,11 +534,13 @@ router.post(
         console.log(
           `✅ Chunk ${chunkIndex}/${totalChunks} saved for file ${fileName}`
         );
-        
+
         // Verify chunk was saved
         try {
           const savedChunkStats = await fs.stat(chunkPath);
-          console.log(`📁 Chunk saved successfully: ${chunkPath} (${savedChunkStats.size} bytes)`);
+          console.log(
+            `📁 Chunk saved successfully: ${chunkPath} (${savedChunkStats.size} bytes)`
+          );
         } catch (statError) {
           console.warn(`⚠️ Could not verify saved chunk: ${statError.message}`);
         }
@@ -636,10 +653,10 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
       console.log(`✅ Chunks directory exists: ${chunksDir}`);
     } catch (accessError) {
       console.error(`❌ Chunks directory not found: ${chunksDir}`, accessError);
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "No chunks found for this file",
         details: `Directory ${chunksDir} does not exist`,
-        fileId: fileId
+        fileId: fileId,
       });
     }
 
@@ -647,8 +664,11 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
     let sortedChunks = [];
     try {
       const chunkFiles = await fs.readdir(chunksDir);
-      console.log(`📁 Found ${chunkFiles.length} files in chunks directory:`, chunkFiles);
-      
+      console.log(
+        `📁 Found ${chunkFiles.length} files in chunks directory:`,
+        chunkFiles
+      );
+
       sortedChunks = chunkFiles
         .filter((file) => file.startsWith("chunk_"))
         .sort((a, b) => {
@@ -657,24 +677,30 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
           return aIndex - bIndex;
         });
 
-      console.log(`🎯 Filtered ${sortedChunks.length} valid chunks:`, sortedChunks);
+      console.log(
+        `🎯 Filtered ${sortedChunks.length} valid chunks:`,
+        sortedChunks
+      );
 
       if (sortedChunks.length === 0) {
         console.error(`❌ No valid chunks found in directory: ${chunksDir}`);
         console.error(`📁 All files found:`, chunkFiles);
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: "No valid chunks found",
           details: `Found ${chunkFiles.length} files but none are valid chunks`,
           allFiles: chunkFiles,
-          fileId: fileId
+          fileId: fileId,
         });
       }
     } catch (readError) {
-      console.error(`❌ Error reading chunks directory: ${chunksDir}`, readError);
-      return res.status(500).json({ 
+      console.error(
+        `❌ Error reading chunks directory: ${chunksDir}`,
+        readError
+      );
+      return res.status(500).json({
         error: "Failed to read chunks directory",
         details: readError.message,
-        fileId: fileId
+        fileId: fileId,
       });
     }
 
@@ -971,11 +997,16 @@ router.delete("/:fileId", optionalAuth, async (req, res) => {
 });
 
 // Webhook endpoint for Make.com to update task status when AI processing is complete
+// This handles the asynchronous nature of AI processing where:
+// 1. File is sent to Make.com (immediate response)
+// 2. Make.com processes file asynchronously (can take 10+ minutes)
+// 3. Make.com calls this webhook when processing completes
+// 4. Backend updates file status and saves results
 router.post("/webhook", async (req, res) => {
   // Set longer timeout for webhook processing
   req.setTimeout(900000); // 15 minutes
   res.setTimeout(900000);
-
+  
   try {
     console.log("📥 Received webhook from Make.com:", req.body);
 
