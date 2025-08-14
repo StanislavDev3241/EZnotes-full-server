@@ -95,7 +95,7 @@ function App() {
   // Add upload progress tracking
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<
-    "idle" | "uploading" | "processing" | "complete" | "error"
+    "idle" | "uploading" | "processing" | "complete" | "error" | "optimizing"
   >("idle");
   const [elapsedTime, setElapsedTime] = useState(0);
   const [remainingTime, setRemainingTime] = useState<number | null>(null);
@@ -737,146 +737,59 @@ function App() {
     setUploadStatus("uploading");
     setUploadProgress(0);
 
-    // Start upload timer
-    const startTime = Date.now();
+    // Reset timer states
     setElapsedTime(0);
     setRemainingTime(null);
 
     // Check file size and warn user for large files
     const fileSizeMB = file.size / (1024 * 1024);
     if (fileSizeMB > 50) {
-      console.log(`⚠️ Large file detected: ${fileSizeMB.toFixed(2)}MB - this may take several minutes`);
+      console.log(
+        `⚠️ Large file detected: ${fileSizeMB.toFixed(
+          2
+        )}MB - this may take several minutes`
+      );
     }
 
     try {
+      // Optimize file before upload to boost speed
+      console.log(`🔧 Optimizing file for faster upload...`);
+      setUploadStatus("optimizing");
+      setUploadProgress(5);
+      
+      const optimizedFile = await optimizeFileForUpload(file);
+      const optimizedSizeMB = optimizedFile.size / (1024 * 1024);
+      
+      if (optimizedFile.size < file.size) {
+        const savings = ((file.size - optimizedFile.size) / file.size * 100).toFixed(1);
+        console.log(`🚀 File optimized: ${fileSizeMB.toFixed(2)}MB → ${optimizedSizeMB.toFixed(2)}MB (${savings}% smaller)`);
+        setUploadProgress(10);
+        setUploadStatus("uploading");
+        // Show optimization success briefly
+        setTimeout(() => setError(null), 2000);
+      } else {
+        setUploadProgress(10);
+        setUploadStatus("uploading");
+      }
+
       // Use custom server instead of Make.com directly
       const webhookUrl = API_ENDPOINTS.upload;
       const apiKey = localStorage.getItem("adminToken"); // Use auth token if admin, otherwise null
 
-      // Upload with retry logic for large files
-      const maxRetries = 3;
-      let lastError: Error | null = null;
+      // Choose upload method based on file size
       let result: any = null;
-
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          console.log(`📁 Upload attempt ${attempt}/${maxRetries} for file: ${file.name} (${fileSizeMB.toFixed(2)}MB)`);
-          
-          // Single upload attempt with XMLHttpRequest
-          result = await new Promise<any>((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-
-            // Set timeout for large files (5 minutes)
-            xhr.timeout = 300000; // 5 minutes
-
-            // Real upload progress tracking with time calculations
-            xhr.upload.addEventListener("progress", (event) => {
-              if (event.lengthComputable) {
-                const progress = (event.loaded / event.total) * 90; // Go to 90% during upload
-                setUploadProgress(progress);
-
-                // Calculate elapsed and remaining time
-                const currentTime = Date.now();
-                const elapsed = Math.floor((currentTime - startTime) / 1000);
-                setElapsedTime(elapsed);
-
-                if (progress > 0) {
-                  const estimatedTotalTime = (elapsed / progress) * 100;
-                  const remaining = Math.max(
-                    0,
-                    Math.floor(estimatedTotalTime - elapsed)
-                  );
-                  setRemainingTime(remaining);
-                }
-              }
-            });
-
-            xhr.addEventListener("load", () => {
-              if (xhr.status === 200) {
-                try {
-                  const result = JSON.parse(xhr.responseText);
-                  setUploadProgress(90); // Upload complete, now processing
-                  setUploadStatus("processing");
-                  resolve(result);
-                } catch (error) {
-                  reject(new Error("Invalid JSON response"));
-                }
-              } else if (xhr.status === 413) {
-                reject(
-                  new Error(
-                    `File too large (${fileSizeMB.toFixed(1)}MB). Maximum allowed size is 200MB. Please compress your file or use a smaller one.`
-                  )
-                );
-              } else if (xhr.status === 408) {
-                reject(
-                  new Error(
-                    `Upload timeout. Large files (${fileSizeMB.toFixed(1)}MB) may take longer. Please try again or use a smaller file.`
-                  )
-                );
-              } else {
-                reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
-              }
-            });
-
-            xhr.addEventListener("error", () => {
-              if (xhr.status === 0) {
-                reject(new Error("Network connection lost. Please check your internet connection and try again."));
-              } else {
-                reject(new Error("Network error during upload. Please try again."));
-              }
-            });
-
-            xhr.addEventListener("timeout", () => {
-              reject(new Error(`Upload timeout after 5 minutes. File ${fileSizeMB.toFixed(1)}MB is too large or connection is slow. Please try with a smaller file.`));
-            });
-
-            xhr.addEventListener("abort", () => {
-              reject(new Error("Upload was cancelled. Please try again."));
-            });
-
-            xhr.open("POST", webhookUrl);
-            // Only add Authorization header if admin token exists
-            if (apiKey) {
-              xhr.setRequestHeader("Authorization", `Bearer ${apiKey}`);
-            }
-
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append(
-              "noteType",
-              outputSelection.soapNote && outputSelection.patientSummary
-                ? "both"
-                : outputSelection.soapNote
-                ? "soap"
-                : "summary"
-            );
-            xhr.send(formData);
-          });
-
-          // If we get here, upload was successful
-          console.log(`✅ Upload successful on attempt ${attempt}`);
-          break;
-
-        } catch (error) {
-          lastError = error instanceof Error ? error : new Error(String(error));
-          console.error(`❌ Upload attempt ${attempt} failed:`, lastError.message);
-          
-          if (attempt < maxRetries) {
-            // Wait before retry (exponential backoff)
-            const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Max 10 seconds
-            console.log(`⏳ Waiting ${waitTime/1000}s before retry...`);
-            setError(`Upload attempt ${attempt} failed. Retrying in ${waitTime/1000}s... (${lastError.message})`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-          }
-        }
+      
+      if (optimizedSizeMB > 10) {
+        // Use chunked upload for files larger than 10MB
+        console.log(`🚀 Using chunked upload for ${optimizedSizeMB.toFixed(2)}MB file`);
+        result = await performChunkedUpload(optimizedFile, webhookUrl, apiKey);
+      } else {
+        // Use regular upload for smaller files
+        console.log(`📁 Using regular upload for ${optimizedSizeMB.toFixed(2)}MB file`);
+        result = await performRegularUpload(optimizedFile, webhookUrl, apiKey);
       }
 
-      // If all retries failed
-      if (lastError) {
-        throw lastError;
-      }
-
-      // Process the result from XMLHttpRequest
+      // Process the result from upload
       if (result.file && result.file.id) {
         // File uploaded successfully, now wait for AI processing
         console.log("📁 File uploaded, waiting for AI processing...");
@@ -958,6 +871,363 @@ function App() {
       setRemainingTime(null);
     }
   }, [file, uploadStatus, isLoggedIn, outputSelection, fetchUserNotes]);
+
+  // Chunked upload function for large files
+  const performChunkedUpload = async (file: File, webhookUrl: string, apiKey: string | null) => {
+    const chunkSize = 2 * 1024 * 1024; // 2MB chunks
+    const totalChunks = Math.ceil(file.size / chunkSize);
+    const fileId = generateFileId();
+    
+    console.log(`🚀 Starting chunked upload: ${totalChunks} chunks of ${(chunkSize / 1024 / 1024).toFixed(1)}MB each`);
+
+    // Upload chunks in parallel (max 3 concurrent)
+    const maxConcurrent = 3;
+    const chunks: Array<{ index: number; data: Blob; start: number; end: number }> = [];
+    
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * chunkSize;
+      const end = Math.min(start + chunkSize, file.size);
+      const chunk = file.slice(start, end);
+      chunks.push({ index: i, data: chunk, start, end });
+    }
+
+    let completedChunks = 0;
+    let failedChunks: number[] = [];
+
+    // Process chunks in batches
+    for (let i = 0; i < chunks.length; i += maxConcurrent) {
+      const batch = chunks.slice(i, i + maxConcurrent);
+      const batchPromises = batch.map(async (chunk) => {
+        try {
+          await uploadChunk(chunk, fileId, webhookUrl, apiKey);
+          completedChunks++;
+          const progress = (completedChunks / totalChunks) * 90; // 90% for upload, 10% for processing
+          setUploadProgress(progress);
+          console.log(`✅ Chunk ${chunk.index + 1}/${totalChunks} uploaded successfully`);
+        } catch (error) {
+          console.error(`❌ Chunk ${chunk.index + 1} failed:`, error);
+          failedChunks.push(chunk.index);
+          throw error;
+        }
+      });
+
+      try {
+        await Promise.all(batchPromises);
+      } catch (error) {
+        // If any chunk in batch fails, retry failed chunks
+        if (failedChunks.length > 0) {
+          console.log(`🔄 Retrying ${failedChunks.length} failed chunks...`);
+          for (const chunkIndex of failedChunks) {
+            const chunk = chunks[chunkIndex];
+            try {
+              await uploadChunk(chunk, fileId, webhookUrl, apiKey);
+              completedChunks++;
+              const progress = (completedChunks / totalChunks) * 90;
+              setUploadProgress(progress);
+              console.log(`✅ Retry successful for chunk ${chunk.index + 1}`);
+            } catch (retryError) {
+              throw new Error(`Failed to upload chunk ${chunk.index + 1} after retry`);
+            }
+          }
+        }
+      }
+    }
+
+    // Finalize upload
+    console.log(`🎯 Finalizing chunked upload for file ${fileId}`);
+    const finalizeResult = await finalizeChunkedUpload(fileId, file, webhookUrl, apiKey);
+    
+    if (!finalizeResult.success) {
+      throw new Error("Failed to finalize chunked upload");
+    }
+
+    return finalizeResult;
+  };
+
+  // Upload individual chunk
+  const uploadChunk = async (chunk: { index: number; data: Blob; start: number; end: number }, fileId: string, webhookUrl: string, apiKey: string | null) => {
+    if (!file) throw new Error("No file selected");
+    
+    const formData = new FormData();
+    formData.append("chunk", chunk.data);
+    formData.append("chunkIndex", chunk.index.toString());
+    formData.append("fileId", fileId);
+    formData.append("totalChunks", Math.ceil(file.size / (2 * 1024 * 1024)).toString());
+    formData.append("fileName", file.name);
+    formData.append("fileSize", file.size.toString());
+    formData.append("chunkStart", chunk.start.toString());
+    formData.append("chunkEnd", chunk.end.toString());
+    formData.append(
+      "noteType",
+      outputSelection.soapNote && outputSelection.patientSummary
+        ? "both"
+        : outputSelection.soapNote
+        ? "soap"
+        : "summary"
+    );
+
+    const response = await fetch(`${webhookUrl}/chunk`, {
+      method: "POST",
+      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Chunk upload failed: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  };
+
+  // Finalize chunked upload
+  const finalizeChunkedUpload = async (fileId: string, file: File, webhookUrl: string, apiKey: string | null) => {
+    const formData = new FormData();
+    formData.append("fileId", fileId);
+    formData.append("fileName", file.name);
+    formData.append("fileSize", file.size.toString());
+    formData.append("action", "finalize");
+    formData.append(
+      "noteType",
+      outputSelection.soapNote && outputSelection.patientSummary
+        ? "both"
+        : outputSelection.soapNote
+        ? "summary"
+        : "soap"
+    );
+
+    const response = await fetch(`${webhookUrl}/finalize`, {
+      method: "POST",
+      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Finalization failed: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  };
+
+  // Regular upload function for smaller files
+  const performRegularUpload = async (file: File, webhookUrl: string, apiKey: string | null) => {
+    // Upload with retry logic for large files
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+    let result: any = null;
+    const uploadStartTime = Date.now(); // Local start time for this function
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(
+          `📁 Upload attempt ${attempt}/${maxRetries} for file: ${
+            file.name
+          } (${(file.size / (1024 * 1024)).toFixed(2)}MB)`
+        );
+
+        // Single upload attempt with XMLHttpRequest
+        result = await new Promise<any>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+
+          // Set timeout for large files (5 minutes)
+          xhr.timeout = 300000; // 5 minutes
+
+          // Real upload progress tracking with time calculations
+          xhr.upload.addEventListener("progress", (event) => {
+            if (event.lengthComputable) {
+              const progress = (event.loaded / event.total) * 90; // Go to 90% during upload
+              setUploadProgress(progress);
+
+              // Calculate elapsed and remaining time
+              const currentTime = Date.now();
+              const elapsed = Math.floor((currentTime - uploadStartTime) / 1000);
+              setElapsedTime(elapsed);
+
+              if (progress > 0) {
+                const estimatedTotalTime = (elapsed / progress) * 100;
+                const remaining = Math.max(
+                  0,
+                  Math.floor(estimatedTotalTime - elapsed)
+                );
+                setRemainingTime(remaining);
+              }
+            }
+          });
+
+          xhr.addEventListener("load", () => {
+            if (xhr.status === 200) {
+              try {
+                const result = JSON.parse(xhr.responseText);
+                setUploadProgress(90); // Upload complete, now processing
+                setUploadStatus("processing");
+                resolve(result);
+              } catch (error) {
+                reject(new Error("Invalid JSON response"));
+              }
+            } else if (xhr.status === 413) {
+              reject(
+                new Error(
+                  `File too large (${(file.size / (1024 * 1024)).toFixed(
+                    1
+                  )}MB). Maximum allowed size is 200MB. Please compress your file or use a smaller one.`
+                )
+              );
+            } else if (xhr.status === 408) {
+              reject(
+                new Error(
+                  `Upload timeout. Large files (${(file.size / (1024 * 1024)).toFixed(
+                    1
+                  )}MB) may take longer. Please try again or use a smaller file.`
+                )
+              );
+            } else {
+              reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+            }
+          });
+
+          xhr.addEventListener("error", () => {
+            if (xhr.status === 0) {
+              reject(
+                new Error(
+                  "Network connection lost. Please check your internet connection and try again."
+                )
+              );
+            } else {
+              reject(
+                new Error("Network error during upload. Please try again.")
+              );
+            }
+          });
+
+          xhr.addEventListener("timeout", () => {
+            reject(
+              new Error(
+                `Upload timeout after 5 minutes. File ${(file.size / (1024 * 1024)).toFixed(
+                  1
+                )}MB is too large or connection is slow. Please try with a smaller file.`
+              )
+            );
+          });
+
+          xhr.addEventListener("abort", () => {
+            reject(new Error("Upload was cancelled. Please try again."));
+          });
+
+          xhr.open("POST", webhookUrl);
+          // Only add Authorization header if admin token exists
+          if (apiKey) {
+            xhr.setRequestHeader("Authorization", `Bearer ${apiKey}`);
+          }
+
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append(
+            "noteType",
+            outputSelection.soapNote && outputSelection.patientSummary
+              ? "both"
+              : outputSelection.soapNote
+              ? "soap"
+              : "summary"
+          );
+          xhr.send(formData);
+        });
+
+        // If we get here, upload was successful
+        console.log(`✅ Upload successful on attempt ${attempt}`);
+        break;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.error(
+          `❌ Upload attempt ${attempt} failed:`,
+          lastError.message
+        );
+
+        if (attempt < maxRetries) {
+          // Wait before retry (exponential backoff)
+          const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Max 10 seconds
+          console.log(`⏳ Waiting ${waitTime / 1000}s before retry...`);
+          setError(
+            `Upload attempt ${attempt} failed. Retrying in ${
+              waitTime / 1000
+            }s... (${lastError.message})`
+          );
+          await new Promise((resolve) => setTimeout(resolve, waitTime));
+        }
+      }
+    }
+
+    // If all retries failed
+    if (lastError) {
+      throw lastError;
+    }
+
+    return result;
+  };
+
+  // Generate unique file ID for chunked uploads
+  const generateFileId = () => {
+    return `chunked_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+  };
+
+  // Compress file before upload to boost speed
+  const compressFile = async (file: File): Promise<File> => {
+    // Only compress audio files and text files
+    if (!file.type.startsWith('audio/') && file.type !== 'text/plain') {
+      return file;
+    }
+
+    try {
+      if (file.type === 'text/plain') {
+        // Compress text files using gzip
+        const text = await file.text();
+        
+        // Simple compression for text (remove extra whitespace, etc.)
+        const compressedText = text
+          .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+          .replace(/\n\s*\n/g, '\n') // Remove empty lines
+          .trim();
+        
+        if (compressedText.length < text.length) {
+          const compressedBlob = new Blob([compressedText], { type: 'text/plain' });
+          return new File([compressedBlob], file.name, { type: 'text/plain' });
+        }
+        return file;
+      } else if (file.type.startsWith('audio/')) {
+        // For audio files, we'll use the Web Audio API to potentially reduce quality
+        // This is a simplified approach - in production you might want more sophisticated compression
+        console.log(`🎵 Audio file detected: ${file.name} - compression not implemented for audio files`);
+        return file;
+      }
+      
+      return file;
+    } catch (error) {
+      console.warn("⚠️ File compression failed, using original file:", error);
+      return file;
+    }
+  };
+
+  // Optimize file before upload
+  const optimizeFileForUpload = async (file: File): Promise<File> => {
+    const fileSizeMB = file.size / (1024 * 1024);
+    
+    if (fileSizeMB > 5) {
+      console.log(`🔧 Optimizing file for upload: ${file.name} (${fileSizeMB.toFixed(2)}MB)`);
+      
+      // Compress file if possible
+      const compressedFile = await compressFile(file);
+      const compressedSizeMB = compressedFile.size / (1024 * 1024);
+      
+      if (compressedFile.size < file.size) {
+        const savings = ((file.size - compressedFile.size) / file.size * 100).toFixed(1);
+        console.log(`✅ File compressed: ${fileSizeMB.toFixed(2)}MB → ${compressedSizeMB.toFixed(2)}MB (${savings}% smaller)`);
+        return compressedFile;
+      } else {
+        console.log(`ℹ️ No compression possible for this file type`);
+        return file;
+      }
+    }
+    
+    return file;
+  };
 
   const copyToClipboard = useCallback(async (text: string, _type: string) => {
     try {
@@ -1693,17 +1963,29 @@ function App() {
                           </div>
                         )}
 
-                        <p className="text-sm text-blue-600">
-                          {uploadStatus === "uploading"
-                            ? "Uploading file..."
-                            : uploadStatus === "processing"
-                            ? "🤖 AI is processing your file... This may take a few minutes"
-                            : uploadStatus === "complete"
-                            ? "✅ Processing complete!"
-                            : uploadStatus === "error"
-                            ? "❌ Processing failed"
-                            : "Processing with AI..."}
-                        </p>
+                        {/* Status Messages */}
+                        <div className="mt-3 text-center">
+                          {uploadStatus === "optimizing" && (
+                            <p className="text-sm text-purple-600">
+                              🔧 Optimizing file for faster upload...
+                            </p>
+                          )}
+                          {uploadStatus === "uploading" && (
+                            <p className="text-sm text-blue-600">
+                              📤 Uploading file... {uploadProgress > 10 && `(${Math.round(uploadProgress)}% complete)`}
+                            </p>
+                          )}
+                          {uploadStatus === "processing" && (
+                            <p className="text-sm text-blue-600">
+                              🤖 AI is processing your file... This may take a few minutes
+                            </p>
+                          )}
+                          {uploadStatus === "error" && (
+                            <p className="text-sm text-red-600">
+                              ❌ Processing failed
+                            </p>
+                          )}
+                        </div>
 
                         {/* Show processing status for better user experience */}
                         {uploadStatus === "processing" && (

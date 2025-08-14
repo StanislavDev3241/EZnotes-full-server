@@ -14,6 +14,54 @@ const fetch = require("node-fetch"); // Add fetch for Node.js compatibility
 
 const router = express.Router();
 
+// Function to send file to Make.com for AI processing
+const sendToMakeCom = async (fileInfo, fileId) => {
+  const makeWebhookUrl = process.env.MAKE_WEBHOOK_URL;
+  if (!makeWebhookUrl) {
+    console.warn("⚠️ MAKE_WEBHOOK_URL not configured - skipping Make.com integration");
+    return { status: "no_webhook" };
+  }
+
+  try {
+    const fileUrl = `${process.env.BACKEND_URL || "http://localhost:3001"}/uploads/${fileInfo.filename}`;
+    
+    const webhookPayload = {
+      fileId,
+      fileUrl,
+      originalName: fileInfo.originalName,
+      fileSize: fileInfo.fileSize,
+      fileType: fileInfo.fileType,
+      timestamp: new Date().toISOString(),
+    };
+
+    console.log(`📤 Sending to Make.com webhook:`, {
+      url: makeWebhookUrl,
+      payload: webhookPayload,
+    });
+
+    const response = await fetch(makeWebhookUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(webhookPayload),
+    });
+
+    if (response.ok) {
+      console.log(`✅ File sent to Make.com successfully: ${fileInfo.filename}`);
+      const makeResponse = await response.json();
+      console.log(`📋 Make.com response:`, makeResponse);
+      return makeResponse;
+    } else {
+      console.error(`❌ Failed to send file to Make.com: ${response.status} ${response.statusText}`);
+      throw new Error(`Make.com webhook failed: ${response.status} ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error(`❌ Error sending file to Make.com:`, error);
+    throw error;
+  }
+};
+
 // File upload endpoint - allows both authenticated and anonymous uploads
 router.post(
   "/",
@@ -100,284 +148,256 @@ router.post(
         throw new Error(`Failed to create task: ${dbError.message}`);
       }
 
-      // Add job to processing queue
+      // Send to Make.com for AI processing
       try {
-        await fileProcessingQueue.add(
-          "process-file",
-          {
-            fileId,
-            filename: fileInfo.filename,
-            originalName: fileInfo.originalName,
-            filePath: uploadPath,
-            fileSize: fileInfo.fileSize,
-            fileType: fileInfo.fileType,
-            userId: userId,
-          },
-          {
-            priority: 1,
-            attempts: 3,
-            backoff: {
-              type: "exponential",
-              delay: 2000,
-            },
-          }
-        );
-      } catch (queueError) {
-        console.error("Queue error adding job:", queueError);
-        throw new Error(`Failed to add job to queue: ${queueError.message}`);
-      }
+        const makeResponse = await sendToMakeCom(fileInfo, fileId);
+        console.log("✅ File sent to Make.com successfully");
 
-      // Send file URL to Make.com webhook
-      const makeWebhookUrl = process.env.MAKE_WEBHOOK_URL;
-      if (makeWebhookUrl) {
-        try {
-          const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${
-            fileInfo.filename
-          }`;
-
-          const webhookPayload = {
-            fileId,
-            fileUrl,
-            originalName: fileInfo.originalName,
-            fileSize: fileInfo.fileSize,
-            fileType: fileInfo.fileType,
-            userId: userId,
-            timestamp: new Date().toISOString(),
+        // Update task status based on Make.com response
+        if (makeResponse.soap_note_text || makeResponse.patient_summary_text) {
+          // AI processing completed immediately
+          console.log("🎉 AI processing completed immediately");
+          
+          // Save notes to database
+          const notes = {
+            soapNote: makeResponse.soap_note_text || "",
+            patientSummary: makeResponse.patient_summary_text || ""
           };
-
-          console.log(`📤 Sending to Make.com webhook:`, {
-            url: makeWebhookUrl,
-            payload: webhookPayload,
-          });
-
-          console.log(
-            `📋 Make.com will process the file and respond with AI results`
-          );
-          console.log(`📋 Expected response from Make.com:`, {
-            soap_note_text: "AI generated SOAP note content",
-            patient_summary_text: "AI generated patient summary content",
-            note: "Make.com sends results immediately in the response, not via callback",
-          });
-
-          // Make.com webhook without authentication (public webhook)
-          const response = await fetch(makeWebhookUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(webhookPayload),
-          });
-
-          if (response.ok) {
-            console.log(
-              `✅ File sent to Make.com successfully: ${fileInfo.filename}`
-            );
-
-            // Get the response from Make.com (this contains the AI results!)
-            try {
-              const makeResponse = await response.json();
-              console.log(`📋 Make.com response:`, makeResponse);
-
-              // Check for Make.com's actual response format
-              if (
-                makeResponse.soap_note_text ||
-                makeResponse.patient_summary_text
-              ) {
-                console.log(`🎉 AI processing completed by Make.com!`);
-
-                // Transform Make.com format to our expected format
-                const notes = {
-                  soapNote: makeResponse.soap_note_text || "",
-                  patientSummary: makeResponse.patient_summary_text || "",
-                };
-
-                console.log(`📝 Transformed notes:`, notes);
-
-                // Save the generated notes directly
-                const noteResult = await pool.query(
-                  `
-                  INSERT INTO notes (file_id, user_id, note_type, content, status)
-                  VALUES ($1, $2, $3, $4, 'generated')
-                  RETURNING id
-                `,
-                  [
-                    fileId,
-                    userId,
-                    "both", // Default to both since we have both types
-                    JSON.stringify(notes),
-                  ]
-                );
-
-                console.log(
-                  `📝 Notes saved to database with ID:`,
-                  noteResult.rows[0].id
-                );
-
-                // Update file status to processed
-                await pool.query(
-                  `
-                  UPDATE files SET status = 'processed', updated_at = CURRENT_TIMESTAMP
-                  WHERE id = $1
-                `,
-                  [fileId]
-                );
-
-                // Update task status to completed
-                await pool.query(
-                  `
-                  UPDATE tasks SET status = 'completed', processed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-                  WHERE file_id = $1 AND task_type = 'file_processing'
-                `,
-                  [fileId]
-                );
-
-                console.log(
-                  `✅ File ${fileId} fully processed with AI results`
-                );
-              } else if (
-                makeResponse.status === "success" &&
-                makeResponse.notes
-              ) {
-                // Handle the expected format as fallback
-                console.log(
-                  `🎉 AI processing completed by Make.com (expected format)!`
-                );
-
-                // Save the generated notes directly
-                const noteResult = await pool.query(
-                  `
-                  INSERT INTO notes (file_id, user_id, note_type, content, status)
-                  VALUES ($1, $2, $3, $4, 'generated')
-                  RETURNING id
-                `,
-                  [
-                    fileId,
-                    userId,
-                    makeResponse.noteType || "general",
-                    JSON.stringify(makeResponse.notes),
-                  ]
-                );
-
-                console.log(
-                  `📝 Notes saved to database with ID:`,
-                  noteResult.rows[0].id
-                );
-
-                // Update file status to processed
-                await pool.query(
-                  `
-                  UPDATE files SET status = 'processed', updated_at = CURRENT_TIMESTAMP
-                  WHERE id = $1
-                `,
-                  [fileId]
-                );
-
-                // Update task status to completed
-                await pool.query(
-                  `
-                  UPDATE tasks SET status = 'completed', processed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-                  WHERE file_id = $1 AND task_type = 'file_processing'
-                `,
-                  [fileId]
-                );
-
-                console.log(
-                  `✅ File ${fileId} fully processed with AI results`
-                );
-              } else {
-                console.log(
-                  `⚠️ Make.com response indicates processing not complete:`,
-                  makeResponse
-                );
-
-                // Update task status to sent_to_make (still processing)
-                await pool.query(
-                  `
-                  UPDATE tasks SET status = 'sent_to_make', updated_at = CURRENT_TIMESTAMP
-                  WHERE file_id = $1 AND task_type = 'file_processing'
-                `,
-                  [fileId]
-                );
-              }
-            } catch (responseError) {
-              console.error(
-                `❌ Error parsing Make.com response:`,
-                responseError
-              );
-
-              // Update task status to sent_to_make (assume still processing)
-              await pool.query(
-                `
-                UPDATE tasks SET status = 'sent_to_make', updated_at = CURRENT_TIMESTAMP
-                WHERE file_id = $1 AND task_type = 'file_processing'
-              `,
-                [fileId]
-              );
-            }
-          } else {
-            console.error(
-              `❌ Failed to send file to Make.com: ${response.status} ${response.statusText}`
-            );
-
-            // Update task status
-            await pool.query(
-              `
-            UPDATE tasks SET status = 'make_error', error_message = $1, updated_at = CURRENT_TIMESTAMP
-            WHERE file_id = $2 AND task_type = 'file_processing'
-          `,
-              [
-                `Make.com webhook failed: ${response.status} ${response.statusText}`,
-                fileId,
-              ]
-            );
-          }
-        } catch (webhookError) {
-          console.error(`❌ Error sending file to Make.com:`, webhookError);
-
-          // Update task status
+          
           await pool.query(
-            `
-          UPDATE tasks SET status = 'make_error', error_message = $1, updated_at = CURRENT_TIMESTAMP
-          WHERE file_id = $2 AND task_type = 'file_processing'
-        `,
-            [`Make.com webhook error: ${webhookError.message}`]
+            `INSERT INTO notes (file_id, soap_note, patient_summary, user_id, created_at)
+             VALUES ($1, $2, $3, $4, NOW())`,
+            [fileId, notes.soapNote, notes.patientSummary, userId]
+          );
+
+          // Update file and task status
+          await pool.query(
+            `UPDATE files SET status = 'processed' WHERE id = $1`,
+            [fileId]
+          );
+          await pool.query(
+            `UPDATE tasks SET status = 'completed' WHERE file_id = $1`,
+            [fileId]
+          );
+
+          return res.json({
+            success: true,
+            file: { id: fileId, status: "processed" },
+            notes: notes
+          });
+        } else if (makeResponse.status === "success" && makeResponse.notes) {
+          // Expected format response
+          console.log("🎉 AI processing completed with expected format");
+          
+          const notes = makeResponse.notes;
+          await pool.query(
+            `INSERT INTO notes (file_id, soap_note, patient_summary, user_id, created_at)
+             VALUES ($1, $2, $3, $4, NOW())`,
+            [fileId, notes.soapNote || "", notes.patientSummary || "", userId]
+          );
+
+          await pool.query(
+            `UPDATE files SET status = 'processed' WHERE id = $1`,
+            [fileId]
+          );
+          await pool.query(
+            `UPDATE tasks SET status = 'completed' WHERE file_id = $1`,
+            [fileId]
+          );
+
+          return res.json({
+            success: true,
+            file: { id: fileId, status: "processed" },
+            notes: notes
+          });
+        } else {
+          // Still processing
+          console.log("⏳ AI processing in progress, updating status");
+          await pool.query(
+            `UPDATE tasks SET status = 'sent_to_make' WHERE file_id = $1`,
+            [fileId]
           );
         }
-      } else {
-        console.warn(
-          "⚠️ MAKE_WEBHOOK_URL not configured - skipping Make.com integration"
-        );
+      } catch (makeError) {
+        console.error("❌ Error sending to Make.com:", makeError);
+        // Don't fail the upload, just log the error
+        // The file can still be processed later via webhook
       }
 
+      // Return success response
       res.json({
-        message: "File uploaded successfully",
-        file: {
-          id: fileId,
-          filename: fileInfo.filename,
-          originalName: fileInfo.originalName,
-          fileSize: fileInfo.fileSize,
-          fileType: fileInfo.fileType,
-          status: "uploaded",
-        },
-        processingStatus: "sent_to_make",
-        note: "AI processing initiated - check status for completion",
+        success: true,
+        file: { id: fileId, status: "uploaded" },
+        message: "File uploaded successfully and sent for AI processing"
       });
     } catch (error) {
-      console.error("File upload error:", error);
-
+      console.error("❌ Upload error:", error);
+      
       // Clean up temp file if it exists
-      if (tempFilePath) {
-        await cleanupTempFile(tempFilePath);
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        try {
+          await fs.remove(tempFilePath);
+          console.log("🧹 Temp file cleaned up");
+        } catch (cleanupError) {
+          console.error("❌ Error cleaning up temp file:", cleanupError);
+        }
       }
 
       res.status(500).json({
-        error: "File upload failed",
-        message: error.message || "An error occurred during file upload",
+        error: "Upload failed",
+        message: error.message || "An error occurred during file upload"
       });
     }
-  },
-  handleUploadError
+  }
 );
+
+// Chunked upload endpoint for large files
+router.post("/chunk", optionalAuth, async (req, res) => {
+  try {
+    const { chunk, chunkIndex, fileId, totalChunks, fileName, fileSize, chunkStart, chunkEnd } = req.body;
+    
+    if (!chunk || !fileId || !fileName) {
+      return res.status(400).json({ error: "Missing required chunk data" });
+    }
+
+    // Create temp directory for chunks if it doesn't exist
+    const chunksDir = path.join(__dirname, "../../temp/chunks", fileId);
+    await fs.ensureDir(chunksDir);
+
+    // Save chunk to temp directory - handle both Buffer and Blob data
+    const chunkPath = path.join(chunksDir, `chunk_${chunkIndex}`);
+    
+    // Convert chunk data to Buffer if needed
+    let chunkBuffer;
+    if (chunk.data) {
+      // Frontend sends chunk.data as Blob
+      chunkBuffer = Buffer.from(await chunk.data.arrayBuffer());
+    } else if (Buffer.isBuffer(chunk)) {
+      // Direct Buffer
+      chunkBuffer = chunk;
+    } else {
+      // Try to convert other formats
+      chunkBuffer = Buffer.from(chunk);
+    }
+
+    await fs.writeFile(chunkPath, chunkBuffer);
+
+    console.log(`📁 Chunk ${chunkIndex}/${totalChunks} saved for file ${fileName}`);
+
+    res.json({
+      success: true,
+      chunkIndex: parseInt(chunkIndex),
+      message: `Chunk ${chunkIndex} uploaded successfully`
+    });
+  } catch (error) {
+    console.error("❌ Chunk upload error:", error);
+    res.status(500).json({
+      error: "Chunk upload failed",
+      message: error.message || "An error occurred during chunk upload"
+    });
+  }
+});
+
+// Finalize chunked upload
+router.post("/finalize", optionalAuth, async (req, res) => {
+  try {
+    const { fileId, fileName, fileSize, action } = req.body;
+    
+    if (action !== "finalize") {
+      return res.status(400).json({ error: "Invalid action" });
+    }
+
+    const chunksDir = path.join(__dirname, "../../temp/chunks", fileId);
+    
+    // Check if chunks directory exists
+    if (!await fs.pathExists(chunksDir)) {
+      return res.status(400).json({ error: "No chunks found for this file" });
+    }
+
+    // Get all chunk files and sort them
+    const chunkFiles = await fs.readdir(chunksDir);
+    const sortedChunks = chunkFiles
+      .filter(file => file.startsWith("chunk_"))
+      .sort((a, b) => {
+        const aIndex = parseInt(a.replace("chunk_", ""));
+        const bIndex = parseInt(b.replace("chunk_", ""));
+        return aIndex - bIndex;
+      });
+
+    if (sortedChunks.length === 0) {
+      return res.status(400).json({ error: "No valid chunks found" });
+    }
+
+    // Combine chunks into final file
+    const finalFilePath = path.join(__dirname, "../../temp", `${fileId}_${fileName}`);
+    const writeStream = fs.createWriteStream(finalFilePath);
+
+    for (const chunkFile of sortedChunks) {
+      const chunkPath = path.join(chunksDir, chunkFile);
+      const chunkData = await fs.readFile(chunkPath);
+      writeStream.write(chunkData);
+    }
+
+    writeStream.end();
+
+    // Wait for write to complete
+    await new Promise((resolve, reject) => {
+      writeStream.on("finish", resolve);
+      writeStream.on("error", reject);
+    });
+
+    console.log(`🎯 Chunked upload finalized: ${fileName} (${(parseInt(fileSize) / 1024 / 1024).toFixed(2)}MB)`);
+
+    // Move to uploads directory
+    const uploadPath = await moveToUploads(finalFilePath, `${fileId}_${fileName}`);
+
+    // Save to database (similar to regular upload)
+    let userId = null;
+    if (req.user) {
+      userId = req.user.id;
+    }
+
+    const fileResult = await pool.query(
+      `INSERT INTO files (filename, original_name, file_path, file_size, file_type, user_id, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'uploaded')
+       RETURNING id`,
+      [
+        `${fileId}_${fileName}`,
+        fileName,
+        uploadPath,
+        parseInt(fileSize),
+        "application/octet-stream", // Generic type for chunked files
+        userId
+      ]
+    );
+
+    const fileId_db = fileResult.rows[0].id;
+
+    // Create task
+    await pool.query(
+      `INSERT INTO tasks (file_id, user_id, task_type, status, priority)
+       VALUES ($1, $2, 'file_processing', 'pending', 1)`,
+      [fileId_db, userId]
+    );
+
+    // Clean up chunks
+    await fs.remove(chunksDir);
+    await fs.remove(finalFilePath);
+
+    res.json({
+      success: true,
+      file: { id: fileId_db, status: "uploaded" },
+      message: "Chunked upload finalized successfully and sent for AI processing"
+    });
+
+  } catch (error) {
+    console.error("❌ Finalize chunked upload error:", error);
+    res.status(500).json({
+      error: "Finalization failed",
+      message: error.message || "An error occurred during finalization"
+    });
+  }
+});
 
 // Get upload status
 router.get("/status/:fileId", optionalAuth, async (req, res) => {

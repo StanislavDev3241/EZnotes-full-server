@@ -71,7 +71,13 @@ const upload = multer({
 // Add progress tracking middleware
 const uploadProgress = (req, res, next) => {
   if (req.file) {
-    console.log(`📁 Upload progress: ${req.file.originalname} (${(req.file.size / 1024 / 1024).toFixed(2)}MB)`);
+    console.log(
+      `📁 Upload progress: ${req.file.originalname} (${(
+        req.file.size /
+        1024 /
+        1024
+      ).toFixed(2)}MB)`
+    );
   }
   next();
 };
@@ -121,10 +127,11 @@ const handleUploadError = (error, req, res, next) => {
   }
 
   // Handle connection reset errors
-  if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
+  if (error.code === "ECONNRESET" || error.code === "ETIMEDOUT") {
     return res.status(408).json({
       error: "Upload timeout",
-      message: "The upload connection was reset. This often happens with large files. Please try again or use a smaller file.",
+      message:
+        "The upload connection was reset. This often happens with large files. Please try again or use a smaller file.",
     });
   }
 

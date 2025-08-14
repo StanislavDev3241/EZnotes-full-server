@@ -9,7 +9,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Increase timeout for large file uploads
-const server = require('http').createServer(app);
+const server = require("http").createServer(app);
 server.timeout = 300000; // 5 minutes timeout
 server.keepAliveTimeout = 65000; // 65 seconds keep-alive
 server.headersTimeout = 66000; // 66 seconds headers timeout
@@ -42,7 +42,7 @@ app.use(express.urlencoded({ extended: true, limit: "200mb" }));
 // Add timeout middleware for uploads
 app.use((req, res, next) => {
   // Set timeout for upload requests
-  if (req.path === '/api/upload' && req.method === 'POST') {
+  if (req.path === "/api/upload" && req.method === "POST") {
     req.setTimeout(300000); // 5 minutes for uploads
     res.setTimeout(300000);
   } else {
@@ -70,15 +70,16 @@ app.get("/health", (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  
+
   // Handle timeout errors specifically
-  if (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT') {
+  if (err.code === "ECONNRESET" || err.code === "ETIMEDOUT") {
     return res.status(408).json({
       error: "Upload timeout",
-      message: "The upload took too long and the connection was reset. Please try with a smaller file or check your internet connection."
+      message:
+        "The upload took too long and the connection was reset. Please try with a smaller file or check your internet connection.",
     });
   }
-  
+
   res.status(500).json({
     error: "Something went wrong!",
     message:
