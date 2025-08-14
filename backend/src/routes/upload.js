@@ -2,6 +2,7 @@ const express = require("express");
 const { optionalAuth } = require("../middleware/auth");
 const {
   upload,
+  uploadChunk, // Add chunk upload middleware
   handleUploadError,
   cleanupTempFile,
   moveToUploads,
@@ -260,7 +261,7 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
 router.post(
   "/chunk",
   optionalAuth,
-  upload.single("chunk"),
+  uploadChunk.single("chunk"),
   async (req, res) => {
     try {
       console.log("🔍 Chunk endpoint called with:");

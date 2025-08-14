@@ -28,11 +28,13 @@ const fileFilter = (req, file, cb) => {
   const allowedExtensions = [".mp3", ".m4a", ".wav", ".txt"];
 
   const fileExtension = path.extname(file.originalname).toLowerCase();
-  const isValidType =
-    allowedTypes.includes(file.mimetype) ||
-    file.mimetype.startsWith("audio/") || // Accept any audio type
-    file.mimetype === "application/octet-stream"; // Accept generic types
-  const isValidExtension = allowedExtensions.includes(fileExtension);
+  const isValidType = allowedTypes.includes(file.mimetype) || 
+                     file.mimetype.startsWith("audio/") || // Accept any audio type
+                     file.mimetype === "application/octet-stream"; // Accept generic types
+  
+  // Special handling for chunk files (they have no extension but are valid)
+  const isChunkFile = file.originalname.startsWith("chunk_") && file.mimetype === "application/octet-stream";
+  const isValidExtension = allowedExtensions.includes(fileExtension) || isChunkFile;
 
   console.log(`🔍 File validation:`, {
     filename: file.originalname,
@@ -40,6 +42,7 @@ const fileFilter = (req, file, cb) => {
     extension: fileExtension,
     isValidType,
     isValidExtension,
+    isChunkFile
   });
 
   if (isValidType && isValidExtension) {
@@ -47,9 +50,7 @@ const fileFilter = (req, file, cb) => {
   } else {
     cb(
       new Error(
-        `Invalid file type. Allowed types: ${allowedExtensions.join(
-          ", "
-        )}. Got: ${file.mimetype}`
+        `Invalid file type. Allowed types: ${allowedExtensions.join(", ")}. Got: ${file.mimetype}`
       ),
       false
     );
@@ -72,7 +73,7 @@ const storage = multer.diskStorage({
   },
 });
 
-// Multer configuration
+// Multer configuration for regular uploads (with file filtering)
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
@@ -80,6 +81,18 @@ const upload = multer({
     fileSize: parseInt(process.env.MAX_FILE_SIZE || "200") * 1024 * 1024, // Convert MB to bytes (increased to 200MB)
     files: 1, // Only allow 1 file per request
     fieldSize: 1024 * 1024, // 1MB for field data
+  },
+  preserveExtension: true,
+  fileSize: parseInt(process.env.MAX_FILE_SIZE || "200") * 1024 * 1024,
+});
+
+// Multer configuration for chunks (no file filtering needed)
+const uploadChunk = multer({
+  storage: storage,
+  limits: {
+    fileSize: parseInt(process.env.MAX_FILE_SIZE || "200") * 1024 * 1024,
+    files: 1,
+    fieldSize: 1024 * 1024,
   },
   preserveExtension: true,
   fileSize: parseInt(process.env.MAX_FILE_SIZE || "200") * 1024 * 1024,
@@ -186,6 +199,7 @@ const moveToUploads = async (tempPath, filename) => {
 
 module.exports = {
   upload,
+  uploadChunk, // Add chunk upload middleware
   handleUploadError,
   cleanupTempFile,
   moveToUploads,
