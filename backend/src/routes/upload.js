@@ -254,39 +254,54 @@ router.post(
 // Chunked upload endpoint for large files
 router.post("/chunk", optionalAuth, async (req, res) => {
   try {
-    const { chunk, chunkIndex, fileId, totalChunks, fileName, fileSize, chunkStart, chunkEnd } = req.body;
-    
-    if (!chunk || !fileId || !fileName) {
-      return res.status(400).json({ error: "Missing required chunk data" });
+    if (!req.files || !req.files.chunk) {
+      return res.status(400).json({ 
+        error: "Missing chunk file",
+        received: Object.keys(req.files || {}),
+        body: Object.keys(req.body)
+      });
     }
+
+    const chunkFile = req.files.chunk;
+    const { chunkIndex, fileId, totalChunks, fileName, chunkSize, chunkStart, chunkEnd } = req.body;
+    
+    if (!chunkIndex || !fileId || !fileName) {
+      return res.status(400).json({ 
+        error: "Missing required chunk metadata",
+        received: { chunkIndex, fileId, fileName, chunkSize, chunkStart, chunkEnd }
+      });
+    }
+
+    console.log(`📁 Received chunk ${chunkIndex}/${totalChunks} for file ${fileName}: ${(chunkFile.size / 1024 / 1024).toFixed(2)}MB`);
 
     // Create temp directory for chunks if it doesn't exist
     const chunksDir = path.join(__dirname, "../../temp/chunks", fileId);
     await fs.ensureDir(chunksDir);
 
-    // Save chunk to temp directory - handle both Buffer and Blob data
+    // Save chunk to temp directory
     const chunkPath = path.join(chunksDir, `chunk_${chunkIndex}`);
     
-    // Convert chunk data to Buffer if needed
+    // Handle both Buffer and File data
     let chunkBuffer;
-    if (chunk.data) {
-      // Frontend sends chunk.data as Blob
-      chunkBuffer = Buffer.from(await chunk.data.arrayBuffer());
-    } else if (Buffer.isBuffer(chunk)) {
+    if (chunkFile.data) {
+      // Multer file object
+      chunkBuffer = chunkFile.data;
+    } else if (Buffer.isBuffer(chunkFile)) {
       // Direct Buffer
-      chunkBuffer = chunk;
+      chunkBuffer = chunkFile;
     } else {
       // Try to convert other formats
-      chunkBuffer = Buffer.from(chunk);
+      chunkBuffer = Buffer.from(chunkFile);
     }
 
     await fs.writeFile(chunkPath, chunkBuffer);
 
-    console.log(`📁 Chunk ${chunkIndex}/${totalChunks} saved for file ${fileName}`);
+    console.log(`✅ Chunk ${chunkIndex}/${totalChunks} saved for file ${fileName}`);
 
     res.json({
       success: true,
       chunkIndex: parseInt(chunkIndex),
+      chunkSize: chunkFile.size,
       message: `Chunk ${chunkIndex} uploaded successfully`
     });
   } catch (error) {
@@ -328,14 +343,20 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       return res.status(400).json({ error: "No valid chunks found" });
     }
 
+    console.log(`🎯 Reassembling file from ${sortedChunks.length} chunks: ${fileName}`);
+
     // Combine chunks into final file
     const finalFilePath = path.join(__dirname, "../../temp", `${fileId}_${fileName}`);
     const writeStream = fs.createWriteStream(finalFilePath);
 
+    let totalSize = 0;
     for (const chunkFile of sortedChunks) {
       const chunkPath = path.join(chunksDir, chunkFile);
       const chunkData = await fs.readFile(chunkPath);
       writeStream.write(chunkData);
+      totalSize += chunkData.length;
+      
+      console.log(`📁 Added chunk ${chunkFile}: ${(chunkData.length / 1024 / 1024).toFixed(2)}MB`);
     }
 
     writeStream.end();
@@ -346,7 +367,7 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       writeStream.on("error", reject);
     });
 
-    console.log(`🎯 Chunked upload finalized: ${fileName} (${(parseInt(fileSize) / 1024 / 1024).toFixed(2)}MB)`);
+    console.log(`🎯 Chunked upload finalized: ${fileName} (${(totalSize / 1024 / 1024).toFixed(2)}MB)`);
 
     // Move to uploads directory
     const uploadPath = await moveToUploads(finalFilePath, `${fileId}_${fileName}`);
@@ -365,7 +386,7 @@ router.post("/finalize", optionalAuth, async (req, res) => {
         `${fileId}_${fileName}`,
         fileName,
         uploadPath,
-        parseInt(fileSize),
+        totalSize,
         "application/octet-stream", // Generic type for chunked files
         userId
       ]
@@ -383,6 +404,8 @@ router.post("/finalize", optionalAuth, async (req, res) => {
     // Clean up chunks
     await fs.remove(chunksDir);
     await fs.remove(finalFilePath);
+
+    console.log(`✅ File reassembled and saved to database with ID: ${fileId_db}`);
 
     res.json({
       success: true,
