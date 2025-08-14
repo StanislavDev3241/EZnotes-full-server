@@ -7,6 +7,10 @@ const {
   cleanupTempFile,
   moveToUploads,
 } = require("../middleware/upload");
+
+// Create a multer instance for parsing FormData without files (for finalize endpoint)
+const multer = require("multer");
+const finalizeParser = multer().none();
 const { pool } = require("../config/database");
 const { fileProcessingQueue } = require("../config/queue");
 const path = require("path");
@@ -461,12 +465,43 @@ router.post(
 );
 
 // Finalize chunked upload
-router.post("/finalize", optionalAuth, async (req, res) => {
+router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
   try {
+    // Debug the request body
+    console.log("🔍 Finalize endpoint called with:");
+    console.log("  - req.body:", req.body);
+    console.log("  - req.headers:", req.headers);
+    console.log("  - Content-Type:", req.headers["content-type"]);
+    
+    // Check if we have a body parser issue
+    if (!req.body || Object.keys(req.body).length === 0) {
+      console.log("⚠️ Request body is empty or undefined");
+      return res.status(400).json({ 
+        error: "Request body is empty",
+        contentType: req.headers["content-type"],
+        body: req.body
+      });
+    }
+    
+    // Parse FormData manually since we're not using multer for this endpoint
     const { fileId, fileName, fileSize, action } = req.body;
 
+    console.log("📋 Parsed parameters:", { fileId, fileName, fileSize, action });
+    
+    if (!action) {
+      return res.status(400).json({ 
+        error: "Missing action parameter",
+        received: req.body,
+        action: action 
+      });
+    }
+    
     if (action !== "finalize") {
-      return res.status(400).json({ error: "Invalid action" });
+      return res.status(400).json({ 
+        error: "Invalid action",
+        received: action,
+        expected: "finalize"
+      });
     }
 
     const chunksDir = path.join(__dirname, "../../temp/chunks", fileId);
