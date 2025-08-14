@@ -1,9 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Upload,
-  FileText,
-  Monitor,
-  ArrowRight,
   Copy,
   Download,
   Mic,
@@ -52,10 +49,7 @@ function App() {
   // Simplified admin authentication state
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
   const [userNotes, setUserNotes] = useState<any[]>([]);
-  const [allNotes, setAllNotes] = useState<any[]>([]);
-  const [showAllNotes, setShowAllNotes] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
 
   // Add upload progress tracking
@@ -130,9 +124,9 @@ function App() {
         localStorage.setItem("adminToken", data.token);
         setIsAdmin(true);
         setIsLoggedIn(true);
-        setShowLogin(false);
+
         setSuccess("Admin login successful!");
-        fetchAllNotes(); // Fetch all notes for admin
+
       } else {
         setError("Invalid admin credentials");
       }
@@ -141,24 +135,7 @@ function App() {
     }
   };
 
-  // Fetch all notes (admin only)
-  const fetchAllNotes = async () => {
-    try {
-      const token = localStorage.getItem("adminToken");
-      const response = await fetch(`${API_BASE_URL}/api/admin/notes`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        setAllNotes(data.notes || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch all notes:", err);
-    }
-  };
 
   // Poll upload status until processing is complete
   const pollUploadStatus = useCallback(
@@ -276,7 +253,7 @@ function App() {
     localStorage.removeItem("adminToken");
     setIsAdmin(false);
     setIsLoggedIn(false);
-    setAllNotes([]);
+    
     setSuccess("Admin logged out successfully");
   };
 
@@ -286,7 +263,7 @@ function App() {
     if (token) {
       setIsAdmin(true);
       setIsLoggedIn(true);
-      fetchAllNotes();
+      
       fetchUserNotes(); // Fetch user notes for authenticated users
     }
     // Don't fetch notes for anonymous users
@@ -1046,7 +1023,9 @@ function App() {
             </div>
             {!isLoggedIn ? (
               <button
-                onClick={() => setShowLogin(true)}
+                                  onClick={() => {
+                    // Admin login functionality
+                  }}
                 className="bg-clearly-blue hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
               >
                 Admin Login
@@ -1054,19 +1033,14 @@ function App() {
             ) : (
               <div className="flex items-center space-x-4">
                 {isAdmin && (
-                  <button
-                    onClick={() => setShowAllNotes(!showAllNotes)}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
-                  >
-                    {showAllNotes ? "Show My Notes" : "Show All Notes (Admin)"}
-                  </button>
+
                 )}
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">
                     {isAdmin ? "Admin" : "User"}
                   </p>
                   <p className="text-xs text-gray-500 capitalize">
-                    {isAdmin && showAllNotes ? "All Notes" : "My Notes"}
+                    {isAdmin ? "Admin Dashboard" : "My Notes"}
                   </p>
                 </div>
                 <button
@@ -1742,7 +1716,7 @@ function App() {
       <section className="bg-white py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-clearly-blue text-center mb-8">
-            {isAdmin && showAllNotes ? "All Notes (Admin View)" : "My Notes"}
+            {isAdmin ? "Admin Dashboard" : "My Notes"}
           </h2>
 
           {/* Notes History - Only show for admin users */}
@@ -1753,7 +1727,6 @@ function App() {
                   🎛️ Admin Dashboard
                 </h2>
                 <div className="flex gap-4 mb-4">
-
                   <button
                     onClick={handleAdminLogout}
                     className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 
 interface AdminDashboardProps {
   API_BASE_URL: string;
@@ -56,7 +56,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
   const [notes, setNotes] = useState<AdminNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'notes' | 'files' | 'users'>('overview');
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "notes" | "files" | "users"
+  >("overview");
 
   useEffect(() => {
     fetchSystemStats();
@@ -65,7 +67,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
 
   const fetchSystemStats = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem("adminToken");
       const response = await fetch(`${API_BASE_URL}/api/admin/stats`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -76,16 +78,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
         const data = await response.json();
         setStats(data);
       } else {
-        console.error('Failed to fetch system stats:', response.status);
+        console.error("Failed to fetch system stats:", response.status);
       }
     } catch (err) {
-      console.error('Error fetching system stats:', err);
+      console.error("Error fetching system stats:", err);
     }
   };
 
   const fetchAdminNotes = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem("adminToken");
       const response = await fetch(`${API_BASE_URL}/api/admin/notes`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -101,14 +103,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
         setLoading(false);
       }
     } catch (err) {
-      setError('Failed to fetch notes');
+      setError("Failed to fetch notes");
       setLoading(false);
     }
   };
 
   const downloadAllNotes = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem("adminToken");
       const response = await fetch(`${API_BASE_URL}/api/admin/download-all`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -118,25 +120,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
-        a.download = `admin_notes_${new Date().toISOString().split('T')[0]}.txt`;
+        a.download = `admin_notes_${
+          new Date().toISOString().split("T")[0]
+        }.txt`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       }
     } catch (err) {
-      console.error('Error downloading notes:', err);
+      console.error("Error downloading notes:", err);
     }
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   if (loading) {
@@ -163,7 +167,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Admin Dashboard
+            </h1>
             <p className="text-gray-600">System overview and management</p>
           </div>
           <button
@@ -180,18 +186,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8 px-6">
             {[
-              { id: 'overview', label: 'Overview', icon: '📊' },
-              { id: 'notes', label: 'Notes', icon: '📝' },
-              { id: 'files', label: 'Files', icon: '📁' },
-              { id: 'users', label: 'Users', icon: '👥' },
+              { id: "overview", label: "Overview", icon: "📊" },
+              { id: "notes", label: "Notes", icon: "📝" },
+              { id: "files", label: "Files", icon: "📁" },
+              { id: "users", label: "Users", icon: "👥" },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               >
                 {tab.icon} {tab.label}
@@ -202,7 +208,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
 
         <div className="p-6">
           {/* Overview Tab */}
-          {activeTab === 'overview' && stats && (
+          {activeTab === "overview" && stats && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Files Stats */}
               <div className="bg-blue-50 rounded-lg p-4">
@@ -211,22 +217,32 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                     <span className="text-2xl">📁</span>
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-blue-600">Total Files</p>
-                    <p className="text-2xl font-bold text-blue-900">{stats.files.total_files}</p>
+                    <p className="text-sm font-medium text-blue-600">
+                      Total Files
+                    </p>
+                    <p className="text-2xl font-bold text-blue-900">
+                      {stats.files.total_files}
+                    </p>
                   </div>
                 </div>
                 <div className="mt-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Processed:</span>
-                    <span className="font-medium text-green-600">{stats.files.processed_files}</span>
+                    <span className="font-medium text-green-600">
+                      {stats.files.processed_files}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Pending:</span>
-                    <span className="font-medium text-yellow-600">{stats.files.pending_files}</span>
+                    <span className="font-medium text-yellow-600">
+                      {stats.files.pending_files}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Failed:</span>
-                    <span className="font-medium text-red-600">{stats.files.failed_files}</span>
+                    <span className="font-medium text-red-600">
+                      {stats.files.failed_files}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -238,18 +254,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                     <span className="text-2xl">📝</span>
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-green-600">Total Notes</p>
-                    <p className="text-2xl font-bold text-green-900">{stats.notes.total_notes}</p>
+                    <p className="text-sm font-medium text-green-600">
+                      Total Notes
+                    </p>
+                    <p className="text-2xl font-bold text-green-900">
+                      {stats.notes.total_notes}
+                    </p>
                   </div>
                 </div>
                 <div className="mt-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">SOAP Notes:</span>
-                    <span className="font-medium">{stats.notes.soap_notes}</span>
+                    <span className="font-medium">
+                      {stats.notes.soap_notes}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Summaries:</span>
-                    <span className="font-medium">{stats.notes.summary_notes}</span>
+                    <span className="font-medium">
+                      {stats.notes.summary_notes}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -261,18 +285,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                     <span className="text-2xl">👥</span>
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-purple-600">Total Users</p>
-                    <p className="text-2xl font-bold text-purple-900">{stats.users.total_users}</p>
+                    <p className="text-sm font-medium text-purple-600">
+                      Total Users
+                    </p>
+                    <p className="text-2xl font-bold text-purple-900">
+                      {stats.users.total_users}
+                    </p>
                   </div>
                 </div>
                 <div className="mt-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Admins:</span>
-                    <span className="font-medium">{stats.users.admin_users}</span>
+                    <span className="font-medium">
+                      {stats.users.admin_users}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Regular:</span>
-                    <span className="font-medium">{stats.users.regular_users}</span>
+                    <span className="font-medium">
+                      {stats.users.regular_users}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -284,18 +316,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                     <span className="text-2xl">⚙️</span>
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-orange-600">Total Tasks</p>
-                    <p className="text-2xl font-bold text-orange-900">{stats.tasks.total_tasks}</p>
+                    <p className="text-sm font-medium text-orange-600">
+                      Total Tasks
+                    </p>
+                    <p className="text-2xl font-bold text-orange-900">
+                      {stats.tasks.total_tasks}
+                    </p>
                   </div>
                 </div>
                 <div className="mt-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Completed:</span>
-                    <span className="font-medium text-green-600">{stats.tasks.completed_tasks}</span>
+                    <span className="font-medium text-green-600">
+                      {stats.tasks.completed_tasks}
+                    </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Pending:</span>
-                    <span className="font-medium text-yellow-600">{stats.tasks.pending_tasks}</span>
+                    <span className="font-medium text-yellow-600">
+                      {stats.tasks.pending_tasks}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -303,10 +343,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
           )}
 
           {/* Notes Tab */}
-          {activeTab === 'notes' && (
+          {activeTab === "notes" && (
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium text-gray-900">All Notes ({notes.length})</h3>
+                <h3 className="text-lg font-medium text-gray-900">
+                  All Notes ({notes.length})
+                </h3>
                 <button
                   onClick={fetchAdminNotes}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -314,7 +356,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                   🔄 Refresh
                 </button>
               </div>
-              
+
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border border-gray-200 rounded-lg">
                   <thead className="bg-gray-50">
@@ -359,7 +401,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                           <div className="space-y-2">
                             {note.content.soapNote && (
                               <div>
-                                <span className="text-xs font-medium text-blue-600">SOAP Note:</span>
+                                <span className="text-xs font-medium text-blue-600">
+                                  SOAP Note:
+                                </span>
                                 <div className="text-xs text-gray-700 max-h-20 overflow-y-auto">
                                   {note.content.soapNote.substring(0, 200)}...
                                 </div>
@@ -367,9 +411,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                             )}
                             {note.content.patientSummary && (
                               <div>
-                                <span className="text-xs font-medium text-green-600">Summary:</span>
+                                <span className="text-xs font-medium text-green-600">
+                                  Summary:
+                                </span>
                                 <div className="text-xs text-gray-700 max-h-20 overflow-y-auto">
-                                  {note.content.patientSummary.substring(0, 200)}...
+                                  {note.content.patientSummary.substring(
+                                    0,
+                                    200
+                                  )}
+                                  ...
                                 </div>
                               </div>
                             )}
@@ -428,7 +478,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
           )}
 
           {/* Files Tab */}
-          {activeTab === 'files' && (
+          {activeTab === "files" && (
             <div className="text-center py-8 text-gray-500">
               <span className="text-4xl">📁</span>
               <p className="mt-2">Files management coming soon...</p>
@@ -436,7 +486,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
           )}
 
           {/* Users Tab */}
-          {activeTab === 'users' && (
+          {activeTab === "users" && (
             <div className="text-center py-8 text-gray-500">
               <span className="text-4xl">👥</span>
               <p className="mt-2">User management coming soon...</p>
@@ -448,4 +498,4 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
   );
 };
 
-export default AdminDashboard; 
+export default AdminDashboard;
