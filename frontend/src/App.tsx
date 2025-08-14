@@ -251,10 +251,10 @@ function App() {
       console.log("👤 User not logged in, skipping notes fetch");
       return;
     }
-    
+
     try {
       console.log(`📋 Fetching notes for authenticated user`);
-      
+
       const response = await fetch(`${API_BASE_URL}/api/notes/user`);
       if (response.ok) {
         const data = await response.json();
@@ -1766,7 +1766,7 @@ function App() {
                   </button>
                 </div>
               </div>
-              
+
               <NotesList
                 notes={allNotes}
                 onRefresh={fetchAllNotes}
@@ -1789,7 +1789,7 @@ function App() {
                   🔄 Refresh My Notes
                 </button>
               </div>
-              
+
               <NotesList
                 notes={userNotes}
                 onRefresh={fetchUserNotes}
@@ -2079,7 +2079,9 @@ function NotesList({
                   <td className="px-4 py-4 whitespace-nowrap">
                     <div>
                       <div className="text-sm font-medium text-gray-900">
-                        {note.originalName || note.filename || `File ${index + 1}`}
+                        {note.originalName ||
+                          note.filename ||
+                          `File ${index + 1}`}
                       </div>
                       <div className="text-xs text-gray-500">
                         Size: {(note.fileSize / 1024).toFixed(1)} KB
@@ -2096,7 +2098,9 @@ function NotesList({
                       <div className="space-y-2">
                         {note.note.content.soapNote && (
                           <div>
-                            <span className="text-xs font-medium text-blue-600">SOAP Note:</span>
+                            <span className="text-xs font-medium text-blue-600">
+                              SOAP Note:
+                            </span>
                             <div className="text-xs text-gray-700 max-h-20 overflow-y-auto">
                               {note.note.content.soapNote.substring(0, 200)}...
                             </div>
@@ -2104,15 +2108,23 @@ function NotesList({
                         )}
                         {note.note.content.patientSummary && (
                           <div>
-                            <span className="text-xs font-medium text-green-600">Summary:</span>
+                            <span className="text-xs font-medium text-green-600">
+                              Summary:
+                            </span>
                             <div className="text-xs text-gray-700 max-h-20 overflow-y-auto">
-                              {note.note.content.patientSummary.substring(0, 200)}...
+                              {note.note.content.patientSummary.substring(
+                                0,
+                                200
+                              )}
+                              ...
                             </div>
                           </div>
                         )}
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-400">No notes generated</span>
+                      <span className="text-xs text-gray-400">
+                        No notes generated
+                      </span>
                     )}
                   </td>
 
@@ -2150,10 +2162,14 @@ function NotesList({
 
                   {/* Date */}
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(note.created_at || Date.now()).toLocaleDateString()}
+                    {new Date(
+                      note.created_at || Date.now()
+                    ).toLocaleDateString()}
                     <br />
                     <span className="text-xs">
-                      {new Date(note.created_at || Date.now()).toLocaleTimeString()}
+                      {new Date(
+                        note.created_at || Date.now()
+                      ).toLocaleTimeString()}
                     </span>
                   </td>
 
@@ -2163,7 +2179,10 @@ function NotesList({
                       onClick={() => {
                         if (note.note) {
                           // Show full notes in a modal or expand view
-                          console.log("Full notes for file:", note.note.content);
+                          console.log(
+                            "Full notes for file:",
+                            note.note.content
+                          );
                         }
                       }}
                       className="text-blue-600 hover:text-blue-900 mr-3"
@@ -2222,14 +2241,22 @@ function NotesList({
             <div className="space-y-2">
               {note.note.content.soapNote && (
                 <div>
-                  <span className="text-xs font-medium text-blue-600">SOAP Note:</span>
-                  <p className="text-gray-700 text-sm">{note.note.content.soapNote}</p>
+                  <span className="text-xs font-medium text-blue-600">
+                    SOAP Note:
+                  </span>
+                  <p className="text-gray-700 text-sm">
+                    {note.note.content.soapNote}
+                  </p>
                 </div>
               )}
               {note.note.content.patientSummary && (
                 <div>
-                  <span className="text-xs font-medium text-green-600">Patient Summary:</span>
-                  <p className="text-gray-700 text-sm">{note.note.content.patientSummary}</p>
+                  <span className="text-xs font-medium text-green-600">
+                    Patient Summary:
+                  </span>
+                  <p className="text-gray-700 text-sm">
+                    {note.note.content.patientSummary}
+                  </p>
                 </div>
               )}
             </div>
