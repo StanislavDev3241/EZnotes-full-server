@@ -341,7 +341,7 @@ router.post(
 
       // Handle both Buffer and File data
       let chunkBuffer;
-      
+
       // Debug the chunk file structure
       console.log("🔍 Chunk file structure:", {
         hasBuffer: !!chunkFile.buffer,
@@ -352,7 +352,7 @@ router.post(
         size: chunkFile.size,
         path: chunkFile.path,
         destination: chunkFile.destination,
-        filename: chunkFile.filename
+        filename: chunkFile.filename,
       });
 
       if (chunkFile.buffer && Buffer.isBuffer(chunkFile.buffer)) {
@@ -373,22 +373,25 @@ router.post(
           console.log(`📁 Reading chunk from disk: ${chunkFile.path}`);
           chunkBuffer = await fs.readFile(chunkFile.path);
           console.log("📦 Successfully read chunk from disk");
-          
+
           // Clean up the temporary file after reading
           try {
             await fs.unlink(chunkFile.path);
             console.log("🗑️ Cleaned up temporary chunk file");
           } catch (cleanupError) {
-            console.warn("⚠️ Failed to cleanup temporary chunk file:", cleanupError.message);
+            console.warn(
+              "⚠️ Failed to cleanup temporary chunk file:",
+              cleanupError.message
+            );
           }
         } catch (readError) {
           console.error("❌ Failed to read chunk file from disk:", readError);
           return res.status(500).json({
             error: "Failed to read chunk file",
-            message: readError.message
+            message: readError.message,
           });
         }
-      } else if (chunkFile.buffer && typeof chunkFile.buffer === 'object') {
+      } else if (chunkFile.buffer && typeof chunkFile.buffer === "object") {
         // Handle case where buffer might be a different object type
         try {
           chunkBuffer = Buffer.from(chunkFile.buffer);
@@ -397,7 +400,7 @@ router.post(
           console.error("❌ Failed to convert buffer to Buffer:", convertError);
           return res.status(500).json({
             error: "Invalid chunk data format",
-            message: "Could not convert chunk data to buffer"
+            message: "Could not convert chunk data to buffer",
           });
         }
       } else {
@@ -406,10 +409,13 @@ router.post(
           chunkBuffer = Buffer.from(chunkFile);
           console.log("📦 Using Buffer.from conversion");
         } catch (convertError) {
-          console.error("❌ Failed to convert chunkFile to Buffer:", convertError);
+          console.error(
+            "❌ Failed to convert chunkFile to Buffer:",
+            convertError
+          );
           return res.status(500).json({
             error: "Invalid chunk data format",
-            message: "Could not convert chunk data to buffer"
+            message: "Could not convert chunk data to buffer",
           });
         }
       }
@@ -419,7 +425,7 @@ router.post(
         console.error("❌ Invalid chunk buffer:", chunkBuffer);
         return res.status(500).json({
           error: "Invalid chunk data",
-          message: "Chunk data is not a valid buffer"
+          message: "Chunk data is not a valid buffer",
         });
       }
 
@@ -602,6 +608,41 @@ router.post("/finalize", optionalAuth, async (req, res) => {
     console.log(
       `✅ File reassembled and saved to database with ID: ${fileId_db}`
     );
+
+    // Send to Make.com for AI processing
+    try {
+      console.log(`📤 Sending reassembled file to Make.com for AI processing`);
+
+      const fileInfo = {
+        filename: `${fileId}_${fileName}`,
+        originalName: fileName,
+        fileSize: totalSize,
+        fileType: "application/octet-stream",
+        userId: userId,
+      };
+
+      const makeResponse = await sendToMakeCom(fileInfo, fileId_db);
+
+      if (makeResponse.status === "no_webhook") {
+        console.log(
+          "⚠️ Make.com webhook not configured - file saved but not processed"
+        );
+      } else {
+        console.log("✅ File sent to Make.com successfully for AI processing");
+
+        // Update task status to sent_to_make
+        await pool.query(
+          `UPDATE tasks SET status = 'sent_to_make' WHERE file_id = $1`,
+          [fileId_db]
+        );
+
+        console.log("📋 Task status updated to 'sent_to_make'");
+      }
+    } catch (makeError) {
+      console.error("❌ Error sending file to Make.com:", makeError);
+      // Don't fail the finalization if Make.com fails
+      // The file is still saved and can be processed later
+    }
 
     res.json({
       success: true,

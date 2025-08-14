@@ -1,13 +1,23 @@
 const multer = require("multer");
 const path = require("path");
-const fs = require("fs-extra");
+const fs = require("fs").promises;
+const fsSync = require("fs");
 
 // Ensure upload directories exist
 const uploadDir = process.env.UPLOAD_PATH || "./uploads";
 const tempDir = process.env.TEMP_PATH || "./temp";
 
-fs.ensureDirSync(uploadDir);
-fs.ensureDirSync(tempDir);
+// Create directories synchronously on startup
+try {
+  if (!fsSync.existsSync(uploadDir)) {
+    fsSync.mkdirSync(uploadDir, { recursive: true });
+  }
+  if (!fsSync.existsSync(tempDir)) {
+    fsSync.mkdirSync(tempDir, { recursive: true });
+  }
+} catch (error) {
+  console.error("❌ Error creating directories:", error);
+}
 
 // File filter function
 const fileFilter = (req, file, cb) => {
@@ -182,8 +192,8 @@ const handleUploadError = (error, req, res, next) => {
 // Cleanup temporary files
 const cleanupTempFile = async (filePath) => {
   try {
-    if (filePath && fs.existsSync(filePath)) {
-      await fs.remove(filePath);
+    if (filePath && fsSync.existsSync(filePath)) {
+      await fs.unlink(filePath);
       console.log(`🗑️ Cleaned up temporary file: ${filePath}`);
     }
   } catch (error) {
@@ -195,7 +205,7 @@ const cleanupTempFile = async (filePath) => {
 const moveToUploads = async (tempPath, filename) => {
   try {
     const uploadPath = path.join(uploadDir, filename);
-    await fs.move(tempPath, uploadPath);
+    await fs.rename(tempPath, uploadPath);
     return uploadPath;
   } catch (error) {
     console.error(`❌ Error moving file from temp to uploads:`, error);
