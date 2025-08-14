@@ -542,7 +542,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                     <span className="text-2xl">📝</span>
                   </div>
                   <div>
-                    <h3 className="text-lg sm:text-xl font-bold">Medical Notes</h3>
+                    <h3 className="text-lg sm:text-xl font-bold">
+                      Medical Notes
+                    </h3>
                     <p className="text-blue-100 text-sm">
                       {selectedNote.file.originalName}
                     </p>
@@ -556,7 +558,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                 </button>
               </div>
             </div>
-            
+
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               <div className="space-y-4 sm:space-y-6">
@@ -698,7 +700,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                 </div>
               </div>
             </div>
-            
+
             {/* Footer */}
             <div className="bg-gray-50 border-t border-gray-200 p-4 flex-shrink-0">
               <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
