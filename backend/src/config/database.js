@@ -87,7 +87,7 @@ const initDatabase = async () => {
     // Create admin user if not exists
     const adminCheck = await pool.query(
       "SELECT id FROM users WHERE email = $1",
-      [process.env.ADMIN_EMAIL || "admin@clearlyai.com"]
+      [process.env.ADMIN_EMAIL || "cmesmile50@gmail.com"]
     );
 
     if (adminCheck.rows.length === 0) {
@@ -102,7 +102,7 @@ const initDatabase = async () => {
         INSERT INTO users (email, password_hash, role) 
         VALUES ($1, $2, 'admin')
       `,
-        [process.env.ADMIN_EMAIL || "admin@clearlyai.com", hashedPassword]
+        [process.env.ADMIN_EMAIL || "cmesmile50@gmail.com", hashedPassword]
       );
 
       console.log("👑 Admin user created successfully");

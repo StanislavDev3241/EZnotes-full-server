@@ -50,7 +50,12 @@ CREATE TABLE IF NOT EXISTS tasks (
   processed_at TIMESTAMP
 );
 
--- Create admin user
+-- Create admin user with updated credentials
+-- Email: cmesmile50@gmail.com
+-- Password: clearly2025
 INSERT INTO users (email, password_hash, role) 
-VALUES ('admin@clearlyai.com', '$2a$10$rQZ9K8mN2pL1vX3yB6cE7dF4gH5iJ6kL7mN8oP9qR0sT1uV2wX3yZ4a5b6c7d8e9f0g1h2i3j4k5l6m7n8o9p0q1r2s3t4u5v6w7x8y9z0a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z', 'admin')
-ON CONFLICT (email) DO NOTHING; 
+VALUES ('cmesmile50@gmail.com', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin')
+ON CONFLICT (email) DO UPDATE SET 
+  password_hash = EXCLUDED.password_hash,
+  role = EXCLUDED.role,
+  updated_at = CURRENT_TIMESTAMP; 

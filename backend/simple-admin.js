@@ -10,17 +10,17 @@ const hash = crypto
   .digest("hex");
 
 console.log("🔐 Admin User Credentials Generated:");
-console.log("📧 Email: admin@clearlyai.com");
+console.log("📧 Email: cmesmile50@gmail.com");
 console.log("🔑 Password:", password);
 console.log("🔒 Password Hash:", hash);
 console.log("");
 console.log("📝 SQL Commands:");
 console.log("-- First, clear existing admin user");
-console.log("DELETE FROM users WHERE email = 'admin@clearlyai.com';");
+console.log("DELETE FROM users WHERE email = 'cmesmile50@gmail.com';");
 console.log("");
 console.log("-- Then insert new admin user");
 console.log(
-  "INSERT INTO users (email, password_hash, role) VALUES ('admin@clearlyai.com', '" +
+  "INSERT INTO users (email, password_hash, role) VALUES ('cmesmile50@gmail.com', '" +
     hash +
     "', 'admin');"
 );
@@ -29,5 +29,5 @@ console.log("-- Or update existing user");
 console.log(
   "UPDATE users SET password_hash = '" +
     hash +
-    "', role = 'admin' WHERE email = 'admin@clearlyai.com';"
+    "', role = 'admin' WHERE email = 'cmesmile50@gmail.com';"
 );

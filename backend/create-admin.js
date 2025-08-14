@@ -2,8 +2,8 @@ const bcrypt = require('bcryptjs');
 
 async function createAdminUser() {
   try {
-    const email = 'admin@clearlyai.com';
-    const password = 'admin_secure_password_2024';
+    const email = 'cmesmile50@gmail.com';
+    const password = 'clearly2025';
     
     // Generate password hash
     const saltRounds = 10;

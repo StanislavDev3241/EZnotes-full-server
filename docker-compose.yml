@@ -39,8 +39,8 @@ services:
       TEMP_PATH: ./temp
       MAKE_WEBHOOK_URL: https://hook.us2.make.com/xw5ld4jn0by5jn7hg1bups02srki06f8
       DEFAULT_RETENTION_DAYS: 14
-      ADMIN_EMAIL: admin@clearlyai.com
-      ADMIN_PASSWORD: admin_secure_password_2024
+      ADMIN_EMAIL: cmesmile50@gmail.com
+      ADMIN_PASSWORD: clearly2025
       RATE_LIMIT_WINDOW_MS: 900000
       RATE_LIMIT_MAX_REQUESTS: 100
     depends_on:
