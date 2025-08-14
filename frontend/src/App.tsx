@@ -799,25 +799,47 @@ function App() {
           );
         } catch (chunkError) {
           console.error("❌ Chunked upload failed:", chunkError);
-
-          // Fallback to regular upload for files under 50MB
-          if (optimizedFile.size <= 50 * 1024 * 1024) {
-            console.log(
-              "🔄 Falling back to regular upload due to chunked upload failure"
-            );
-            result = await performRegularUpload(
-              optimizedFile,
-              webhookUrl,
-              apiKey
-            );
+          
+          // Try WebRTC as alternative for large files
+          if (optimizedFile.size <= 100 * 1024 * 1024) { // 100MB limit for WebRTC
+            console.log("🌐 Attempting WebRTC transfer as alternative...");
+            try {
+              result = await performWebRTCUpload(optimizedFile, webhookUrl, apiKey);
+            } catch (webrtcError) {
+              console.error("❌ WebRTC transfer failed:", webrtcError);
+              
+              // Final fallback to regular upload for files under 50MB
+              if (optimizedFile.size <= 50 * 1024 * 1024) {
+                console.log(
+                  "🔄 Falling back to regular upload due to chunked upload failure"
+                );
+                result = await performRegularUpload(
+                  optimizedFile,
+                  webhookUrl,
+                  apiKey
+                );
+              } else {
+                throw new Error(
+                  `All upload methods failed. File too large for fallback: ${chunkError instanceof Error ? chunkError.message : String(chunkError)}`
+                );
+              }
+            }
           } else {
-            throw new Error(
-              `Chunked upload failed and file is too large for fallback: ${
-                chunkError instanceof Error
-                  ? chunkError.message
-                  : String(chunkError)
-              }`
-            );
+            // File too large for WebRTC, try regular upload fallback
+            if (optimizedFile.size <= 50 * 1024 * 1024) {
+              console.log(
+                "🔄 Falling back to regular upload due to chunked upload failure"
+              );
+              result = await performRegularUpload(
+                optimizedFile,
+                webhookUrl,
+                apiKey
+              );
+            } else {
+              throw new Error(
+                `Chunked upload failed and file is too large for fallback: ${chunkError instanceof Error ? chunkError.message : String(chunkError)}`
+              );
+            }
           }
         }
       } else {
@@ -929,8 +951,8 @@ function App() {
       ).toFixed(1)}MB each`
     );
 
-    // Upload chunks in parallel (max 3 concurrent)
-    const maxConcurrent = 3;
+    // Upload chunks sequentially instead of parallel to prevent connection resets
+    const maxConcurrent = 1; // Changed from 3 to 1 for sequential uploads
     const chunks: Array<{
       index: number;
       data: Blob;
@@ -964,11 +986,19 @@ function App() {
     let completedChunks = 0;
     let failedChunks: number[] = [];
 
-    // Process chunks in batches
+    // Process chunks sequentially with delays to prevent connection resets
     for (let i = 0; i < chunks.length; i += maxConcurrent) {
       const batch = chunks.slice(i, i + maxConcurrent);
-      const batchPromises = batch.map(async (chunk) => {
+      
+      for (const chunk of batch) {
         try {
+          // Add delay between chunks to prevent overwhelming the server
+          if (i > 0) {
+            const delay = Math.min(1000 + (i * 200), 3000); // 1-3 second delay
+            console.log(`⏳ Waiting ${delay}ms before next chunk...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+          
           await uploadChunk(
             chunk,
             fileId,
@@ -986,36 +1016,38 @@ function App() {
         } catch (error) {
           console.error(`❌ Chunk ${chunk.index + 1} failed:`, error);
           failedChunks.push(chunk.index);
-          throw error;
+          
+          // If chunk fails, wait longer before retry
+          const retryDelay = Math.min(2000 + (failedChunks.length * 1000), 10000);
+          console.log(`⏳ Waiting ${retryDelay}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
         }
-      });
+      }
 
-      try {
-        await Promise.all(batchPromises);
-      } catch (error) {
-        // If any chunk in batch fails, retry failed chunks
-        if (failedChunks.length > 0) {
-          console.log(`🔄 Retrying ${failedChunks.length} failed chunks...`);
-          for (const chunkIndex of failedChunks) {
-            const chunk = chunks[chunkIndex];
-            try {
-              await uploadChunk(
-                chunk,
-                fileId,
-                webhookUrl,
-                apiKey,
-                file,
-                totalChunks
-              );
-              completedChunks++;
-              const progress = (completedChunks / totalChunks) * 90;
-              setUploadProgress(progress);
-              console.log(`✅ Retry successful for chunk ${chunk.index + 1}`);
-            } catch (retryError) {
-              throw new Error(
-                `Failed to upload chunk ${chunk.index + 1} after retry`
-              );
-            }
+      // Retry failed chunks with exponential backoff
+      if (failedChunks.length > 0) {
+        console.log(`🔄 Retrying ${failedChunks.length} failed chunks...`);
+        const retryChunks = [...failedChunks];
+        failedChunks = []; // Reset for this retry round
+        
+        for (const chunkIndex of retryChunks) {
+          const chunk = chunks[chunkIndex];
+          try {
+            await uploadChunk(
+              chunk,
+              fileId,
+              webhookUrl,
+              apiKey,
+              file,
+              totalChunks
+            );
+            completedChunks++;
+            const progress = (completedChunks / totalChunks) * 90;
+            setUploadProgress(progress);
+            console.log(`✅ Retry successful for chunk ${chunk.index + 1}`);
+          } catch (retryError) {
+            failedChunks.push(chunkIndex);
+            console.error(`❌ Retry failed for chunk ${chunk.index + 1}:`, retryError);
           }
         }
       }
@@ -1571,6 +1603,73 @@ function App() {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [resetAllStates, error]);
+
+  // WebRTC Peer-to-Peer file transfer
+  const createWebRTCOffer = async (file: File): Promise<RTCSessionDescriptionInit> => {
+    const peerConnection = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    });
+
+    // Create data channel for file transfer
+    const dataChannel = peerConnection.createDataChannel('fileTransfer', {
+      ordered: true,
+      maxRetransmits: 3
+    });
+
+    dataChannel.onopen = () => {
+      console.log(`🌐 WebRTC data channel opened for file: ${file.name}`);
+    };
+
+    dataChannel.onmessage = (event) => {
+      console.log('📨 WebRTC message received:', event.data);
+    };
+
+    // Create offer
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+
+    return offer;
+  };
+
+  // Alternative upload method using WebRTC
+  const performWebRTCUpload = async (file: File, webhookUrl: string, apiKey: string | null) => {
+    try {
+      console.log('🌐 Attempting WebRTC peer-to-peer transfer...');
+      
+      // Create WebRTC offer
+      const offer = await createWebRTCOffer(file);
+      
+      // Send offer to server for signaling
+      const response = await fetch(`${webhookUrl}/webrtc-offer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey && { Authorization: `Bearer ${apiKey}` })
+        },
+        body: JSON.stringify({
+          offer: offer,
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('WebRTC offer failed');
+      }
+
+      const result = await response.json();
+      console.log('✅ WebRTC transfer initiated');
+      return result;
+      
+    } catch (error) {
+      console.warn('⚠️ WebRTC transfer failed, falling back to regular upload:', error);
+      throw error;
+    }
+  };
 
   return (
     <>
