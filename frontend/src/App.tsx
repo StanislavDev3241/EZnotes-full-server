@@ -8,6 +8,12 @@ import {
   Play,
   Pause,
   X,
+  Target,
+  FileSpreadsheet,
+  Shield,
+  Mic2,
+  FolderOpen,
+  Zap,
 } from "lucide-react";
 import AdminPage from "./components/AdminPage";
 
@@ -1945,7 +1951,9 @@ function App() {
 
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <div className="bg-gray-50 rounded-lg p-6">
-                  <div className="text-clearly-blue text-3xl mb-4">🎯</div>
+                  <div className="text-clearly-blue text-3xl mb-4">
+                    <Target className="h-12 w-12 mx-auto" />
+                  </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     SOAP Notes
                   </h3>
@@ -1956,7 +1964,9 @@ function App() {
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-6">
-                  <div className="text-clearly-blue text-3xl mb-4">📋</div>
+                  <div className="text-clearly-blue text-3xl mb-4">
+                    <FileSpreadsheet className="h-12 w-12 mx-auto" />
+                  </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     Patient Summaries
                   </h3>
@@ -1967,7 +1977,9 @@ function App() {
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-6">
-                  <div className="text-clearly-blue text-3xl mb-4">🔒</div>
+                  <div className="text-clearly-blue text-3xl mb-4">
+                    <Shield className="h-12 w-12 mx-auto" />
+                  </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     HIPAA Compliant
                   </h3>
@@ -1978,7 +1990,9 @@ function App() {
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-6">
-                  <div className="text-clearly-blue text-3xl mb-4">🎙️</div>
+                  <div className="text-clearly-blue text-3xl mb-4">
+                    <Mic2 className="h-12 w-12 mx-auto" />
+                  </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     Audio Recording
                   </h3>
@@ -1989,7 +2003,9 @@ function App() {
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-6">
-                  <div className="text-clearly-blue text-3xl mb-4">📁</div>
+                  <div className="text-clearly-blue text-3xl mb-4">
+                    <FolderOpen className="h-12 w-12 mx-auto" />
+                  </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     Multiple Formats
                   </h3>
@@ -2000,7 +2016,9 @@ function App() {
                 </div>
 
                 <div className="bg-gray-50 rounded-lg p-6">
-                  <div className="text-clearly-blue text-3xl mb-4">⚡</div>
+                  <div className="text-clearly-blue text-3xl mb-4">
+                    <Zap className="h-12 w-12 mx-auto" />
+                  </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
                     Fast Processing
                   </h3>

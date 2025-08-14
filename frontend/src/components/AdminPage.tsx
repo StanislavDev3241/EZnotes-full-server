@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Eye, 
-  Download, 
-  FileText, 
-  User, 
-  Trash2, 
+import {
+  Eye,
+  Download,
+  FileText,
+  User,
+  Trash2,
   FileSpreadsheet,
   RefreshCw,
   ArrowLeft,
-  X
+  X,
 } from "lucide-react";
 
 interface AdminPageProps {
@@ -351,24 +351,33 @@ const AdminPage: React.FC<AdminPageProps> = ({
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center space-x-4">
-                <button onClick={onBackToMain} className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium flex items-center">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Main App
-                </button>
-                <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-              </div>
-              <div className="flex items-center space-x-4">
-                <button onClick={downloadAllNotes} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center">
-                  <Download className="h-4 w-4 mr-2" />
-                  Download All Notes
-                </button>
-                <button onClick={onLogout} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center">
-                  <X className="h-4 w-4 mr-2" />
-                  Logout
-                </button>
-              </div>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={onBackToMain}
+                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium flex items-center"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Main App
+              </button>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Admin Dashboard
+              </h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={downloadAllNotes}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download All Notes
+              </button>
+              <button
+                onClick={onLogout}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Logout
+              </button>
             </div>
           </div>
         </div>
