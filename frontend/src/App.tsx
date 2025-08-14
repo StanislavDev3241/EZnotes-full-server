@@ -230,8 +230,8 @@ function App() {
 
   // Fetch user's own notes (for authenticated users only)
   const fetchUserNotes = async () => {
-    if (!isLoggedIn) {
-      console.log("👤 User not logged in, skipping notes fetch");
+    if (!isLoggedIn || isAdmin) {
+      console.log("👤 User not logged in or is admin, skipping notes fetch");
       return;
     }
 
@@ -287,7 +287,7 @@ function App() {
         // Change URL to /admin
         window.history.pushState({}, "", "/admin");
         setShowAdminLogin(false);
-        fetchUserNotes(); // Fetch user notes for authenticated users
+        // Admin users don't need to fetch personal notes
       } else {
         const errorData = await response.json();
         setError(errorData.message || "Login failed");
@@ -304,8 +304,7 @@ function App() {
     if (token) {
       setIsAdmin(true);
       setIsLoggedIn(true);
-
-      fetchUserNotes(); // Fetch user notes for authenticated users
+      // Admin users don't need to fetch personal notes
     }
     // Don't fetch notes for anonymous users
   }, []);
@@ -1887,35 +1886,44 @@ function App() {
                   Generate professional medical notes in three simple steps
                 </p>
               </div>
-              
+
               <div className="grid md:grid-cols-3 gap-8">
                 <div className="text-center">
                   <div className="bg-clearly-blue rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
                     <span className="text-white text-2xl font-bold">1</span>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Upload or Record</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    Upload or Record
+                  </h3>
                   <p className="text-gray-600">
-                    Upload your audio file or record directly on the website. We support MP3, M4A, WAV, and text files.
+                    Upload your audio file or record directly on the website. We
+                    support MP3, M4A, WAV, and text files.
                   </p>
                 </div>
-                
+
                 <div className="text-center">
                   <div className="bg-clearly-blue rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
                     <span className="text-white text-2xl font-bold">2</span>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">AI Processing</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    AI Processing
+                  </h3>
                   <p className="text-gray-600">
-                    Our advanced AI analyzes your content and generates comprehensive SOAP notes and patient summaries.
+                    Our advanced AI analyzes your content and generates
+                    comprehensive SOAP notes and patient summaries.
                   </p>
                 </div>
-                
+
                 <div className="text-center">
                   <div className="bg-clearly-blue rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
                     <span className="text-white text-2xl font-bold">3</span>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Download & Use</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    Download & Use
+                  </h3>
                   <p className="text-gray-600">
-                    Download your generated notes in a clean, professional format ready for medical records.
+                    Download your generated notes in a clean, professional
+                    format ready for medical records.
                   </p>
                 </div>
               </div>
@@ -1933,53 +1941,71 @@ function App() {
                   Everything you need for efficient medical note generation
                 </p>
               </div>
-              
+
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <div className="bg-gray-50 rounded-lg p-6">
                   <div className="text-clearly-blue text-3xl mb-4">🎯</div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">SOAP Notes</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    SOAP Notes
+                  </h3>
                   <p className="text-gray-600">
-                    Generate comprehensive SOAP (Subjective, Objective, Assessment, Plan) notes automatically.
+                    Generate comprehensive SOAP (Subjective, Objective,
+                    Assessment, Plan) notes automatically.
                   </p>
                 </div>
-                
+
                 <div className="bg-gray-50 rounded-lg p-6">
                   <div className="text-clearly-blue text-3xl mb-4">📋</div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Patient Summaries</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    Patient Summaries
+                  </h3>
                   <p className="text-gray-600">
-                    Create clear, concise patient appointment summaries for easy reference.
+                    Create clear, concise patient appointment summaries for easy
+                    reference.
                   </p>
                 </div>
-                
+
                 <div className="bg-gray-50 rounded-lg p-6">
                   <div className="text-clearly-blue text-3xl mb-4">🔒</div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">HIPAA Compliant</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    HIPAA Compliant
+                  </h3>
                   <p className="text-gray-600">
-                    Your data is secure and processed in compliance with healthcare privacy standards.
+                    Your data is secure and processed in compliance with
+                    healthcare privacy standards.
                   </p>
                 </div>
-                
+
                 <div className="bg-gray-50 rounded-lg p-6">
                   <div className="text-clearly-blue text-3xl mb-4">🎙️</div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Audio Recording</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    Audio Recording
+                  </h3>
                   <p className="text-gray-600">
-                    Record audio directly on the website with real-time audio level monitoring.
+                    Record audio directly on the website with real-time audio
+                    level monitoring.
                   </p>
                 </div>
-                
+
                 <div className="bg-gray-50 rounded-lg p-6">
                   <div className="text-clearly-blue text-3xl mb-4">📁</div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Multiple Formats</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    Multiple Formats
+                  </h3>
                   <p className="text-gray-600">
-                    Support for various audio formats and text files for maximum flexibility.
+                    Support for various audio formats and text files for maximum
+                    flexibility.
                   </p>
                 </div>
-                
+
                 <div className="bg-gray-50 rounded-lg p-6">
                   <div className="text-clearly-blue text-3xl mb-4">⚡</div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Fast Processing</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    Fast Processing
+                  </h3>
                   <p className="text-gray-600">
-                    Get your notes generated in seconds with our optimized AI processing.
+                    Get your notes generated in seconds with our optimized AI
+                    processing.
                   </p>
                 </div>
               </div>
@@ -1993,11 +2019,14 @@ function App() {
                 Ready to Get Started?
               </h2>
               <p className="text-xl text-blue-100 mb-8">
-                Join healthcare professionals who are already saving time with ClearlyAI
+                Join healthcare professionals who are already saving time with
+                ClearlyAI
               </p>
               <button
                 onClick={() => {
-                  document.querySelector('.upload-area')?.scrollIntoView({ behavior: 'smooth' });
+                  document
+                    .querySelector(".upload-area")
+                    ?.scrollIntoView({ behavior: "smooth" });
                 }}
                 className="bg-white text-clearly-blue px-8 py-3 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors"
               >

@@ -541,7 +541,9 @@ const AdminPage: React.FC<AdminPageProps> = ({
             <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 text-white p-4 sm:p-6 flex-shrink-0">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg sm:text-xl lg:text-2xl font-bold">Note Details</h3>
+                  <h3 className="text-lg sm:text-xl lg:text-2xl font-bold">
+                    Note Details
+                  </h3>
                   <p className="text-blue-100 text-sm mt-1">
                     {selectedNote.file.originalName}
                   </p>
@@ -566,25 +568,33 @@ const AdminPage: React.FC<AdminPageProps> = ({
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                     <div className="bg-white rounded-lg p-3 border border-gray-200">
-                      <span className="font-medium text-gray-600 block mb-1">Name:</span>
+                      <span className="font-medium text-gray-600 block mb-1">
+                        Name:
+                      </span>
                       <span className="text-gray-800 break-all text-xs sm:text-sm">
                         {selectedNote.file.originalName}
                       </span>
                     </div>
                     <div className="bg-white rounded-lg p-3 border border-gray-200">
-                      <span className="font-medium text-gray-600 block mb-1">Size:</span>
+                      <span className="font-medium text-gray-600 block mb-1">
+                        Size:
+                      </span>
                       <span className="text-gray-800 text-xs sm:text-sm">
                         {formatFileSize(selectedNote.file.fileSize)}
                       </span>
                     </div>
                     <div className="bg-white rounded-lg p-3 border border-gray-200">
-                      <span className="font-medium text-gray-600 block mb-1">Type:</span>
+                      <span className="font-medium text-gray-600 block mb-1">
+                        Type:
+                      </span>
                       <span className="text-gray-800 text-xs sm:text-sm">
                         {selectedNote.file.fileType}
                       </span>
                     </div>
                     <div className="bg-white rounded-lg p-3 border border-gray-200">
-                      <span className="font-medium text-gray-600 block mb-1">User:</span>
+                      <span className="font-medium text-gray-600 block mb-1">
+                        User:
+                      </span>
                       <span className="text-gray-800 break-all text-xs sm:text-sm">
                         {selectedNote.user.email}
                       </span>
