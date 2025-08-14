@@ -26,10 +26,7 @@ interface AdminNote {
     originalName: string;
     fileSize: number;
     fileType: string;
-  };
-  user: {
-    id: number;
-    email: string;
+    createdAt: string;
   };
 }
 
@@ -164,9 +161,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
         content += `=== PATIENT SUMMARY ===\n\n${note.content.patientSummary}\n\n`;
       }
 
-      content += `\n---\nFile: ${note.file.originalName}\nUser: ${
-        note.user.email
-      }\nGenerated: ${new Date(note.createdAt).toLocaleString()}`;
+      content += `\n---\nFile: ${note.file.originalName}\nGenerated: ${new Date(note.createdAt).toLocaleString()}`;
 
       const blob = new Blob([content], { type: "text/plain" });
       const url = window.URL.createObjectURL(blob);
@@ -193,9 +188,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
       }
 
       let content = `=== SOAP NOTE ===\n\n${note.content.soapNote}\n\n`;
-      content += `\n---\nFile: ${note.file.originalName}\nUser: ${
-        note.user.email
-      }\nGenerated: ${new Date(note.createdAt).toLocaleString()}`;
+      content += `\n---\nFile: ${note.file.originalName}\nGenerated: ${new Date(note.createdAt).toLocaleString()}`;
 
       const blob = new Blob([content], { type: "text/plain" });
       const url = window.URL.createObjectURL(blob);
@@ -222,9 +215,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
       }
 
       let content = `=== PATIENT SUMMARY ===\n\n${note.content.patientSummary}\n\n`;
-      content += `\n---\nFile: ${note.file.originalName}\nUser: ${
-        note.user.email
-      }\nGenerated: ${new Date(note.createdAt).toLocaleString()}`;
+      content += `\n---\nFile: ${note.file.originalName}\nGenerated: ${new Date(note.createdAt).toLocaleString()}`;
 
       const blob = new Blob([content], { type: "text/plain" });
       const url = window.URL.createObjectURL(blob);
@@ -415,9 +406,6 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     Status
                   </th>
                   <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    User
-                  </th>
-                  <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Date
                   </th>
                   <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -475,14 +463,6 @@ const AdminPage: React.FC<AdminPageProps> = ({
                       >
                         {note.status}
                       </span>
-                    </td>
-                    <td className="px-2 sm:px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 break-all">
-                        {note.user.email}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        ID: {note.user.id}
-                      </div>
                     </td>
                     <td className="px-2 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="text-xs sm:text-sm">
@@ -565,7 +545,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                     <span className="text-blue-600 mr-2">📁</span>
                     File Information
                   </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                     <div className="bg-white rounded-lg p-3 border border-gray-200">
                       <span className="font-medium text-gray-600 block mb-1">
                         Name:
@@ -588,14 +568,6 @@ const AdminPage: React.FC<AdminPageProps> = ({
                       </span>
                       <span className="text-gray-800 text-xs sm:text-sm">
                         {selectedNote.file.fileType}
-                      </span>
-                    </div>
-                    <div className="bg-white rounded-lg p-3 border border-gray-200">
-                      <span className="font-medium text-gray-600 block mb-1">
-                        User:
-                      </span>
-                      <span className="text-gray-800 break-all text-xs sm:text-sm">
-                        {selectedNote.user.email}
                       </span>
                     </div>
                   </div>

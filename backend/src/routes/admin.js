@@ -139,88 +139,37 @@ router.get("/dashboard", async (req, res) => {
 // Get all notes for admin
 router.get("/notes", async (req, res) => {
   try {
-    const { page = 1, limit = 20, noteType, dateFrom, dateTo } = req.query;
-    const offset = (page - 1) * limit;
-
-    let whereClause = "WHERE 1=1";
-    let params = [];
-    let paramIndex = 1;
-
-    if (noteType) {
-      whereClause += ` AND n.note_type = $${paramIndex}`;
-      params.push(noteType);
-      paramIndex++;
-    }
-
-    if (dateFrom) {
-      whereClause += ` AND n.created_at >= $${paramIndex}`;
-      params.push(dateFrom);
-      paramIndex++;
-    }
-
-    if (dateTo) {
-      whereClause += ` AND n.created_at <= $${paramIndex}`;
-      params.push(dateTo);
-      paramIndex++;
-    }
-
-    // Get total count
-    const countResult = await pool.query(
-      `
-      SELECT COUNT(*) as total
-      FROM notes n
-      ${whereClause}
-    `,
-      params
-    );
-
-    const total = parseInt(countResult.rows[0].total);
-
-    // Get notes with file and user info
+    // Get all notes without pagination for admin dashboard
     const result = await pool.query(
       `
       SELECT n.*, 
              f.original_name,
              f.file_size,
              f.file_type,
-             u.email as user_email
+             f.created_at as file_created_at
       FROM notes n
       JOIN files f ON n.file_id = f.id
-      JOIN users u ON n.user_id = u.id
-      ${whereClause}
       ORDER BY n.created_at DESC
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `,
-      [...params, limit, offset]
+    `
     );
 
     const notes = result.rows.map((row) => ({
       id: row.id,
-      type: row.note_type,
       content: JSON.parse(row.content),
       status: row.status,
       createdAt: row.created_at,
-      retentionDate: row.retention_date,
       file: {
         id: row.file_id,
         originalName: row.original_name,
         fileSize: row.file_size,
         fileType: row.file_type,
-      },
-      user: {
-        id: row.user_id,
-        email: row.user_email,
+        createdAt: row.file_created_at,
       },
     }));
 
     res.json({
       notes,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit),
-      },
+      total: notes.length,
     });
   } catch (error) {
     console.error("Admin notes error:", error);

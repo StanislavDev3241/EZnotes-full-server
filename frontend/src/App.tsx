@@ -1157,11 +1157,11 @@ function App() {
             isLoggedIn
           );
           return (
-                    <AdminPage
-          API_BASE_URL={API_BASE_URL}
-          onBackToMain={handleBackToMain}
-          onLogout={handleAdminLogout}
-        />
+            <AdminPage
+              API_BASE_URL={API_BASE_URL}
+              onBackToMain={handleBackToMain}
+              onLogout={handleAdminLogout}
+            />
           );
         })()
       ) : (
