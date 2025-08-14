@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 interface AdminPageProps {
   API_BASE_URL: string;
   onBackToMain: () => void;
+  onLogout: () => void;
 }
 
 interface SystemStats {
@@ -35,6 +36,7 @@ interface AdminNote {
 const AdminPage: React.FC<AdminPageProps> = ({
   API_BASE_URL,
   onBackToMain,
+  onLogout,
 }) => {
   console.log("🔍 AdminPage component rendering - API_BASE_URL:", API_BASE_URL);
 
@@ -306,10 +308,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                 📥 Download All Notes
               </button>
               <button
-                onClick={() => {
-                  localStorage.removeItem("adminToken");
-                  onBackToMain();
-                }}
+                onClick={onLogout}
                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
                 🚪 Logout
