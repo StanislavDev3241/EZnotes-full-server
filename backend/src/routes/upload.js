@@ -9,7 +9,7 @@ const {
 const { pool } = require("../config/database");
 const { fileProcessingQueue } = require("../config/queue");
 const path = require("path");
-const fs = require("fs-extra");
+const fs = require("fs").promises; // Use native fs promises
 const fetch = require("node-fetch"); // Add fetch for Node.js compatibility
 
 const router = express.Router();
@@ -324,7 +324,16 @@ router.post(
 
       // Create temp directory for chunks if it doesn't exist
       const chunksDir = path.join(__dirname, "../../temp/chunks", fileId);
-      await fs.ensureDir(chunksDir);
+      try {
+        await fs.mkdir(chunksDir, { recursive: true });
+        console.log(`📁 Created chunks directory: ${chunksDir}`);
+      } catch (mkdirError) {
+        console.error("❌ Error creating chunks directory:", mkdirError);
+        return res.status(500).json({
+          error: "Failed to create chunks directory",
+          message: mkdirError.message
+        });
+      }
 
       // Save chunk to temp directory
       const chunkPath = path.join(chunksDir, `chunk_${chunkIndex}`);
@@ -349,11 +358,16 @@ router.post(
         console.log("📦 Using Buffer.from conversion");
       }
 
-      await fs.writeFile(chunkPath, chunkBuffer);
-
-      console.log(
-        `✅ Chunk ${chunkIndex}/${totalChunks} saved for file ${fileName}`
-      );
+      try {
+        await fs.writeFile(chunkPath, chunkBuffer);
+        console.log(`✅ Chunk ${chunkIndex}/${totalChunks} saved for file ${fileName}`);
+      } catch (writeError) {
+        console.error("❌ Error writing chunk file:", writeError);
+        return res.status(500).json({
+          error: "Failed to save chunk",
+          message: writeError.message
+        });
+      }
 
       res.json({
         success: true,
@@ -383,7 +397,9 @@ router.post("/finalize", optionalAuth, async (req, res) => {
     const chunksDir = path.join(__dirname, "../../temp/chunks", fileId);
 
     // Check if chunks directory exists
-    if (!(await fs.pathExists(chunksDir))) {
+    try {
+      await fs.access(chunksDir);
+    } catch (accessError) {
       return res.status(400).json({ error: "No chunks found for this file" });
     }
 
@@ -411,39 +427,53 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       "../../temp",
       `${fileId}_${fileName}`
     );
-    const writeStream = fs.createWriteStream(finalFilePath);
-
+    
+    // Use native fs writeFile instead of streams for better error handling
     let totalSize = 0;
+    const chunkBuffers = [];
+    
     for (const chunkFile of sortedChunks) {
       const chunkPath = path.join(chunksDir, chunkFile);
-      const chunkData = await fs.readFile(chunkPath);
-      writeStream.write(chunkData);
-      totalSize += chunkData.length;
+      try {
+        const chunkData = await fs.readFile(chunkPath);
+        chunkBuffers.push(chunkData);
+        totalSize += chunkData.length;
 
-      console.log(
-        `📁 Added chunk ${chunkFile}: ${(
-          chunkData.length /
-          1024 /
-          1024
-        ).toFixed(2)}MB`
-      );
+        console.log(
+          `📁 Added chunk ${chunkFile}: ${(
+            chunkData.length /
+            1024 /
+            1024
+          ).toFixed(2)}MB`
+        );
+      } catch (readError) {
+        console.error(`❌ Error reading chunk ${chunkFile}:`, readError);
+        return res.status(500).json({
+          error: "Failed to read chunk",
+          message: `Error reading chunk ${chunkFile}: ${readError.message}`
+        });
+      }
     }
 
-    writeStream.end();
-
-    // Wait for write to complete
-    await new Promise((resolve, reject) => {
-      writeStream.on("finish", resolve);
-      writeStream.on("error", reject);
-    });
-
-    console.log(
-      `🎯 Chunked upload finalized: ${fileName} (${(
-        totalSize /
-        1024 /
-        1024
-      ).toFixed(2)}MB)`
-    );
+    // Combine all chunks into one buffer
+    const finalBuffer = Buffer.concat(chunkBuffers);
+    
+    try {
+      await fs.writeFile(finalFilePath, finalBuffer);
+      console.log(
+        `🎯 Chunked upload finalized: ${fileName} (${(
+          totalSize /
+          1024 /
+          1024
+        ).toFixed(2)}MB)`
+      );
+    } catch (writeError) {
+      console.error("❌ Error writing final file:", writeError);
+      return res.status(500).json({
+        error: "Failed to write final file",
+        message: writeError.message
+      });
+    }
 
     // Move to uploads directory
     const uploadPath = await moveToUploads(
@@ -481,8 +511,21 @@ router.post("/finalize", optionalAuth, async (req, res) => {
     );
 
     // Clean up chunks
-    await fs.remove(chunksDir);
-    await fs.remove(finalFilePath);
+    try {
+      // Remove all chunk files
+      for (const chunkFile of sortedChunks) {
+        const chunkPath = path.join(chunksDir, chunkFile);
+        await fs.unlink(chunkPath);
+      }
+      // Remove chunks directory
+      await fs.rmdir(chunksDir);
+      // Remove final temp file
+      await fs.unlink(finalFilePath);
+      console.log("🧹 Cleaned up temporary files");
+    } catch (cleanupError) {
+      console.warn("⚠️ Warning: Could not clean up some temporary files:", cleanupError);
+      // Don't fail the operation if cleanup fails
+    }
 
     console.log(
       `✅ File reassembled and saved to database with ID: ${fileId_db}`

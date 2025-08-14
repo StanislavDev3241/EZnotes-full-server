@@ -11,28 +11,42 @@ fs.ensureDirSync(tempDir);
 
 // File filter function
 const fileFilter = (req, file, cb) => {
-  // Allowed file types
+  // Allowed file types (more permissive for audio files)
   const allowedTypes = [
     "audio/mpeg",
+    "audio/mp3", // Common MP3 MIME type
     "audio/mp4",
+    "audio/m4a",
     "audio/wav",
+    "audio/x-wav",
     "audio/x-m4a",
     "text/plain",
+    "application/octet-stream", // Generic type for chunked files
   ];
 
   // Allowed file extensions
   const allowedExtensions = [".mp3", ".m4a", ".wav", ".txt"];
 
   const fileExtension = path.extname(file.originalname).toLowerCase();
-  const isValidType = allowedTypes.includes(file.mimetype);
+  const isValidType = allowedTypes.includes(file.mimetype) || 
+                     file.mimetype.startsWith("audio/") || // Accept any audio type
+                     file.mimetype === "application/octet-stream"; // Accept generic types
   const isValidExtension = allowedExtensions.includes(fileExtension);
+
+  console.log(`🔍 File validation:`, {
+    filename: file.originalname,
+    mimetype: file.mimetype,
+    extension: fileExtension,
+    isValidType,
+    isValidExtension
+  });
 
   if (isValidType && isValidExtension) {
     cb(null, true);
   } else {
     cb(
       new Error(
-        `Invalid file type. Allowed types: ${allowedExtensions.join(", ")}`
+        `Invalid file type. Allowed types: ${allowedExtensions.join(", ")}. Got: ${file.mimetype}`
       ),
       false
     );

@@ -799,15 +799,20 @@ function App() {
           );
         } catch (chunkError) {
           console.error("❌ Chunked upload failed:", chunkError);
-          
+
           // Try WebRTC as alternative for large files
-          if (optimizedFile.size <= 100 * 1024 * 1024) { // 100MB limit for WebRTC
+          if (optimizedFile.size <= 100 * 1024 * 1024) {
+            // 100MB limit for WebRTC
             console.log("🌐 Attempting WebRTC transfer as alternative...");
             try {
-              result = await performWebRTCUpload(optimizedFile, webhookUrl, apiKey);
+              result = await performWebRTCUpload(
+                optimizedFile,
+                webhookUrl,
+                apiKey
+              );
             } catch (webrtcError) {
               console.error("❌ WebRTC transfer failed:", webrtcError);
-              
+
               // Final fallback to regular upload for files under 50MB
               if (optimizedFile.size <= 50 * 1024 * 1024) {
                 console.log(
@@ -820,7 +825,11 @@ function App() {
                 );
               } else {
                 throw new Error(
-                  `All upload methods failed. File too large for fallback: ${chunkError instanceof Error ? chunkError.message : String(chunkError)}`
+                  `All upload methods failed. File too large for fallback: ${
+                    chunkError instanceof Error
+                      ? chunkError.message
+                      : String(chunkError)
+                  }`
                 );
               }
             }
@@ -837,7 +846,11 @@ function App() {
               );
             } else {
               throw new Error(
-                `Chunked upload failed and file is too large for fallback: ${chunkError instanceof Error ? chunkError.message : String(chunkError)}`
+                `Chunked upload failed and file is too large for fallback: ${
+                  chunkError instanceof Error
+                    ? chunkError.message
+                    : String(chunkError)
+                }`
               );
             }
           }
@@ -989,16 +1002,16 @@ function App() {
     // Process chunks sequentially with delays to prevent connection resets
     for (let i = 0; i < chunks.length; i += maxConcurrent) {
       const batch = chunks.slice(i, i + maxConcurrent);
-      
+
       for (const chunk of batch) {
         try {
           // Add delay between chunks to prevent overwhelming the server
           if (i > 0) {
-            const delay = Math.min(1000 + (i * 200), 3000); // 1-3 second delay
+            const delay = Math.min(1000 + i * 200, 3000); // 1-3 second delay
             console.log(`⏳ Waiting ${delay}ms before next chunk...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
+            await new Promise((resolve) => setTimeout(resolve, delay));
           }
-          
+
           await uploadChunk(
             chunk,
             fileId,
@@ -1016,11 +1029,11 @@ function App() {
         } catch (error) {
           console.error(`❌ Chunk ${chunk.index + 1} failed:`, error);
           failedChunks.push(chunk.index);
-          
+
           // If chunk fails, wait longer before retry
-          const retryDelay = Math.min(2000 + (failedChunks.length * 1000), 10000);
+          const retryDelay = Math.min(2000 + failedChunks.length * 1000, 10000);
           console.log(`⏳ Waiting ${retryDelay}ms before retry...`);
-          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          await new Promise((resolve) => setTimeout(resolve, retryDelay));
         }
       }
 
@@ -1029,7 +1042,7 @@ function App() {
         console.log(`🔄 Retrying ${failedChunks.length} failed chunks...`);
         const retryChunks = [...failedChunks];
         failedChunks = []; // Reset for this retry round
-        
+
         for (const chunkIndex of retryChunks) {
           const chunk = chunks[chunkIndex];
           try {
@@ -1047,7 +1060,10 @@ function App() {
             console.log(`✅ Retry successful for chunk ${chunk.index + 1}`);
           } catch (retryError) {
             failedChunks.push(chunkIndex);
-            console.error(`❌ Retry failed for chunk ${chunk.index + 1}:`, retryError);
+            console.error(
+              `❌ Retry failed for chunk ${chunk.index + 1}:`,
+              retryError
+            );
           }
         }
       }
@@ -1605,18 +1621,20 @@ function App() {
   }, [resetAllStates, error]);
 
   // WebRTC Peer-to-Peer file transfer
-  const createWebRTCOffer = async (file: File): Promise<RTCSessionDescriptionInit> => {
+  const createWebRTCOffer = async (
+    file: File
+  ): Promise<RTCSessionDescriptionInit> => {
     const peerConnection = new RTCPeerConnection({
       iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+      ],
     });
 
     // Create data channel for file transfer
-    const dataChannel = peerConnection.createDataChannel('fileTransfer', {
+    const dataChannel = peerConnection.createDataChannel("fileTransfer", {
       ordered: true,
-      maxRetransmits: 3
+      maxRetransmits: 3,
     });
 
     dataChannel.onopen = () => {
@@ -1624,7 +1642,7 @@ function App() {
     };
 
     dataChannel.onmessage = (event) => {
-      console.log('📨 WebRTC message received:', event.data);
+      console.log("📨 WebRTC message received:", event.data);
     };
 
     // Create offer
@@ -1635,38 +1653,44 @@ function App() {
   };
 
   // Alternative upload method using WebRTC
-  const performWebRTCUpload = async (file: File, webhookUrl: string, apiKey: string | null) => {
+  const performWebRTCUpload = async (
+    file: File,
+    webhookUrl: string,
+    apiKey: string | null
+  ) => {
     try {
-      console.log('🌐 Attempting WebRTC peer-to-peer transfer...');
-      
+      console.log("🌐 Attempting WebRTC peer-to-peer transfer...");
+
       // Create WebRTC offer
       const offer = await createWebRTCOffer(file);
-      
+
       // Send offer to server for signaling
       const response = await fetch(`${webhookUrl}/webrtc-offer`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          ...(apiKey && { Authorization: `Bearer ${apiKey}` })
+          "Content-Type": "application/json",
+          ...(apiKey && { Authorization: `Bearer ${apiKey}` }),
         },
         body: JSON.stringify({
           offer: offer,
           fileName: file.name,
           fileSize: file.size,
-          fileType: file.type
-        })
+          fileType: file.type,
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('WebRTC offer failed');
+        throw new Error("WebRTC offer failed");
       }
 
       const result = await response.json();
-      console.log('✅ WebRTC transfer initiated');
+      console.log("✅ WebRTC transfer initiated");
       return result;
-      
     } catch (error) {
-      console.warn('⚠️ WebRTC transfer failed, falling back to regular upload:', error);
+      console.warn(
+        "⚠️ WebRTC transfer failed, falling back to regular upload:",
+        error
+      );
       throw error;
     }
   };
@@ -2231,7 +2255,7 @@ function App() {
                           ></div>
                         </div>
 
-                        {/* Timer Display */}
+                        {/* Enhanced Timer Display */}
                         {uploadStatus === "uploading" && (
                           <div className="flex justify-between text-xs text-gray-600 mt-2">
                             <span>
@@ -2245,6 +2269,22 @@ function App() {
                           </div>
                         )}
 
+                        {/* Chunk Progress for Large Files */}
+                        {uploadStatus === "uploading" && uploadProgress > 10 && (
+                          <div className="mt-2 text-xs text-blue-600">
+                            <div className="flex justify-between">
+                              <span>Chunk Progress:</span>
+                              <span>{Math.round((uploadProgress - 10) / 0.8)}%</span>
+                            </div>
+                            <div className="w-full bg-blue-100 rounded-full h-1 mt-1">
+                              <div
+                                className="bg-blue-500 h-1 rounded-full transition-all duration-200"
+                                style={{ width: `${(uploadProgress - 10) / 0.8}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Status Messages */}
                         <div className="mt-3 text-center">
                           {uploadStatus === "optimizing" && (
@@ -2254,15 +2294,12 @@ function App() {
                           )}
                           {uploadStatus === "uploading" && (
                             <p className="text-sm text-blue-600">
-                              📤 Uploading file...{" "}
-                              {uploadProgress > 10 &&
-                                `(${Math.round(uploadProgress)}% complete)`}
+                              📤 Uploading file... {uploadProgress > 10 && `(${Math.round(uploadProgress)}% complete)`}
                             </p>
                           )}
                           {uploadStatus === "processing" && (
                             <p className="text-sm text-blue-600">
-                              🤖 AI is processing your file... This may take a
-                              few minutes
+                              🤖 AI is processing your file... This may take a few minutes
                             </p>
                           )}
                           {uploadStatus === "error" && (
