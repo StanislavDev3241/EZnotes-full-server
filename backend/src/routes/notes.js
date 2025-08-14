@@ -85,6 +85,69 @@ router.get("/test-anonymous", (req, res) => {
   });
 });
 
+// Get notes for a specific file (anonymous users) - NO AUTH REQUIRED
+router.get("/file-anonymous/:fileId", async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    console.log(`👤 Anonymous user requesting notes for file ${fileId}`);
+
+    const result = await pool.query(
+      `
+      SELECT f.*,
+             n.id as note_id,
+             n.note_type,
+             n.content,
+             n.created_at as note_created_at,
+             t.status as task_status,
+             t.error_message
+      FROM files f
+      LEFT JOIN notes n ON f.id = n.file_id
+      LEFT JOIN tasks t ON f.id = t.file_id AND t.task_type = 'file_processing'
+      WHERE f.id = $1 AND f.user_id IS NULL
+    `,
+      [fileId]
+    );
+
+    if (result.rows.length === 0) {
+      console.log(`❌ File ${fileId} not found for anonymous user`);
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    const file = result.rows[0];
+    console.log(`📋 File ${fileId} found for anonymous user:`, {
+      filename: file.filename,
+      status: file.status,
+      hasNotes: !!file.note_id
+    });
+
+    const fileData = {
+      id: file.id,
+      filename: file.filename,
+      originalName: file.original_name,
+      fileSize: file.file_size,
+      fileType: file.file_type,
+      status: file.status,
+      createdAt: file.created_at,
+      note: file.note_id
+        ? {
+            id: file.note_id,
+            type: file.note_type,
+            content: JSON.parse(file.content),
+            createdAt: file.note_created_at,
+          }
+        : null,
+      taskStatus: file.task_status,
+      errorMessage: file.error_message,
+    };
+
+    console.log(`📝 Returning file data with notes for anonymous user`);
+    res.json({ file: fileData });
+  } catch (error) {
+    console.error("Get anonymous file notes error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // Test endpoint to verify webhook route is accessible
 router.get("/test", webhookCors, (req, res) => {
   console.log("🧪 Webhook test endpoint accessed");

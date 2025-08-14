@@ -206,6 +206,37 @@ function App() {
     [API_BASE_URL]
   );
 
+  // Fetch notes for a specific file (anonymous users)
+  const fetchFileNotes = async (fileId: string) => {
+    try {
+      console.log(`📋 Fetching notes for file ${fileId}`);
+      
+      const endpoint = `/api/notes/file-anonymous/${fileId}`;
+      console.log(`📋 Fetching from: ${endpoint}`);
+      
+      const response = await fetch(`${API_BASE_URL}${endpoint}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`📝 Received file notes data:`, data);
+        
+        if (data.file && data.file.note) {
+          // Set the output with the AI-generated notes
+          setOutput({
+            soapNote: data.file.note.content.soapNote || "",
+            patientSummary: data.file.note.content.patientSummary || ""
+          });
+          console.log(`🎉 AI results loaded for file ${fileId}`);
+        } else {
+          console.log(`⚠️ No notes found for file ${fileId}`);
+        }
+      } else {
+        console.error(`❌ Failed to fetch file notes: ${response.status} ${response.statusText}`);
+      }
+    } catch (err) {
+      console.error("Failed to fetch file notes:", err);
+    }
+  };
+
   // Fetch user's own notes
   const fetchUserNotes = async () => {
     try {
@@ -765,7 +796,7 @@ function App() {
 
           // AI processing complete, fetch the generated notes
           console.log("🎉 AI processing complete, fetching notes...");
-          await fetchUserNotes();
+          await fetchFileNotes(result.file.id);
 
           // Set status to complete
           setUploadProgress(100);
