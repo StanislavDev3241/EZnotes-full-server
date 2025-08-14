@@ -49,8 +49,7 @@ function App() {
   // Simplified admin authentication state
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userNotes, setUserNotes] = useState<any[]>([]);
-  const [success, setSuccess] = useState<string | null>(null);
+
 
   // Add upload progress tracking
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -108,32 +107,7 @@ function App() {
     return cleanup;
   }, [cleanup]);
 
-  // Admin login function
-  const handleAdminLogin = async (email: string, password: string) => {
-    try {
-      const response = await fetch(API_ENDPOINTS.login, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem("adminToken", data.token);
-        setIsAdmin(true);
-        setIsLoggedIn(true);
-
-        setSuccess("Admin login successful!");
-
-      } else {
-        setError("Invalid admin credentials");
-      }
-    } catch (err) {
-      setError("Login failed. Please try again.");
-    }
-  };
 
 
 
@@ -237,7 +211,7 @@ function App() {
       if (response.ok) {
         const data = await response.json();
         console.log(`📝 Received notes data:`, data);
-        setUserNotes(data.notes || []);
+
       } else {
         console.error(
           `❌ Failed to fetch notes: ${response.status} ${response.statusText}`
@@ -254,7 +228,7 @@ function App() {
     setIsAdmin(false);
     setIsLoggedIn(false);
     
-    setSuccess("Admin logged out successfully");
+    
   };
 
   // Check if admin token exists on component mount
@@ -1032,9 +1006,7 @@ function App() {
               </button>
             ) : (
               <div className="flex items-center space-x-4">
-                {isAdmin && (
 
-                )}
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">
                     {isAdmin ? "Admin" : "User"}
