@@ -206,13 +206,14 @@ function App() {
     [API_BASE_URL]
   );
 
-  // Fetch notes for a specific file (anonymous users)
+  // Fetch notes for a specific file by ID
   const fetchFileNotes = async (fileId: string) => {
     try {
       console.log(`📋 Fetching notes for file ${fileId}`);
       
-      const endpoint = `/api/notes/file-anonymous/${fileId}`;
-      console.log(`📋 Fetching from: ${endpoint}`);
+      // Use anonymous endpoint for non-authenticated users
+      const endpoint = isLoggedIn ? `/api/notes/file/${fileId}` : `/api/notes/file-anonymous/${fileId}`;
+      console.log(`📋 Using endpoint: ${endpoint}`);
       
       const response = await fetch(`${API_BASE_URL}${endpoint}`);
       if (response.ok) {
@@ -225,7 +226,7 @@ function App() {
             soapNote: data.file.note.content.soapNote || "",
             patientSummary: data.file.note.content.patientSummary || ""
           });
-          console.log(`🎉 AI results loaded for file ${fileId}`);
+          console.log(`✅ Notes loaded for file ${fileId}:`, data.file.note.content);
         } else {
           console.log(`⚠️ No notes found for file ${fileId}`);
         }
@@ -237,13 +238,13 @@ function App() {
     }
   };
 
-  // Fetch user's own notes
+  // Fetch user's own notes (for admin or authenticated users)
   const fetchUserNotes = async () => {
     try {
       // Use anonymous endpoint for non-authenticated users
       const endpoint = isLoggedIn ? "/api/notes/user" : "/api/notes/anonymous";
       console.log(`📋 Fetching notes from: ${endpoint}`);
-
+      
       const response = await fetch(`${API_BASE_URL}${endpoint}`);
       if (response.ok) {
         const data = await response.json();
@@ -794,7 +795,7 @@ function App() {
           // Poll status until AI processing is complete
           await pollUploadStatus(result.file.id);
 
-          // AI processing complete, fetch the generated notes
+          // AI processing complete, fetch the generated notes for this specific file
           console.log("🎉 AI processing complete, fetching notes...");
           await fetchFileNotes(result.file.id);
 
@@ -821,7 +822,7 @@ function App() {
           });
           setUploadProgress(100);
           setUploadStatus("complete");
-          fetchUserNotes();
+          // No need to fetch notes in fallback - we already have them
           setTimeout(() => handleHipaaCompliance(), 500);
         } else if (result.soapNote && result.patientSummary) {
           setOutput({
@@ -830,7 +831,7 @@ function App() {
           });
           setUploadProgress(100);
           setUploadStatus("complete");
-          fetchUserNotes();
+          // No need to fetch notes in fallback - we already have them
           setTimeout(() => handleHipaaCompliance(), 500);
         } else {
           throw new Error("Invalid upload response format");

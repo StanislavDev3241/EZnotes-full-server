@@ -75,17 +75,7 @@ router.get("/anonymous", async (req, res) => {
   }
 });
 
-// Simple test endpoint to verify routing
-router.get("/test-anonymous", (req, res) => {
-  console.log("🧪 Test anonymous endpoint accessed");
-  res.json({
-    message: "Anonymous test endpoint working",
-    timestamp: new Date().toISOString(),
-    status: "working",
-  });
-});
-
-// Get notes for a specific file (anonymous users) - NO AUTH REQUIRED
+// Get notes for a specific file by ID (anonymous users) - NO AUTH REQUIRED
 router.get("/file-anonymous/:fileId", async (req, res) => {
   try {
     const { fileId } = req.params;
@@ -93,16 +83,9 @@ router.get("/file-anonymous/:fileId", async (req, res) => {
 
     const result = await pool.query(
       `
-      SELECT f.*,
-             n.id as note_id,
-             n.note_type,
-             n.content,
-             n.created_at as note_created_at,
-             t.status as task_status,
-             t.error_message
+      SELECT f.*, n.id as note_id, n.note_type, n.content, n.created_at as note_created_at
       FROM files f
       LEFT JOIN notes n ON f.id = n.file_id
-      LEFT JOIN tasks t ON f.id = t.file_id AND t.task_type = 'file_processing'
       WHERE f.id = $1 AND f.user_id IS NULL
     `,
       [fileId]
@@ -136,8 +119,6 @@ router.get("/file-anonymous/:fileId", async (req, res) => {
             createdAt: file.note_created_at,
           }
         : null,
-      taskStatus: file.task_status,
-      errorMessage: file.error_message,
     };
 
     console.log(`📝 Returning file data with notes for anonymous user`);
@@ -146,6 +127,16 @@ router.get("/file-anonymous/:fileId", async (req, res) => {
     console.error("Get anonymous file notes error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
+});
+
+// Simple test endpoint to verify routing
+router.get("/test-anonymous", (req, res) => {
+  console.log("🧪 Test anonymous endpoint accessed");
+  res.json({
+    message: "Anonymous test endpoint working",
+    timestamp: new Date().toISOString(),
+    status: "working",
+  });
 });
 
 // Test endpoint to verify webhook route is accessible
