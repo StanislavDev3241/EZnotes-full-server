@@ -139,7 +139,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
 
   const viewNote = (note: AdminNote) => {
     setSelectedNote(note);
-    setShowNoteModal(true
+    setShowNoteModal(true);
+  };
 
   const downloadNote = (note: AdminNote) => {
     try {
@@ -614,14 +615,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                 className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
               >
                 Close
-            </button>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
     </div>
-  );
-};
   );
 };
 
