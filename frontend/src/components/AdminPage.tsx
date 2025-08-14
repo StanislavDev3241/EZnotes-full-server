@@ -37,7 +37,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
   onBackToMain,
 }) => {
   console.log("🔍 AdminPage component rendering - API_BASE_URL:", API_BASE_URL);
-  
+
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [notes, setNotes] = useState<AdminNote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +65,15 @@ const AdminPage: React.FC<AdminPageProps> = ({
       if (response.ok) {
         const data = await response.json();
         console.log("🔍 Stats data received:", data);
-        setStats(data);
+        // Handle both direct object and nested response
+        if (data.stats && typeof data.stats === 'object') {
+          setStats(data.stats);
+        } else if (typeof data === 'object' && data.totalFiles !== undefined) {
+          setStats(data);
+        } else {
+          console.error("🔍 Unexpected stats data structure:", data);
+          setStats(null);
+        }
       } else {
         console.log("🔍 Stats request failed:", response.status);
       }
@@ -89,7 +97,15 @@ const AdminPage: React.FC<AdminPageProps> = ({
       if (response.ok) {
         const data = await response.json();
         console.log("🔍 Notes data received:", data);
-        setNotes(data);
+        // Handle both direct array and paginated response
+        if (data.notes && Array.isArray(data.notes)) {
+          setNotes(data.notes);
+        } else if (Array.isArray(data)) {
+          setNotes(data);
+        } else {
+          console.error("🔍 Unexpected notes data structure:", data);
+          setNotes([]);
+        }
       } else {
         console.log("🔍 Notes request failed:", response.status);
         setError("Failed to fetch notes");
@@ -175,7 +191,16 @@ const AdminPage: React.FC<AdminPageProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  console.log("🔍 AdminPage render - loading:", loading, "error:", error, "stats:", !!stats, "notes count:", notes.length);
+  console.log(
+    "🔍 AdminPage render - loading:",
+    loading,
+    "error:",
+    error,
+    "stats:",
+    !!stats,
+    "notes count:",
+    notes.length
+  );
 
   if (loading) {
     console.log("🔍 AdminPage showing loading state");

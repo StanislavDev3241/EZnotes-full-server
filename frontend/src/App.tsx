@@ -58,13 +58,18 @@ function App() {
   // Check URL on component mount and handle routing
   useEffect(() => {
     const path = window.location.pathname;
-    console.log("🔍 URL routing effect - path:", path, "currentPage:", currentPage);
-    
+    console.log(
+      "🔍 URL routing effect - path:",
+      path,
+      "currentPage:",
+      currentPage
+    );
+
     if (path === "/admin") {
       // Check if admin token exists
       const token = localStorage.getItem("adminToken");
       console.log("🔍 Admin path detected - token exists:", !!token);
-      
+
       if (token) {
         console.log("🔍 Setting admin state and page");
         setCurrentPage("admin");
@@ -1145,7 +1150,14 @@ function App() {
       {/* Main App or Admin Page Routing */}
       {currentPage === "admin" ? (
         (() => {
-          console.log("🔍 Rendering AdminPage - currentPage:", currentPage, "isAdmin:", isAdmin, "isLoggedIn:", isLoggedIn);
+          console.log(
+            "🔍 Rendering AdminPage - currentPage:",
+            currentPage,
+            "isAdmin:",
+            isAdmin,
+            "isLoggedIn:",
+            isLoggedIn
+          );
           return (
             <AdminPage
               API_BASE_URL={API_BASE_URL}
