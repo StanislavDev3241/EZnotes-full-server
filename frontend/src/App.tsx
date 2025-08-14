@@ -742,82 +742,139 @@ function App() {
     setElapsedTime(0);
     setRemainingTime(null);
 
+    // Check file size and warn user for large files
+    const fileSizeMB = file.size / (1024 * 1024);
+    if (fileSizeMB > 50) {
+      console.log(`⚠️ Large file detected: ${fileSizeMB.toFixed(2)}MB - this may take several minutes`);
+    }
+
     try {
       // Use custom server instead of Make.com directly
       const webhookUrl = API_ENDPOINTS.upload;
       const apiKey = localStorage.getItem("adminToken"); // Use auth token if admin, otherwise null
 
-      // Single upload attempt with XMLHttpRequest
-      const result = await new Promise<any>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
+      // Upload with retry logic for large files
+      const maxRetries = 3;
+      let lastError: Error | null = null;
+      let result: any = null;
 
-        // Real upload progress tracking with time calculations
-        xhr.upload.addEventListener("progress", (event) => {
-          if (event.lengthComputable) {
-            const progress = (event.loaded / event.total) * 90; // Go to 90% during upload
-            setUploadProgress(progress);
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`📁 Upload attempt ${attempt}/${maxRetries} for file: ${file.name} (${fileSizeMB.toFixed(2)}MB)`);
+          
+          // Single upload attempt with XMLHttpRequest
+          result = await new Promise<any>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
 
-            // Calculate elapsed and remaining time
-            const currentTime = Date.now();
-            const elapsed = Math.floor((currentTime - startTime) / 1000);
-            setElapsedTime(elapsed);
+            // Set timeout for large files (5 minutes)
+            xhr.timeout = 300000; // 5 minutes
 
-            if (progress > 0) {
-              const estimatedTotalTime = (elapsed / progress) * 100;
-              const remaining = Math.max(
-                0,
-                Math.floor(estimatedTotalTime - elapsed)
-              );
-              setRemainingTime(remaining);
+            // Real upload progress tracking with time calculations
+            xhr.upload.addEventListener("progress", (event) => {
+              if (event.lengthComputable) {
+                const progress = (event.loaded / event.total) * 90; // Go to 90% during upload
+                setUploadProgress(progress);
+
+                // Calculate elapsed and remaining time
+                const currentTime = Date.now();
+                const elapsed = Math.floor((currentTime - startTime) / 1000);
+                setElapsedTime(elapsed);
+
+                if (progress > 0) {
+                  const estimatedTotalTime = (elapsed / progress) * 100;
+                  const remaining = Math.max(
+                    0,
+                    Math.floor(estimatedTotalTime - elapsed)
+                  );
+                  setRemainingTime(remaining);
+                }
+              }
+            });
+
+            xhr.addEventListener("load", () => {
+              if (xhr.status === 200) {
+                try {
+                  const result = JSON.parse(xhr.responseText);
+                  setUploadProgress(90); // Upload complete, now processing
+                  setUploadStatus("processing");
+                  resolve(result);
+                } catch (error) {
+                  reject(new Error("Invalid JSON response"));
+                }
+              } else if (xhr.status === 413) {
+                reject(
+                  new Error(
+                    `File too large (${fileSizeMB.toFixed(1)}MB). Maximum allowed size is 200MB. Please compress your file or use a smaller one.`
+                  )
+                );
+              } else if (xhr.status === 408) {
+                reject(
+                  new Error(
+                    `Upload timeout. Large files (${fileSizeMB.toFixed(1)}MB) may take longer. Please try again or use a smaller file.`
+                  )
+                );
+              } else {
+                reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+              }
+            });
+
+            xhr.addEventListener("error", () => {
+              if (xhr.status === 0) {
+                reject(new Error("Network connection lost. Please check your internet connection and try again."));
+              } else {
+                reject(new Error("Network error during upload. Please try again."));
+              }
+            });
+
+            xhr.addEventListener("timeout", () => {
+              reject(new Error(`Upload timeout after 5 minutes. File ${fileSizeMB.toFixed(1)}MB is too large or connection is slow. Please try with a smaller file.`));
+            });
+
+            xhr.addEventListener("abort", () => {
+              reject(new Error("Upload was cancelled. Please try again."));
+            });
+
+            xhr.open("POST", webhookUrl);
+            // Only add Authorization header if admin token exists
+            if (apiKey) {
+              xhr.setRequestHeader("Authorization", `Bearer ${apiKey}`);
             }
-          }
-        });
 
-        xhr.addEventListener("load", () => {
-          if (xhr.status === 200) {
-            try {
-              const result = JSON.parse(xhr.responseText);
-              setUploadProgress(90); // Upload complete, now processing
-              setUploadStatus("processing");
-              resolve(result);
-            } catch (error) {
-              reject(new Error("Invalid JSON response"));
-            }
-          } else if (xhr.status === 413) {
-            reject(
-              new Error(
-                `File too large (${(file.size / (1024 * 1024)).toFixed(
-                  1
-                )}MB) for server. Try a smaller file or contact support.`
-              )
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append(
+              "noteType",
+              outputSelection.soapNote && outputSelection.patientSummary
+                ? "both"
+                : outputSelection.soapNote
+                ? "soap"
+                : "summary"
             );
-          } else {
-            reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+            xhr.send(formData);
+          });
+
+          // If we get here, upload was successful
+          console.log(`✅ Upload successful on attempt ${attempt}`);
+          break;
+
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          console.error(`❌ Upload attempt ${attempt} failed:`, lastError.message);
+          
+          if (attempt < maxRetries) {
+            // Wait before retry (exponential backoff)
+            const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Max 10 seconds
+            console.log(`⏳ Waiting ${waitTime/1000}s before retry...`);
+            setError(`Upload attempt ${attempt} failed. Retrying in ${waitTime/1000}s... (${lastError.message})`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
           }
-        });
-
-        xhr.addEventListener("error", () =>
-          reject(new Error("Network error during upload"))
-        );
-
-        xhr.open("POST", webhookUrl);
-        // Only add Authorization header if admin token exists
-        if (apiKey) {
-          xhr.setRequestHeader("Authorization", `Bearer ${apiKey}`);
         }
+      }
 
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append(
-          "noteType",
-          outputSelection.soapNote && outputSelection.patientSummary
-            ? "both"
-            : outputSelection.soapNote
-            ? "soap"
-            : "summary"
-        );
-        xhr.send(formData);
-      });
+      // If all retries failed
+      if (lastError) {
+        throw lastError;
+      }
 
       // Process the result from XMLHttpRequest
       if (result.file && result.file.id) {
@@ -878,6 +935,12 @@ function App() {
       if (err instanceof Error) {
         if (err.name === "AbortError") {
           setError("Upload timed out. Large files may take longer to process.");
+        } else if (err.message.includes("timeout")) {
+          setError(err.message);
+        } else if (err.message.includes("too large")) {
+          setError(err.message);
+        } else if (err.message.includes("Network connection lost")) {
+          setError(err.message);
         } else {
           setError(`Failed to process file: ${err.message}`);
         }

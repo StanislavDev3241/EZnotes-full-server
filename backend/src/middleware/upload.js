@@ -60,10 +60,21 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE || "100") * 1024 * 1024, // Convert MB to bytes
+    fileSize: parseInt(process.env.MAX_FILE_SIZE || "200") * 1024 * 1024, // Convert MB to bytes (increased to 200MB)
     files: 1, // Only allow 1 file per request
+    fieldSize: 1024 * 1024, // 1MB for field data
   },
+  preserveExtension: true,
+  fileSize: parseInt(process.env.MAX_FILE_SIZE || "200") * 1024 * 1024,
 });
+
+// Add progress tracking middleware
+const uploadProgress = (req, res, next) => {
+  if (req.file) {
+    console.log(`📁 Upload progress: ${req.file.originalname} (${(req.file.size / 1024 / 1024).toFixed(2)}MB)`);
+  }
+  next();
+};
 
 // Error handling middleware for multer
 const handleUploadError = (error, req, res, next) => {
@@ -72,8 +83,8 @@ const handleUploadError = (error, req, res, next) => {
       return res.status(413).json({
         error: "File too large",
         message: `File size exceeds the limit of ${
-          process.env.MAX_FILE_SIZE || "100MB"
-        }`,
+          process.env.MAX_FILE_SIZE || "200MB"
+        }. Please compress your file or use a smaller one.`,
       });
     }
     if (error.code === "LIMIT_FILE_COUNT") {
@@ -88,6 +99,18 @@ const handleUploadError = (error, req, res, next) => {
         message: 'File field name must be "file"',
       });
     }
+    if (error.code === "LIMIT_FIELD_COUNT") {
+      return res.status(400).json({
+        error: "Too many fields",
+        message: "Too many form fields in the request",
+      });
+    }
+    if (error.code === "LIMIT_FIELD_SIZE") {
+      return res.status(400).json({
+        error: "Field too large",
+        message: "One of the form fields is too large",
+      });
+    }
   }
 
   if (error.message && error.message.includes("Invalid file type")) {
@@ -97,10 +120,19 @@ const handleUploadError = (error, req, res, next) => {
     });
   }
 
+  // Handle connection reset errors
+  if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
+    return res.status(408).json({
+      error: "Upload timeout",
+      message: "The upload connection was reset. This often happens with large files. Please try again or use a smaller file.",
+    });
+  }
+
   // Generic error
+  console.error("Upload error:", error);
   return res.status(500).json({
-    error: "File upload error",
-    message: error.message || "An error occurred during file upload",
+    error: "Upload failed",
+    message: "An error occurred during file upload. Please try again.",
   });
 };
 
