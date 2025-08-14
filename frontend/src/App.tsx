@@ -791,7 +791,35 @@ function App() {
         console.log(
           `🚀 Using chunked upload for ${optimizedSizeMB.toFixed(2)}MB file`
         );
-        result = await performChunkedUpload(optimizedFile, webhookUrl, apiKey);
+        try {
+          result = await performChunkedUpload(
+            optimizedFile,
+            webhookUrl,
+            apiKey
+          );
+        } catch (chunkError) {
+          console.error("❌ Chunked upload failed:", chunkError);
+
+          // Fallback to regular upload for files under 50MB
+          if (optimizedFile.size <= 50 * 1024 * 1024) {
+            console.log(
+              "🔄 Falling back to regular upload due to chunked upload failure"
+            );
+            result = await performRegularUpload(
+              optimizedFile,
+              webhookUrl,
+              apiKey
+            );
+          } else {
+            throw new Error(
+              `Chunked upload failed and file is too large for fallback: ${
+                chunkError instanceof Error
+                  ? chunkError.message
+                  : String(chunkError)
+              }`
+            );
+          }
+        }
       } else {
         // Use regular upload for smaller files
         console.log(
@@ -914,6 +942,22 @@ function App() {
       const start = i * chunkSize;
       const end = Math.min(start + chunkSize, file.size);
       const chunk = file.slice(start, end);
+
+      // Validate chunk data
+      if (chunk.size === 0) {
+        throw new Error(
+          `Chunk ${i} has no data (start: ${start}, end: ${end}, file size: ${file.size})`
+        );
+      }
+
+      console.log(
+        `🔧 Created chunk ${i + 1}/${totalChunks}: ${start}-${end} (${(
+          chunk.size /
+          1024 /
+          1024
+        ).toFixed(2)}MB)`
+      );
+
       chunks.push({ index: i, data: chunk, start, end });
     }
 
@@ -1003,12 +1047,38 @@ function App() {
     totalChunks: number
   ) => {
     const formData = new FormData();
-    
-    // Convert Blob to File for proper FormData handling
-    const chunkFile = new File([chunk.data], `chunk_${chunk.index}`, { 
-      type: 'application/octet-stream' 
-    });
-    
+
+    // Ensure chunk data is properly converted to File
+    // The issue might be that chunk.data is a Blob that needs proper handling
+    let chunkFile: File;
+
+    try {
+      // Try to create a File from the Blob data
+      chunkFile = new File([chunk.data], `chunk_${chunk.index}`, {
+        type: "application/octet-stream",
+      });
+
+      // Verify the chunk file has data
+      if (chunkFile.size === 0) {
+        throw new Error(`Chunk ${chunk.index} has no data (size: 0)`);
+      }
+
+      console.log(`🔍 Chunk ${chunk.index + 1} data:`, {
+        originalSize: chunk.data.size,
+        fileSize: chunkFile.size,
+        type: chunkFile.type,
+        name: chunkFile.name,
+      });
+    } catch (error) {
+      console.error(
+        `❌ Error creating chunk file for index ${chunk.index}:`,
+        error
+      );
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to create chunk file: ${errorMessage}`);
+    }
+
     formData.append("chunk", chunkFile);
     formData.append("chunkIndex", chunk.index.toString());
     formData.append("fileId", fileId);
@@ -1021,10 +1091,20 @@ function App() {
     // Debug FormData contents
     console.log(`🔍 FormData contents for chunk ${chunk.index + 1}:`);
     for (let [key, value] of formData.entries()) {
-      console.log(`  ${key}:`, value);
+      if (key === "chunk" && value instanceof File) {
+        console.log(`  ${key}: File(${value.size} bytes, ${value.type})`);
+      } else {
+        console.log(`  ${key}:`, value);
+      }
     }
 
-    console.log(`📤 Uploading chunk ${chunk.index + 1}/${totalChunks}: ${(chunk.data.size / 1024 / 1024).toFixed(2)}MB`);
+    console.log(
+      `📤 Uploading chunk ${chunk.index + 1}/${totalChunks}: ${(
+        chunk.data.size /
+        1024 /
+        1024
+      ).toFixed(2)}MB`
+    );
 
     const response = await fetch(`${webhookUrl}/chunk`, {
       method: "POST",
@@ -1034,7 +1114,10 @@ function App() {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`❌ Chunk ${chunk.index + 1} failed with response:`, errorText);
+      console.error(
+        `❌ Chunk ${chunk.index + 1} failed with response:`,
+        errorText
+      );
       throw new Error(
         `Chunk upload failed: ${response.status} ${response.statusText}`
       );

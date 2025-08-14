@@ -18,13 +18,17 @@ const router = express.Router();
 const sendToMakeCom = async (fileInfo, fileId) => {
   const makeWebhookUrl = process.env.MAKE_WEBHOOK_URL;
   if (!makeWebhookUrl) {
-    console.warn("⚠️ MAKE_WEBHOOK_URL not configured - skipping Make.com integration");
+    console.warn(
+      "⚠️ MAKE_WEBHOOK_URL not configured - skipping Make.com integration"
+    );
     return { status: "no_webhook" };
   }
 
   try {
-    const fileUrl = `${process.env.BACKEND_URL || "http://localhost:3001"}/uploads/${fileInfo.filename}`;
-    
+    const fileUrl = `${
+      process.env.BACKEND_URL || "http://localhost:3001"
+    }/uploads/${fileInfo.filename}`;
+
     const webhookPayload = {
       fileId,
       fileUrl,
@@ -48,13 +52,19 @@ const sendToMakeCom = async (fileInfo, fileId) => {
     });
 
     if (response.ok) {
-      console.log(`✅ File sent to Make.com successfully: ${fileInfo.filename}`);
+      console.log(
+        `✅ File sent to Make.com successfully: ${fileInfo.filename}`
+      );
       const makeResponse = await response.json();
       console.log(`📋 Make.com response:`, makeResponse);
       return makeResponse;
     } else {
-      console.error(`❌ Failed to send file to Make.com: ${response.status} ${response.statusText}`);
-      throw new Error(`Make.com webhook failed: ${response.status} ${response.statusText}`);
+      console.error(
+        `❌ Failed to send file to Make.com: ${response.status} ${response.statusText}`
+      );
+      throw new Error(
+        `Make.com webhook failed: ${response.status} ${response.statusText}`
+      );
     }
   } catch (error) {
     console.error(`❌ Error sending file to Make.com:`, error);
@@ -63,295 +73,324 @@ const sendToMakeCom = async (fileInfo, fileId) => {
 };
 
 // File upload endpoint - allows both authenticated and anonymous uploads
-router.post(
-  "/",
-  optionalAuth,
-  upload.single("file"),
-  async (req, res) => {
-    let tempFilePath = null;
+router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
+  let tempFilePath = null;
 
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded" });
-      }
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
 
-      const { file } = req;
-      tempFilePath = file.path;
+    const { file } = req;
+    tempFilePath = file.path;
 
-      // File info
-      const fileInfo = {
-        filename: file.filename,
-        originalName: file.originalname,
-        fileSize: file.size,
-        fileType: file.mimetype,
-        userId: null, // Will be set below
-      };
+    // File info
+    const fileInfo = {
+      filename: file.filename,
+      originalName: file.originalname,
+      fileSize: file.size,
+      fileType: file.mimetype,
+      userId: null, // Will be set below
+    };
 
-      // Handle anonymous uploads (no user authentication)
-      let userId = null;
-      if (req.user) {
-        userId = req.user.id;
-        fileInfo.userId = userId;
-        console.log(
-          `📁 Authenticated upload by user ${req.user.email}: ${fileInfo.originalName} (${fileInfo.filename})`
-        );
-      } else {
-        console.log(
-          `📁 Anonymous upload: ${fileInfo.originalName} (${fileInfo.filename})`
-        );
-      }
-
+    // Handle anonymous uploads (no user authentication)
+    let userId = null;
+    if (req.user) {
+      userId = req.user.id;
+      fileInfo.userId = userId;
       console.log(
-        `📁 File uploaded: ${fileInfo.originalName} (${fileInfo.filename})`
+        `📁 Authenticated upload by user ${req.user.email}: ${fileInfo.originalName} (${fileInfo.filename})`
       );
+    } else {
+      console.log(
+        `📁 Anonymous upload: ${fileInfo.originalName} (${fileInfo.filename})`
+      );
+    }
 
-      // Move file from temp to uploads directory
-      const uploadPath = await moveToUploads(tempFilePath, fileInfo.filename);
-      tempFilePath = null; // Clear temp path since file was moved
+    console.log(
+      `📁 File uploaded: ${fileInfo.originalName} (${fileInfo.filename})`
+    );
 
-      // Save file info to database
-      let fileResult;
-      try {
-        fileResult = await pool.query(
-          `
+    // Move file from temp to uploads directory
+    const uploadPath = await moveToUploads(tempFilePath, fileInfo.filename);
+    tempFilePath = null; // Clear temp path since file was moved
+
+    // Save file info to database
+    let fileResult;
+    try {
+      fileResult = await pool.query(
+        `
         INSERT INTO files (filename, original_name, file_path, file_size, file_type, user_id, status)
         VALUES ($1, $2, $3, $4, $5, $6, 'uploaded')
         RETURNING id
       `,
-          [
-            fileInfo.filename,
-            fileInfo.originalName,
-            uploadPath,
-            fileInfo.fileSize,
-            fileInfo.fileType,
-            userId,
-          ]
-        );
-      } catch (dbError) {
-        console.error("Database error saving file:", dbError);
-        throw new Error(`Failed to save file to database: ${dbError.message}`);
-      }
+        [
+          fileInfo.filename,
+          fileInfo.originalName,
+          uploadPath,
+          fileInfo.fileSize,
+          fileInfo.fileType,
+          userId,
+        ]
+      );
+    } catch (dbError) {
+      console.error("Database error saving file:", dbError);
+      throw new Error(`Failed to save file to database: ${dbError.message}`);
+    }
 
-      const fileId = fileResult.rows[0].id;
+    const fileId = fileResult.rows[0].id;
 
-      // Create task in database
-      try {
-        await pool.query(
-          `
+    // Create task in database
+    try {
+      await pool.query(
+        `
         INSERT INTO tasks (file_id, user_id, task_type, status, priority)
         VALUES ($1, $2, 'file_processing', 'pending', 1)
       `,
-          [fileId, userId]
+        [fileId, userId]
+      );
+    } catch (dbError) {
+      console.error("Database error creating task:", dbError);
+      throw new Error(`Failed to create task: ${dbError.message}`);
+    }
+
+    // Send to Make.com for AI processing
+    try {
+      const makeResponse = await sendToMakeCom(fileInfo, fileId);
+      console.log("✅ File sent to Make.com successfully");
+
+      // Update task status based on Make.com response
+      if (makeResponse.soap_note_text || makeResponse.patient_summary_text) {
+        // AI processing completed immediately
+        console.log("🎉 AI processing completed immediately");
+
+        // Save notes to database
+        const notes = {
+          soapNote: makeResponse.soap_note_text || "",
+          patientSummary: makeResponse.patient_summary_text || "",
+        };
+
+        await pool.query(
+          `INSERT INTO notes (file_id, soap_note, patient_summary, user_id, created_at)
+             VALUES ($1, $2, $3, $4, NOW())`,
+          [fileId, notes.soapNote, notes.patientSummary, userId]
         );
-      } catch (dbError) {
-        console.error("Database error creating task:", dbError);
-        throw new Error(`Failed to create task: ${dbError.message}`);
-      }
 
-      // Send to Make.com for AI processing
+        // Update file and task status
+        await pool.query(
+          `UPDATE files SET status = 'processed' WHERE id = $1`,
+          [fileId]
+        );
+        await pool.query(
+          `UPDATE tasks SET status = 'completed' WHERE file_id = $1`,
+          [fileId]
+        );
+
+        return res.json({
+          success: true,
+          file: { id: fileId, status: "processed" },
+          notes: notes,
+        });
+      } else if (makeResponse.status === "success" && makeResponse.notes) {
+        // Expected format response
+        console.log("🎉 AI processing completed with expected format");
+
+        const notes = makeResponse.notes;
+        await pool.query(
+          `INSERT INTO notes (file_id, soap_note, patient_summary, user_id, created_at)
+             VALUES ($1, $2, $3, $4, NOW())`,
+          [fileId, notes.soapNote || "", notes.patientSummary || "", userId]
+        );
+
+        await pool.query(
+          `UPDATE files SET status = 'processed' WHERE id = $1`,
+          [fileId]
+        );
+        await pool.query(
+          `UPDATE tasks SET status = 'completed' WHERE file_id = $1`,
+          [fileId]
+        );
+
+        return res.json({
+          success: true,
+          file: { id: fileId, status: "processed" },
+          notes: notes,
+        });
+      } else {
+        // Still processing
+        console.log("⏳ AI processing in progress, updating status");
+        await pool.query(
+          `UPDATE tasks SET status = 'sent_to_make' WHERE file_id = $1`,
+          [fileId]
+        );
+      }
+    } catch (makeError) {
+      console.error("❌ Error sending to Make.com:", makeError);
+      // Don't fail the upload, just log the error
+      // The file can still be processed later via webhook
+    }
+
+    // Return success response
+    res.json({
+      success: true,
+      file: { id: fileId, status: "uploaded" },
+      message: "File uploaded successfully and sent for AI processing",
+    });
+  } catch (error) {
+    console.error("❌ Upload error:", error);
+
+    // Clean up temp file if it exists
+    if (tempFilePath && fs.existsSync(tempFilePath)) {
       try {
-        const makeResponse = await sendToMakeCom(fileInfo, fileId);
-        console.log("✅ File sent to Make.com successfully");
+        await fs.remove(tempFilePath);
+        console.log("🧹 Temp file cleaned up");
+      } catch (cleanupError) {
+        console.error("❌ Error cleaning up temp file:", cleanupError);
+      }
+    }
 
-        // Update task status based on Make.com response
-        if (makeResponse.soap_note_text || makeResponse.patient_summary_text) {
-          // AI processing completed immediately
-          console.log("🎉 AI processing completed immediately");
-          
-          // Save notes to database
-          const notes = {
-            soapNote: makeResponse.soap_note_text || "",
-            patientSummary: makeResponse.patient_summary_text || ""
-          };
-          
-          await pool.query(
-            `INSERT INTO notes (file_id, soap_note, patient_summary, user_id, created_at)
-             VALUES ($1, $2, $3, $4, NOW())`,
-            [fileId, notes.soapNote, notes.patientSummary, userId]
-          );
+    res.status(500).json({
+      error: "Upload failed",
+      message: error.message || "An error occurred during file upload",
+    });
+  }
+});
 
-          // Update file and task status
-          await pool.query(
-            `UPDATE files SET status = 'processed' WHERE id = $1`,
-            [fileId]
-          );
-          await pool.query(
-            `UPDATE tasks SET status = 'completed' WHERE file_id = $1`,
-            [fileId]
-          );
+// Chunked upload endpoint for large files
+router.post(
+  "/chunk",
+  optionalAuth,
+  upload.single("chunk"),
+  async (req, res) => {
+    try {
+      console.log("🔍 Chunk endpoint called with:");
+      console.log("  - req.file:", req.file);
+      console.log("  - req.files:", req.files);
+      console.log("  - req.body:", req.body);
+      console.log("  - req.headers:", req.headers);
 
-          return res.json({
-            success: true,
-            file: { id: fileId, status: "processed" },
-            notes: notes
-          });
-        } else if (makeResponse.status === "success" && makeResponse.notes) {
-          // Expected format response
-          console.log("🎉 AI processing completed with expected format");
-          
-          const notes = makeResponse.notes;
-          await pool.query(
-            `INSERT INTO notes (file_id, soap_note, patient_summary, user_id, created_at)
-             VALUES ($1, $2, $3, $4, NOW())`,
-            [fileId, notes.soapNote || "", notes.patientSummary || "", userId]
-          );
-
-          await pool.query(
-            `UPDATE files SET status = 'processed' WHERE id = $1`,
-            [fileId]
-          );
-          await pool.query(
-            `UPDATE tasks SET status = 'completed' WHERE file_id = $1`,
-            [fileId]
-          );
-
-          return res.json({
-            success: true,
-            file: { id: fileId, status: "processed" },
-            notes: notes
-          });
-        } else {
-          // Still processing
-          console.log("⏳ AI processing in progress, updating status");
-          await pool.query(
-            `UPDATE tasks SET status = 'sent_to_make' WHERE file_id = $1`,
-            [fileId]
-          );
-        }
-      } catch (makeError) {
-        console.error("❌ Error sending to Make.com:", makeError);
-        // Don't fail the upload, just log the error
-        // The file can still be processed later via webhook
+      if (!req.file) {
+        return res.status(400).json({
+          error: "Missing chunk file",
+          received: req.files ? Object.keys(req.files) : [],
+          body: Object.keys(req.body),
+          file: req.file,
+          headers: Object.keys(req.headers),
+        });
       }
 
-      // Return success response
+      const chunkFile = req.file;
+      const {
+        chunkIndex,
+        fileId,
+        totalChunks,
+        fileName,
+        chunkSize,
+        chunkStart,
+        chunkEnd,
+      } = req.body;
+
+      console.log("📋 Parsed chunk metadata:", {
+        chunkIndex,
+        fileId,
+        totalChunks,
+        fileName,
+        chunkSize,
+        chunkStart,
+        chunkEnd,
+      });
+
+      if (!chunkIndex || !fileId || !fileName) {
+        return res.status(400).json({
+          error: "Missing required chunk metadata",
+          received: {
+            chunkIndex,
+            fileId,
+            fileName,
+            chunkSize,
+            chunkStart,
+            chunkEnd,
+          },
+        });
+      }
+
+      console.log(
+        `📁 Received chunk ${chunkIndex}/${totalChunks} for file ${fileName}: ${(
+          chunkFile.size /
+          1024 /
+          1024
+        ).toFixed(2)}MB`
+      );
+
+      // Create temp directory for chunks if it doesn't exist
+      const chunksDir = path.join(__dirname, "../../temp/chunks", fileId);
+      await fs.ensureDir(chunksDir);
+
+      // Save chunk to temp directory
+      const chunkPath = path.join(chunksDir, `chunk_${chunkIndex}`);
+
+      // Handle both Buffer and File data
+      let chunkBuffer;
+      if (chunkFile.buffer) {
+        // Multer file object with buffer
+        chunkBuffer = chunkFile.buffer;
+        console.log("📦 Using chunkFile.buffer");
+      } else if (chunkFile.data) {
+        // Multer file object with data
+        chunkBuffer = chunkFile.data;
+        console.log("📦 Using chunkFile.data");
+      } else if (Buffer.isBuffer(chunkFile)) {
+        // Direct Buffer
+        chunkBuffer = chunkFile;
+        console.log("📦 Using direct Buffer");
+      } else {
+        // Try to convert other formats
+        chunkBuffer = Buffer.from(chunkFile);
+        console.log("📦 Using Buffer.from conversion");
+      }
+
+      await fs.writeFile(chunkPath, chunkBuffer);
+
+      console.log(
+        `✅ Chunk ${chunkIndex}/${totalChunks} saved for file ${fileName}`
+      );
+
       res.json({
         success: true,
-        file: { id: fileId, status: "uploaded" },
-        message: "File uploaded successfully and sent for AI processing"
+        chunkIndex: parseInt(chunkIndex),
+        chunkSize: chunkFile.size,
+        message: `Chunk ${chunkIndex} uploaded successfully`,
       });
     } catch (error) {
-      console.error("❌ Upload error:", error);
-      
-      // Clean up temp file if it exists
-      if (tempFilePath && fs.existsSync(tempFilePath)) {
-        try {
-          await fs.remove(tempFilePath);
-          console.log("🧹 Temp file cleaned up");
-        } catch (cleanupError) {
-          console.error("❌ Error cleaning up temp file:", cleanupError);
-        }
-      }
-
+      console.error("❌ Chunk upload error:", error);
       res.status(500).json({
-        error: "Upload failed",
-        message: error.message || "An error occurred during file upload"
+        error: "Chunk upload failed",
+        message: error.message || "An error occurred during chunk upload",
       });
     }
   }
 );
 
-// Chunked upload endpoint for large files
-router.post("/chunk", optionalAuth, upload.single("chunk"), async (req, res) => {
-  try {
-    console.log("🔍 Chunk endpoint called with:");
-    console.log("  - req.file:", req.file);
-    console.log("  - req.files:", req.files);
-    console.log("  - req.body:", req.body);
-    console.log("  - req.headers:", req.headers);
-
-    if (!req.file) {
-      return res.status(400).json({ 
-        error: "Missing chunk file",
-        received: req.files ? Object.keys(req.files) : [],
-        body: Object.keys(req.body),
-        file: req.file,
-        headers: Object.keys(req.headers)
-      });
-    }
-
-    const chunkFile = req.file;
-    const { chunkIndex, fileId, totalChunks, fileName, chunkSize, chunkStart, chunkEnd } = req.body;
-    
-    console.log("📋 Parsed chunk metadata:", {
-      chunkIndex, fileId, totalChunks, fileName, chunkSize, chunkStart, chunkEnd
-    });
-    
-    if (!chunkIndex || !fileId || !fileName) {
-      return res.status(400).json({ 
-        error: "Missing required chunk metadata",
-        received: { chunkIndex, fileId, fileName, chunkSize, chunkStart, chunkEnd }
-      });
-    }
-
-    console.log(`📁 Received chunk ${chunkIndex}/${totalChunks} for file ${fileName}: ${(chunkFile.size / 1024 / 1024).toFixed(2)}MB`);
-
-    // Create temp directory for chunks if it doesn't exist
-    const chunksDir = path.join(__dirname, "../../temp/chunks", fileId);
-    await fs.ensureDir(chunksDir);
-
-    // Save chunk to temp directory
-    const chunkPath = path.join(chunksDir, `chunk_${chunkIndex}`);
-    
-    // Handle both Buffer and File data
-    let chunkBuffer;
-    if (chunkFile.buffer) {
-      // Multer file object with buffer
-      chunkBuffer = chunkFile.buffer;
-      console.log("📦 Using chunkFile.buffer");
-    } else if (chunkFile.data) {
-      // Multer file object with data
-      chunkBuffer = chunkFile.data;
-      console.log("📦 Using chunkFile.data");
-    } else if (Buffer.isBuffer(chunkFile)) {
-      // Direct Buffer
-      chunkBuffer = chunkFile;
-      console.log("📦 Using direct Buffer");
-    } else {
-      // Try to convert other formats
-      chunkBuffer = Buffer.from(chunkFile);
-      console.log("📦 Using Buffer.from conversion");
-    }
-
-    await fs.writeFile(chunkPath, chunkBuffer);
-
-    console.log(`✅ Chunk ${chunkIndex}/${totalChunks} saved for file ${fileName}`);
-
-    res.json({
-      success: true,
-      chunkIndex: parseInt(chunkIndex),
-      chunkSize: chunkFile.size,
-      message: `Chunk ${chunkIndex} uploaded successfully`
-    });
-  } catch (error) {
-    console.error("❌ Chunk upload error:", error);
-    res.status(500).json({
-      error: "Chunk upload failed",
-      message: error.message || "An error occurred during chunk upload"
-    });
-  }
-});
-
 // Finalize chunked upload
 router.post("/finalize", optionalAuth, async (req, res) => {
   try {
     const { fileId, fileName, fileSize, action } = req.body;
-    
+
     if (action !== "finalize") {
       return res.status(400).json({ error: "Invalid action" });
     }
 
     const chunksDir = path.join(__dirname, "../../temp/chunks", fileId);
-    
+
     // Check if chunks directory exists
-    if (!await fs.pathExists(chunksDir)) {
+    if (!(await fs.pathExists(chunksDir))) {
       return res.status(400).json({ error: "No chunks found for this file" });
     }
 
     // Get all chunk files and sort them
     const chunkFiles = await fs.readdir(chunksDir);
     const sortedChunks = chunkFiles
-      .filter(file => file.startsWith("chunk_"))
+      .filter((file) => file.startsWith("chunk_"))
       .sort((a, b) => {
         const aIndex = parseInt(a.replace("chunk_", ""));
         const bIndex = parseInt(b.replace("chunk_", ""));
@@ -362,10 +401,16 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       return res.status(400).json({ error: "No valid chunks found" });
     }
 
-    console.log(`🎯 Reassembling file from ${sortedChunks.length} chunks: ${fileName}`);
+    console.log(
+      `🎯 Reassembling file from ${sortedChunks.length} chunks: ${fileName}`
+    );
 
     // Combine chunks into final file
-    const finalFilePath = path.join(__dirname, "../../temp", `${fileId}_${fileName}`);
+    const finalFilePath = path.join(
+      __dirname,
+      "../../temp",
+      `${fileId}_${fileName}`
+    );
     const writeStream = fs.createWriteStream(finalFilePath);
 
     let totalSize = 0;
@@ -374,8 +419,14 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       const chunkData = await fs.readFile(chunkPath);
       writeStream.write(chunkData);
       totalSize += chunkData.length;
-      
-      console.log(`📁 Added chunk ${chunkFile}: ${(chunkData.length / 1024 / 1024).toFixed(2)}MB`);
+
+      console.log(
+        `📁 Added chunk ${chunkFile}: ${(
+          chunkData.length /
+          1024 /
+          1024
+        ).toFixed(2)}MB`
+      );
     }
 
     writeStream.end();
@@ -386,10 +437,19 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       writeStream.on("error", reject);
     });
 
-    console.log(`🎯 Chunked upload finalized: ${fileName} (${(totalSize / 1024 / 1024).toFixed(2)}MB)`);
+    console.log(
+      `🎯 Chunked upload finalized: ${fileName} (${(
+        totalSize /
+        1024 /
+        1024
+      ).toFixed(2)}MB)`
+    );
 
     // Move to uploads directory
-    const uploadPath = await moveToUploads(finalFilePath, `${fileId}_${fileName}`);
+    const uploadPath = await moveToUploads(
+      finalFilePath,
+      `${fileId}_${fileName}`
+    );
 
     // Save to database (similar to regular upload)
     let userId = null;
@@ -407,7 +467,7 @@ router.post("/finalize", optionalAuth, async (req, res) => {
         uploadPath,
         totalSize,
         "application/octet-stream", // Generic type for chunked files
-        userId
+        userId,
       ]
     );
 
@@ -424,19 +484,21 @@ router.post("/finalize", optionalAuth, async (req, res) => {
     await fs.remove(chunksDir);
     await fs.remove(finalFilePath);
 
-    console.log(`✅ File reassembled and saved to database with ID: ${fileId_db}`);
+    console.log(
+      `✅ File reassembled and saved to database with ID: ${fileId_db}`
+    );
 
     res.json({
       success: true,
       file: { id: fileId_db, status: "uploaded" },
-      message: "Chunked upload finalized successfully and sent for AI processing"
+      message:
+        "Chunked upload finalized successfully and sent for AI processing",
     });
-
   } catch (error) {
     console.error("❌ Finalize chunked upload error:", error);
     res.status(500).json({
       error: "Finalization failed",
-      message: error.message || "An error occurred during finalization"
+      message: error.message || "An error occurred during finalization",
     });
   }
 });
