@@ -532,17 +532,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
 
       {/* Note View Modal */}
       {showNoteModal && selectedNote && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[95vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl h-[95vh] overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 sm:p-6 flex-shrink-0">
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-3">
                   <div className="bg-white bg-opacity-20 rounded-full p-2">
                     <span className="text-2xl">📝</span>
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold">Medical Notes</h3>
+                    <h3 className="text-lg sm:text-xl font-bold">Medical Notes</h3>
                     <p className="text-blue-100 text-sm">
                       {selectedNote.file.originalName}
                     </p>
@@ -556,10 +556,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                 </button>
               </div>
             </div>
-
+            
             {/* Content */}
-            <div className="p-6 overflow-y-auto max-h-[calc(95vh-140px)]">
-              <div className="space-y-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <div className="space-y-4 sm:space-y-6">
                 {/* File Information Card */}
                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                   <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
@@ -626,17 +626,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
 
                 {/* SOAP Note */}
                 {selectedNote.content.soapNote && (
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-5 border border-blue-200">
-                    <h4 className="font-bold text-blue-800 mb-4 flex items-center text-lg">
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 sm:p-5 border border-blue-200">
+                    <h4 className="font-bold text-blue-800 mb-3 sm:mb-4 flex items-center text-lg">
                       <span className="mr-2">🏥</span>
                       SOAP Note
                     </h4>
-                    <div className="bg-white rounded-lg p-4 border border-blue-200 shadow-sm">
-                      <div className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed max-h-96 overflow-y-auto">
+                    <div className="bg-white rounded-lg p-3 sm:p-4 border border-blue-200 shadow-sm">
+                      <div className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed max-h-80 overflow-y-auto">
                         {selectedNote.content.soapNote}
                       </div>
                       <div className="mt-2 text-xs text-gray-500">
-                        Length: {selectedNote.content.soapNote.length} characters
+                        Length: {selectedNote.content.soapNote.length}{" "}
+                        characters
                       </div>
                     </div>
                   </div>
@@ -644,17 +645,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
 
                 {/* Patient Summary */}
                 {selectedNote.content.patientSummary && (
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-5 border border-green-200">
-                    <h4 className="font-bold text-green-800 mb-4 flex items-center text-lg">
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 sm:p-5 border border-green-200">
+                    <h4 className="font-bold text-green-800 mb-3 sm:mb-4 flex items-center text-lg">
                       <span className="mr-2">📋</span>
                       Patient Summary
                     </h4>
-                    <div className="bg-white rounded-lg p-4 border border-green-200 shadow-sm">
-                      <div className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed max-h-96 overflow-y-auto">
+                    <div className="bg-white rounded-lg p-3 sm:p-4 border border-green-200 shadow-sm">
+                      <div className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed max-h-80 overflow-y-auto">
                         {selectedNote.content.patientSummary}
                       </div>
                       <div className="mt-2 text-xs text-gray-500">
-                        Length: {selectedNote.content.patientSummary.length} characters
+                        Length: {selectedNote.content.patientSummary.length}{" "}
+                        characters
                       </div>
                     </div>
                   </div>
@@ -667,22 +669,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ API_BASE_URL }) => {
                     Debug Information
                   </h4>
                   <div className="text-xs text-gray-700 space-y-1">
-                    <div>Content Keys: {Object.keys(selectedNote.content).join(', ')}</div>
-                    <div>SOAP Note exists: {selectedNote.content.soapNote ? 'Yes' : 'No'}</div>
-                    <div>Patient Summary exists: {selectedNote.content.patientSummary ? 'Yes' : 'No'}</div>
+                    <div>
+                      Content Keys:{" "}
+                      {Object.keys(selectedNote.content).join(", ")}
+                    </div>
+                    <div>
+                      SOAP Note exists:{" "}
+                      {selectedNote.content.soapNote ? "Yes" : "No"}
+                    </div>
+                    <div>
+                      Patient Summary exists:{" "}
+                      {selectedNote.content.patientSummary ? "Yes" : "No"}
+                    </div>
                     {selectedNote.content.soapNote && (
-                      <div>SOAP Note preview: {selectedNote.content.soapNote.substring(0, 100)}...</div>
+                      <div>
+                        SOAP Note preview:{" "}
+                        {selectedNote.content.soapNote.substring(0, 100)}...
+                      </div>
                     )}
                     {selectedNote.content.patientSummary && (
-                      <div>Patient Summary preview: {selectedNote.content.patientSummary.substring(0, 100)}...</div>
+                      <div>
+                        Patient Summary preview:{" "}
+                        {selectedNote.content.patientSummary.substring(0, 100)}
+                        ...
+                      </div>
                     )}
                   </div>
                 </div>
               </div>
             </div>
-
+            
             {/* Footer */}
-            <div className="bg-gray-50 border-t border-gray-200 p-4">
+            <div className="bg-gray-50 border-t border-gray-200 p-4 flex-shrink-0">
               <div className="flex flex-col sm:flex-row justify-between items-center gap-3">
                 <div className="text-sm text-gray-600">
                   <span className="font-medium">Generated:</span>{" "}
