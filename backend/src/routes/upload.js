@@ -60,9 +60,24 @@ const sendToMakeCom = async (fileInfo, fileId) => {
       console.log(
         `✅ File sent to Make.com successfully: ${fileInfo.filename}`
       );
-      const makeResponse = await response.json();
-      console.log(`📋 Make.com response:`, makeResponse);
-      return makeResponse;
+      
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          const makeResponse = await response.json();
+          console.log(`📋 Make.com response:`, makeResponse);
+          return makeResponse;
+        } catch (jsonError) {
+          console.warn(`⚠️ Make.com response is not valid JSON:`, jsonError);
+          // Return a default response indicating processing started
+          return { status: "processing", message: "File sent to Make.com for processing" };
+        }
+      } else {
+        console.warn(`⚠️ Make.com response is not JSON (${contentType}), treating as processing started`);
+        // Return a default response indicating processing started
+        return { status: "processing", message: "File sent to Make.com for processing" };
+      }
     } else {
       console.error(
         `❌ Failed to send file to Make.com: ${response.status} ${response.statusText}`
@@ -247,7 +262,7 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
       
       // Update task status to reflect the error
       await pool.query(
-        `UPDATE tasks SET status = 'failed', error_message = $1 WHERE file_id = $1`,
+        `UPDATE tasks SET status = 'failed', error_message = $1 WHERE file_id = $2`,
         [makeError.message, fileId]
       );
       
