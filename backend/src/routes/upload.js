@@ -349,13 +349,16 @@ router.post(
         isBuffer: Buffer.isBuffer(chunkFile),
         type: typeof chunkFile,
         keys: Object.keys(chunkFile),
-        size: chunkFile.size
+        size: chunkFile.size,
+        path: chunkFile.path,
+        destination: chunkFile.destination,
+        filename: chunkFile.filename
       });
 
       if (chunkFile.buffer && Buffer.isBuffer(chunkFile.buffer)) {
-        // Multer file object with buffer
+        // Multer memory storage - file object with buffer
         chunkBuffer = chunkFile.buffer;
-        console.log("📦 Using chunkFile.buffer");
+        console.log("📦 Using chunkFile.buffer (memory storage)");
       } else if (chunkFile.data && Buffer.isBuffer(chunkFile.data)) {
         // Multer file object with data
         chunkBuffer = chunkFile.data;
@@ -364,6 +367,27 @@ router.post(
         // Direct Buffer
         chunkBuffer = chunkFile;
         console.log("📦 Using direct Buffer");
+      } else if (chunkFile.path && chunkFile.filename) {
+        // Multer disk storage - read file from disk
+        try {
+          console.log(`📁 Reading chunk from disk: ${chunkFile.path}`);
+          chunkBuffer = await fs.readFile(chunkFile.path);
+          console.log("📦 Successfully read chunk from disk");
+          
+          // Clean up the temporary file after reading
+          try {
+            await fs.unlink(chunkFile.path);
+            console.log("🗑️ Cleaned up temporary chunk file");
+          } catch (cleanupError) {
+            console.warn("⚠️ Failed to cleanup temporary chunk file:", cleanupError.message);
+          }
+        } catch (readError) {
+          console.error("❌ Failed to read chunk file from disk:", readError);
+          return res.status(500).json({
+            error: "Failed to read chunk file",
+            message: readError.message
+          });
+        }
       } else if (chunkFile.buffer && typeof chunkFile.buffer === 'object') {
         // Handle case where buffer might be a different object type
         try {
