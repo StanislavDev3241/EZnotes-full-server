@@ -341,11 +341,22 @@ router.post(
 
       // Handle both Buffer and File data
       let chunkBuffer;
-      if (chunkFile.buffer) {
+      
+      // Debug the chunk file structure
+      console.log("🔍 Chunk file structure:", {
+        hasBuffer: !!chunkFile.buffer,
+        hasData: !!chunkFile.data,
+        isBuffer: Buffer.isBuffer(chunkFile),
+        type: typeof chunkFile,
+        keys: Object.keys(chunkFile),
+        size: chunkFile.size
+      });
+
+      if (chunkFile.buffer && Buffer.isBuffer(chunkFile.buffer)) {
         // Multer file object with buffer
         chunkBuffer = chunkFile.buffer;
         console.log("📦 Using chunkFile.buffer");
-      } else if (chunkFile.data) {
+      } else if (chunkFile.data && Buffer.isBuffer(chunkFile.data)) {
         // Multer file object with data
         chunkBuffer = chunkFile.data;
         console.log("📦 Using chunkFile.data");
@@ -353,11 +364,42 @@ router.post(
         // Direct Buffer
         chunkBuffer = chunkFile;
         console.log("📦 Using direct Buffer");
+      } else if (chunkFile.buffer && typeof chunkFile.buffer === 'object') {
+        // Handle case where buffer might be a different object type
+        try {
+          chunkBuffer = Buffer.from(chunkFile.buffer);
+          console.log("📦 Converted chunkFile.buffer to Buffer");
+        } catch (convertError) {
+          console.error("❌ Failed to convert buffer to Buffer:", convertError);
+          return res.status(500).json({
+            error: "Invalid chunk data format",
+            message: "Could not convert chunk data to buffer"
+          });
+        }
       } else {
         // Try to convert other formats
-        chunkBuffer = Buffer.from(chunkFile);
-        console.log("📦 Using Buffer.from conversion");
+        try {
+          chunkBuffer = Buffer.from(chunkFile);
+          console.log("📦 Using Buffer.from conversion");
+        } catch (convertError) {
+          console.error("❌ Failed to convert chunkFile to Buffer:", convertError);
+          return res.status(500).json({
+            error: "Invalid chunk data format",
+            message: "Could not convert chunk data to buffer"
+          });
+        }
       }
+
+      // Verify we have valid buffer data
+      if (!chunkBuffer || !Buffer.isBuffer(chunkBuffer)) {
+        console.error("❌ Invalid chunk buffer:", chunkBuffer);
+        return res.status(500).json({
+          error: "Invalid chunk data",
+          message: "Chunk data is not a valid buffer"
+        });
+      }
+
+      console.log(`📦 Chunk buffer size: ${chunkBuffer.length} bytes`);
 
       try {
         await fs.writeFile(chunkPath, chunkBuffer);

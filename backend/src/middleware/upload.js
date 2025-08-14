@@ -28,13 +28,17 @@ const fileFilter = (req, file, cb) => {
   const allowedExtensions = [".mp3", ".m4a", ".wav", ".txt"];
 
   const fileExtension = path.extname(file.originalname).toLowerCase();
-  const isValidType = allowedTypes.includes(file.mimetype) || 
-                     file.mimetype.startsWith("audio/") || // Accept any audio type
-                     file.mimetype === "application/octet-stream"; // Accept generic types
-  
+  const isValidType =
+    allowedTypes.includes(file.mimetype) ||
+    file.mimetype.startsWith("audio/") || // Accept any audio type
+    file.mimetype === "application/octet-stream"; // Accept generic types
+
   // Special handling for chunk files (they have no extension but are valid)
-  const isChunkFile = file.originalname.startsWith("chunk_") && file.mimetype === "application/octet-stream";
-  const isValidExtension = allowedExtensions.includes(fileExtension) || isChunkFile;
+  const isChunkFile =
+    file.originalname.startsWith("chunk_") &&
+    file.mimetype === "application/octet-stream";
+  const isValidExtension =
+    allowedExtensions.includes(fileExtension) || isChunkFile;
 
   console.log(`🔍 File validation:`, {
     filename: file.originalname,
@@ -42,7 +46,7 @@ const fileFilter = (req, file, cb) => {
     extension: fileExtension,
     isValidType,
     isValidExtension,
-    isChunkFile
+    isChunkFile,
   });
 
   if (isValidType && isValidExtension) {
@@ -50,7 +54,9 @@ const fileFilter = (req, file, cb) => {
   } else {
     cb(
       new Error(
-        `Invalid file type. Allowed types: ${allowedExtensions.join(", ")}. Got: ${file.mimetype}`
+        `Invalid file type. Allowed types: ${allowedExtensions.join(
+          ", "
+        )}. Got: ${file.mimetype}`
       ),
       false
     );
