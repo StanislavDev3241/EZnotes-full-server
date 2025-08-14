@@ -66,9 +66,9 @@ const AdminPage: React.FC<AdminPageProps> = ({
         const data = await response.json();
         console.log("🔍 Stats data received:", data);
         // Handle both direct object and nested response
-        if (data.stats && typeof data.stats === 'object') {
+        if (data.stats && typeof data.stats === "object") {
           setStats(data.stats);
-        } else if (typeof data === 'object' && data.totalFiles !== undefined) {
+        } else if (typeof data === "object" && data.totalFiles !== undefined) {
           setStats(data);
         } else {
           console.error("🔍 Unexpected stats data structure:", data);
@@ -348,22 +348,22 @@ const AdminPage: React.FC<AdminPageProps> = ({
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     File Info
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Notes Content
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     User
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Date
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -371,7 +371,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
               <tbody className="bg-white divide-y divide-gray-200">
                 {notes.map((note) => (
                   <tr key={note.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-2 sm:px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900 break-all">
                           {note.file.originalName}
@@ -384,7 +384,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-2 sm:px-6 py-4">
                       <div className="space-y-2">
                         {note.content.soapNote && (
                           <div>
@@ -408,7 +408,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-2 sm:px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                           note.status === "generated"
@@ -419,7 +419,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                         {note.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-2 sm:px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900 break-all">
                         {note.user.email}
                       </div>
@@ -427,7 +427,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                         ID: {note.user.id}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-2 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="text-xs sm:text-sm">
                         {new Date(note.createdAt).toLocaleDateString()}
                       </div>
@@ -435,17 +435,17 @@ const AdminPage: React.FC<AdminPageProps> = ({
                         {new Date(note.createdAt).toLocaleTimeString()}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
+                    <td className="px-2 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex flex-col gap-2 min-w-[120px]">
                         <button
                           onClick={() => viewNoteDetails(note)}
-                          className="text-blue-600 hover:text-blue-900 text-xs sm:text-sm px-2 py-1 rounded border border-blue-200 hover:border-blue-300"
+                          className="text-blue-600 hover:text-blue-900 text-xs px-3 py-2 rounded border border-blue-200 hover:border-blue-300 transition-colors font-medium"
                         >
                           👁️ View
                         </button>
                         <button
                           onClick={() => downloadNote(note)}
-                          className="text-green-600 hover:text-green-900 text-xs sm:text-sm px-2 py-1 rounded border border-green-200 hover:border-green-300"
+                          className="text-green-600 hover:text-green-900 text-xs px-3 py-2 rounded border border-green-200 hover:border-green-300 transition-colors font-medium"
                         >
                           📥 Download
                         </button>
@@ -461,59 +461,87 @@ const AdminPage: React.FC<AdminPageProps> = ({
 
       {/* Note Details Modal */}
       {showNoteDetails && selectedNote && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl lg:max-w-6xl max-h-[95vh] overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 sm:p-6">
               <div className="flex justify-between items-center">
-                <h3 className="text-xl font-bold">Note Details</h3>
+                <h3 className="text-lg sm:text-xl font-bold">Note Details</h3>
                 <button
                   onClick={() => setShowNoteDetails(false)}
-                  className="text-white hover:text-blue-100 text-3xl font-bold"
+                  className="text-white hover:text-blue-100 text-2xl sm:text-3xl font-bold p-1 hover:bg-blue-600 rounded transition-colors"
                 >
                   ×
                 </button>
               </div>
             </div>
 
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-              <div className="space-y-6">
+            {/* Content */}
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-140px)]">
+              <div className="space-y-4 sm:space-y-6">
+                {/* File Information */}
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <h4 className="font-bold text-gray-800 mb-3 text-sm sm:text-base">File Information</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-600">Name:</span>
+                      <span className="ml-2 text-gray-800 break-all">{selectedNote.file.originalName}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">Size:</span>
+                      <span className="ml-2 text-gray-800">{formatFileSize(selectedNote.file.fileSize)}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">Type:</span>
+                      <span className="ml-2 text-gray-800">{selectedNote.file.fileType}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-600">User:</span>
+                      <span className="ml-2 text-gray-800">{selectedNote.user.email}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SOAP Note */}
                 {selectedNote.content.soapNote && (
                   <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                    <h4 className="font-bold text-blue-800 mb-3">SOAP Note</h4>
-                    <div className="bg-white rounded-lg p-4 border border-blue-200">
-                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
+                    <h4 className="font-bold text-blue-800 mb-3 text-sm sm:text-base">SOAP Note</h4>
+                    <div className="bg-white rounded-lg p-3 sm:p-4 border border-blue-200">
+                      <div className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed max-h-80 overflow-y-auto">
                         {selectedNote.content.soapNote}
-                      </pre>
+                      </div>
                     </div>
                   </div>
                 )}
 
+                {/* Patient Summary */}
                 {selectedNote.content.patientSummary && (
                   <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                    <h4 className="font-bold text-green-800 mb-3">
+                    <h4 className="font-bold text-green-800 mb-3 text-sm sm:text-base">
                       Patient Summary
                     </h4>
-                    <div className="bg-white rounded-lg p-4 border border-green-200">
-                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
+                    <div className="bg-white rounded-lg p-3 sm:p-4 border border-green-200">
+                      <div className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed max-h-80 overflow-y-auto">
                         {selectedNote.content.patientSummary}
-                      </pre>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
             </div>
 
+            {/* Footer */}
             <div className="bg-gray-50 border-t border-gray-200 p-4">
-              <div className="flex justify-end gap-3">
+              <div className="flex flex-col sm:flex-row justify-end gap-3">
                 <button
                   onClick={() => downloadNote(selectedNote)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
                 >
                   📥 Download Note
                 </button>
                 <button
                   onClick={() => setShowNoteDetails(false)}
-                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  className="w-full sm:w-auto px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium"
                 >
                   Close
                 </button>

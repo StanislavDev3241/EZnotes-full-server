@@ -1,15 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import {
-  Upload,
-  Copy,
-  Download,
-  Mic,
-  Square,
-  Play,
-  Pause,
-  X,
-} from "lucide-react";
-import AdminDashboard from "./components/AdminDashboard";
+import { Upload, Copy, Download, Mic, Square, Play, Pause, X } from "lucide-react";
 import AdminPage from "./components/AdminPage";
 
 interface OutputData {
@@ -1877,34 +1867,7 @@ function App() {
             </div>
           </section>
 
-          {/* Notes Display Section */}
-          <section className="bg-white py-16">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-              <h2 className="text-3xl font-bold text-clearly-blue text-center mb-8">
-                {isAdmin ? "Admin Dashboard" : "My Notes"}
-              </h2>
 
-              {/* Notes History - Only show for admin users */}
-              {isAdmin && (
-                <div className="max-w-7xl mx-auto mt-12">
-                  <div className="mb-6">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                      🎛️ Admin Dashboard
-                    </h2>
-                    <div className="flex gap-4 mb-4">
-                      <button
-                        onClick={handleAdminLogout}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                      >
-                        🚪 Admin Logout
-                      </button>
-                    </div>
-                  </div>
-                  <AdminDashboard API_BASE_URL={API_BASE_URL} />
-                </div>
-              )}
-            </div>
-          </section>
         </div>
       )}
     </>
