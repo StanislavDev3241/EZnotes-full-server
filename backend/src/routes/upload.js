@@ -464,17 +464,9 @@ router.post(
           console.log(`📁 Reading chunk from disk: ${chunkFile.path}`);
           chunkBuffer = await fs.readFile(chunkFile.path);
           console.log("📦 Successfully read chunk from disk");
-
-          // Clean up the temporary file after reading
-          try {
-            await fs.unlink(chunkFile.path);
-            console.log("🗑️ Cleaned up temporary chunk file");
-          } catch (cleanupError) {
-            console.warn(
-              "⚠️ Failed to cleanup temporary chunk file:",
-              cleanupError.message
-            );
-          }
+          
+          // Don't clean up the temporary file here - it will be cleaned up after finalization
+          // This ensures the chunk is available for the finalize endpoint
         } catch (readError) {
           console.error("❌ Failed to read chunk file from disk:", readError);
           return res.status(500).json({
@@ -527,6 +519,14 @@ router.post(
         console.log(
           `✅ Chunk ${chunkIndex}/${totalChunks} saved for file ${fileName}`
         );
+        
+        // Verify chunk was saved
+        try {
+          const savedChunkStats = await fs.stat(chunkPath);
+          console.log(`📁 Chunk saved successfully: ${chunkPath} (${savedChunkStats.size} bytes)`);
+        } catch (statError) {
+          console.warn(`⚠️ Could not verify saved chunk: ${statError.message}`);
+        }
       } catch (writeError) {
         console.error("❌ Error writing chunk file:", writeError);
         return res.status(500).json({
@@ -628,26 +628,54 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
     }
 
     const chunksDir = path.join(__dirname, "../../temp/chunks", fileId);
+    console.log(`🔍 Looking for chunks in directory: ${chunksDir}`);
 
     // Check if chunks directory exists
     try {
       await fs.access(chunksDir);
+      console.log(`✅ Chunks directory exists: ${chunksDir}`);
     } catch (accessError) {
-      return res.status(400).json({ error: "No chunks found for this file" });
+      console.error(`❌ Chunks directory not found: ${chunksDir}`, accessError);
+      return res.status(400).json({ 
+        error: "No chunks found for this file",
+        details: `Directory ${chunksDir} does not exist`,
+        fileId: fileId
+      });
     }
 
     // Get all chunk files and sort them
-    const chunkFiles = await fs.readdir(chunksDir);
-    const sortedChunks = chunkFiles
-      .filter((file) => file.startsWith("chunk_"))
-      .sort((a, b) => {
-        const aIndex = parseInt(a.replace("chunk_", ""));
-        const bIndex = parseInt(b.replace("chunk_", ""));
-        return aIndex - bIndex;
-      });
+    let sortedChunks = [];
+    try {
+      const chunkFiles = await fs.readdir(chunksDir);
+      console.log(`📁 Found ${chunkFiles.length} files in chunks directory:`, chunkFiles);
+      
+      sortedChunks = chunkFiles
+        .filter((file) => file.startsWith("chunk_"))
+        .sort((a, b) => {
+          const aIndex = parseInt(a.replace("chunk_", ""));
+          const bIndex = parseInt(b.replace("chunk_", ""));
+          return aIndex - bIndex;
+        });
 
-    if (sortedChunks.length === 0) {
-      return res.status(400).json({ error: "No valid chunks found" });
+      console.log(`🎯 Filtered ${sortedChunks.length} valid chunks:`, sortedChunks);
+
+      if (sortedChunks.length === 0) {
+        console.error(`❌ No valid chunks found in directory: ${chunksDir}`);
+        console.error(`📁 All files found:`, chunkFiles);
+        return res.status(400).json({ 
+          error: "No valid chunks found",
+          details: `Found ${chunkFiles.length} files but none are valid chunks`,
+          allFiles: chunkFiles,
+          fileId: fileId
+        });
+      }
+    } catch (readError) {
+      console.error(`❌ Error reading chunks directory: ${chunksDir}`, readError);
+      return res.status(500).json({ 
+        error: "Failed to read chunks directory",
+        details: readError.message,
+        fileId: fileId
+      });
     }
 
     console.log(
@@ -947,7 +975,7 @@ router.post("/webhook", async (req, res) => {
   // Set longer timeout for webhook processing
   req.setTimeout(900000); // 15 minutes
   res.setTimeout(900000);
-  
+
   try {
     console.log("📥 Received webhook from Make.com:", req.body);
 

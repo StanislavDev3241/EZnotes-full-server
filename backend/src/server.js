@@ -101,7 +101,9 @@ app.use("*", (req, res) => {
 server.listen(PORT, () => {
   console.log(`🚀 ClearlyAI Server running on port ${PORT}`);
   console.log(`📁 Environment: ${process.env.NODE_ENV || "development"}`);
-  console.log(`⏱️ Upload timeout: 15 minutes (accommodates 10 min Make.com processing)`);
+  console.log(
+    `⏱️ Upload timeout: 15 minutes (accommodates 10 min Make.com processing)`
+  );
   console.log(`📏 Max file size: ${process.env.MAX_FILE_SIZE || "100"}MB`);
   console.log(
     `🌐 Frontend URL: ${
