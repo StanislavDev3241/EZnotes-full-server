@@ -370,6 +370,12 @@ router.post(
         chunkEnd,
       } = req.body;
 
+      // Validate and clean fileName to prevent corruption
+      const cleanFileName = fileName ? fileName.trim().replace(/\s+/g, ' ') : '';
+      if (cleanFileName !== fileName) {
+        console.warn(`⚠️ FileName cleaned from "${fileName}" to "${cleanFileName}"`);
+      }
+
       console.log("📋 Parsed chunk metadata:", {
         chunkIndex,
         fileId,
@@ -395,7 +401,7 @@ router.post(
       }
 
       console.log(
-        `📁 Received chunk ${chunkIndex}/${totalChunks} for file ${fileName}: ${(
+        `📁 Received chunk ${chunkIndex}/${totalChunks} for file ${cleanFileName}: ${(
           chunkFile.size /
           1024 /
           1024
@@ -561,9 +567,35 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
     // Parse FormData manually since we're not using multer for this endpoint
     const { fileId, fileName, fileSize, action } = req.body;
 
+    // Validate and clean fileName to prevent corruption
+    let cleanFileName = fileName ? fileName.trim().replace(/\s+/g, ' ') : '';
+    if (cleanFileName !== fileName) {
+      console.warn(`⚠️ Finalize: FileName cleaned from "${fileName}" to "${cleanFileName}"`);
+    }
+    
+    // Additional validation to prevent corrupted filenames
+    if (!cleanFileName || cleanFileName.length === 0) {
+      return res.status(400).json({
+        error: "Invalid filename",
+        received: fileName,
+        message: "Filename is empty or invalid"
+      });
+    }
+    
+    // Check for suspicious patterns in filename
+    if (cleanFileName.includes('originalName') || cleanFileName.includes('%20')) {
+      console.warn(`⚠️ Suspicious filename detected: "${cleanFileName}"`);
+      // Try to extract just the actual filename part
+      const actualFileName = cleanFileName.split('originalName')[0].trim();
+      if (actualFileName && actualFileName !== cleanFileName) {
+        console.warn(`⚠️ Extracted actual filename: "${actualFileName}"`);
+        cleanFileName = actualFileName;
+      }
+    }
+
     console.log("📋 Parsed parameters:", {
       fileId,
-      fileName,
+      fileName: cleanFileName,
       fileSize,
       action,
     });
@@ -608,14 +640,14 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
     }
 
     console.log(
-      `🎯 Reassembling file from ${sortedChunks.length} chunks: ${fileName}`
+      `🎯 Reassembling file from ${sortedChunks.length} chunks: ${cleanFileName}`
     );
 
     // Combine chunks into final file
     const finalFilePath = path.join(
       __dirname,
       "../../temp",
-      `${fileId}_${fileName}`
+      `${fileId}_${cleanFileName}`
     );
 
     // Use native fs writeFile instead of streams for better error handling
@@ -668,7 +700,7 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
     // Move to uploads directory
     const uploadPath = await moveToUploads(
       finalFilePath,
-      `${fileId}_${fileName}`
+      `${fileId}_${cleanFileName}`
     );
 
     // Save to database (similar to regular upload)
@@ -682,8 +714,8 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, 'uploaded')
        RETURNING id`,
       [
-        `${fileId}_${fileName}`,
-        fileName,
+        `${fileId}_${cleanFileName}`,
+        cleanFileName,
         uploadPath,
         totalSize,
         "application/octet-stream", // Generic type for chunked files
@@ -729,8 +761,8 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
       console.log(`📤 Sending reassembled file to Make.com for AI processing`);
 
       const fileInfo = {
-        filename: `${fileId}_${fileName}`,
-        originalName: fileName,
+        filename: `${fileId}_${cleanFileName}`,
+        originalName: cleanFileName,
         fileSize: totalSize,
         fileType: "application/octet-stream",
         userId: userId,
@@ -904,7 +936,14 @@ router.post("/webhook", async (req, res) => {
   try {
     console.log("📥 Received webhook from Make.com:", req.body);
 
-          const { fileId, status, notes, soap_note_text, patient_summary_text, error } = req.body;
+    const {
+      fileId,
+      status,
+      notes,
+      soap_note_text,
+      patient_summary_text,
+      error,
+    } = req.body;
 
     if (!fileId) {
       return res
@@ -912,7 +951,10 @@ router.post("/webhook", async (req, res) => {
         .json({ error: "Missing fileId in webhook payload" });
     }
 
-    if (status === "completed" && (notes || soap_note_text || patient_summary_text)) {
+    if (
+      status === "completed" &&
+      (notes || soap_note_text || patient_summary_text)
+    ) {
       // AI processing completed successfully
       console.log(`🎉 AI processing completed for file ${fileId}`);
 
@@ -937,7 +979,7 @@ router.post("/webhook", async (req, res) => {
           patientSummary: notes?.patientSummary || "",
         };
       }
-      
+
       await pool.query(
         `INSERT INTO notes (file_id, note_type, content, user_id, created_at)
          VALUES ($1, $2, $3, $4, NOW())`,
