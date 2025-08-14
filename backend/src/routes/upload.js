@@ -245,10 +245,15 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
     console.error("❌ Upload error:", error);
 
     // Clean up temp file if it exists
-    if (tempFilePath && fs.existsSync(tempFilePath)) {
+    if (tempFilePath) {
       try {
-        await fs.remove(tempFilePath);
+        // Use fs.access to check if file exists (fs.promises compatible)
+        await fs.access(tempFilePath);
+        await fs.unlink(tempFilePath);
         console.log("🧹 Temp file cleaned up");
+      } catch (accessError) {
+        // File doesn't exist or can't be accessed, which is fine
+        console.log("ℹ️ Temp file already cleaned up or inaccessible");
       } catch (cleanupError) {
         console.error("❌ Error cleaning up temp file:", cleanupError);
       }
@@ -472,35 +477,40 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
     console.log("  - req.body:", req.body);
     console.log("  - req.headers:", req.headers);
     console.log("  - Content-Type:", req.headers["content-type"]);
-    
+
     // Check if we have a body parser issue
     if (!req.body || Object.keys(req.body).length === 0) {
       console.log("⚠️ Request body is empty or undefined");
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "Request body is empty",
         contentType: req.headers["content-type"],
-        body: req.body
+        body: req.body,
       });
     }
-    
+
     // Parse FormData manually since we're not using multer for this endpoint
     const { fileId, fileName, fileSize, action } = req.body;
 
-    console.log("📋 Parsed parameters:", { fileId, fileName, fileSize, action });
-    
+    console.log("📋 Parsed parameters:", {
+      fileId,
+      fileName,
+      fileSize,
+      action,
+    });
+
     if (!action) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "Missing action parameter",
         received: req.body,
-        action: action 
+        action: action,
       });
     }
-    
+
     if (action !== "finalize") {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: "Invalid action",
         received: action,
-        expected: "finalize"
+        expected: "finalize",
       });
     }
 

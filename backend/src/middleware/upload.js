@@ -192,9 +192,16 @@ const handleUploadError = (error, req, res, next) => {
 // Cleanup temporary files
 const cleanupTempFile = async (filePath) => {
   try {
-    if (filePath && fsSync.existsSync(filePath)) {
-      await fs.unlink(filePath);
-      console.log(`🗑️ Cleaned up temporary file: ${filePath}`);
+    if (filePath) {
+      // Use fs.access to check if file exists (fs.promises compatible)
+      try {
+        await fs.access(filePath);
+        await fs.unlink(filePath);
+        console.log(`🗑️ Cleaned up temporary file: ${filePath}`);
+      } catch (accessError) {
+        // File doesn't exist or can't be accessed, which is fine
+        console.log(`ℹ️ Temp file already cleaned up or inaccessible: ${filePath}`);
+      }
     }
   } catch (error) {
     console.error(`❌ Error cleaning up temporary file ${filePath}:`, error);
@@ -205,7 +212,23 @@ const cleanupTempFile = async (filePath) => {
 const moveToUploads = async (tempPath, filename) => {
   try {
     const uploadPath = path.join(uploadDir, filename);
-    await fs.rename(tempPath, uploadPath);
+    
+    try {
+      // Try rename first (fastest if same device)
+      await fs.rename(tempPath, uploadPath);
+      console.log(`✅ File moved using rename: ${filename}`);
+    } catch (renameError) {
+      if (renameError.code === 'EXDEV') {
+        // Cross-device link - use copy + delete instead
+        console.log(`📋 Cross-device detected, using copy + delete for: ${filename}`);
+        await fs.copyFile(tempPath, uploadPath);
+        await fs.unlink(tempPath);
+        console.log(`✅ File copied and temp cleaned: ${filename}`);
+      } else {
+        throw renameError;
+      }
+    }
+    
     return uploadPath;
   } catch (error) {
     console.error(`❌ Error moving file from temp to uploads:`, error);
