@@ -1,4 +1,15 @@
 import React, { useState, useEffect } from "react";
+import { 
+  Eye, 
+  Download, 
+  FileText, 
+  User, 
+  Trash2, 
+  FileSpreadsheet,
+  RefreshCw,
+  ArrowLeft,
+  X
+} from "lucide-react";
 
 interface AdminPageProps {
   API_BASE_URL: string;
@@ -340,30 +351,24 @@ const AdminPage: React.FC<AdminPageProps> = ({
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={onBackToMain}
-                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-              >
-                ← Back to Main App
-              </button>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Admin Dashboard
-              </h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={downloadAllNotes}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                📥 Download All Notes
-              </button>
-              <button
-                onClick={onLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                🚪 Logout
-              </button>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-4">
+                <button onClick={onBackToMain} className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium flex items-center">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Main App
+                </button>
+                <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+              </div>
+              <div className="flex items-center space-x-4">
+                <button onClick={downloadAllNotes} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center">
+                  <Download className="h-4 w-4 mr-2" />
+                  Download All Notes
+                </button>
+                <button onClick={onLogout} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center">
+                  <X className="h-4 w-4 mr-2" />
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -376,7 +381,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
                 <div className="p-2 bg-blue-100 rounded-lg">
-                  <span className="text-2xl">📁</span>
+                  <FileText className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">
@@ -391,7 +396,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
                 <div className="p-2 bg-green-100 rounded-lg">
-                  <span className="text-2xl">📝</span>
+                  <FileSpreadsheet className="h-6 w-6 text-green-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">
@@ -406,7 +411,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
                 <div className="p-2 bg-purple-100 rounded-lg">
-                  <span className="text-2xl">👥</span>
+                  <User className="h-6 w-6 text-purple-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">
@@ -421,7 +426,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-center">
                 <div className="p-2 bg-orange-100 rounded-lg">
-                  <span className="text-2xl">⚡</span>
+                  <RefreshCw className="h-6 w-6 text-orange-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">
@@ -445,9 +450,10 @@ const AdminPage: React.FC<AdminPageProps> = ({
               </h3>
               <button
                 onClick={fetchAdminNotes}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
               >
-                🔄 Refresh
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
               </button>
             </div>
           </div>
@@ -536,37 +542,42 @@ const AdminPage: React.FC<AdminPageProps> = ({
                       <div className="flex flex-col gap-2 min-w-[140px]">
                         <button
                           onClick={() => viewNoteDetails(note)}
-                          className="text-blue-600 hover:text-blue-900 text-xs px-3 py-2 rounded border border-blue-200 hover:border-blue-300 transition-colors font-medium"
+                          className="text-blue-600 hover:text-blue-900 text-xs px-3 py-2 rounded border border-blue-200 hover:border-blue-300 transition-colors font-medium flex items-center justify-center"
                         >
-                          👁️ View
+                          <Eye className="h-3 w-3 mr-1" />
+                          View
                         </button>
                         {note.content.soapNote && (
                           <button
                             onClick={() => downloadSoapNote(note)}
-                            className="text-purple-600 hover:text-purple-900 text-xs px-3 py-2 rounded border border-purple-200 hover:border-purple-300 transition-colors font-medium"
+                            className="text-purple-600 hover:text-purple-900 text-xs px-3 py-2 rounded border border-purple-200 hover:border-purple-300 transition-colors font-medium flex items-center justify-center"
                           >
-                            📝 SOAP Note
+                            <FileText className="h-3 w-3 mr-1" />
+                            SOAP Note
                           </button>
                         )}
                         {note.content.patientSummary && (
                           <button
                             onClick={() => downloadPatientSummary(note)}
-                            className="text-green-600 hover:text-green-900 text-xs px-3 py-2 rounded border border-green-200 hover:border-green-300 transition-colors font-medium"
+                            className="text-green-600 hover:text-green-900 text-xs px-3 py-2 rounded border border-green-200 hover:border-green-300 transition-colors font-medium flex items-center justify-center"
                           >
-                            📋 Summary
+                            <FileSpreadsheet className="h-3 w-3 mr-1" />
+                            Summary
                           </button>
                         )}
                         <button
                           onClick={() => downloadNote(note)}
-                          className="text-orange-600 hover:text-orange-900 text-xs px-3 py-2 rounded border border-orange-200 hover:border-orange-300 transition-colors font-medium"
+                          className="text-orange-600 hover:text-orange-900 text-xs px-3 py-2 rounded border border-orange-200 hover:border-orange-300 transition-colors font-medium flex items-center justify-center"
                         >
-                          📥 All Notes
+                          <Download className="h-3 w-3 mr-1" />
+                          All Notes
                         </button>
                         <button
                           onClick={() => deleteNote(note)}
-                          className="text-red-600 hover:text-red-900 text-xs px-3 py-2 rounded border border-red-200 hover:border-red-300 transition-colors font-medium"
+                          className="text-red-600 hover:text-red-900 text-xs px-3 py-2 rounded border border-red-200 hover:border-red-300 transition-colors font-medium flex items-center justify-center"
                         >
-                          🗑️ Delete
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Delete
                         </button>
                       </div>
                     </td>
@@ -608,7 +619,7 @@ const AdminPage: React.FC<AdminPageProps> = ({
                 {/* File Information */}
                 <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 sm:p-6 border border-gray-200 shadow-sm">
                   <h4 className="font-bold text-gray-800 mb-4 text-base sm:text-lg flex items-center">
-                    <span className="text-blue-600 mr-2">📁</span>
+                    <FileText className="h-5 w-5 mr-2 text-blue-600" />
                     File Information
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
@@ -644,14 +655,15 @@ const AdminPage: React.FC<AdminPageProps> = ({
                   <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-4 sm:p-6 border border-blue-200 shadow-sm">
                     <div className="flex justify-between items-center mb-4">
                       <h4 className="font-bold text-blue-800 text-base sm:text-lg flex items-center">
-                        <span className="text-blue-600 mr-2">🎯</span>
+                        <FileText className="h-5 w-5 mr-2 text-blue-600" />
                         SOAP Note
                       </h4>
                       <button
                         onClick={() => downloadSoapNote(selectedNote)}
                         className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center"
                       >
-                        📥 Download SOAP
+                        <Download className="h-4 w-4 mr-1" />
+                        Download SOAP
                       </button>
                     </div>
                     <div className="bg-white rounded-xl p-4 sm:p-6 border border-blue-200 shadow-sm">
@@ -667,14 +679,15 @@ const AdminPage: React.FC<AdminPageProps> = ({
                   <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-4 sm:p-6 border border-green-200 shadow-sm">
                     <div className="flex justify-between items-center mb-4">
                       <h4 className="font-bold text-green-800 text-base sm:text-lg flex items-center">
-                        <span className="text-green-600 mr-2">📋</span>
+                        <FileSpreadsheet className="h-5 w-5 mr-2 text-green-600" />
                         Patient Summary
                       </h4>
                       <button
                         onClick={() => downloadPatientSummary(selectedNote)}
                         className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center"
                       >
-                        📥 Download Summary
+                        <Download className="h-4 w-4 mr-1" />
+                        Download Summary
                       </button>
                     </div>
                     <div className="bg-white rounded-xl p-4 sm:p-6 border border-green-200 shadow-sm">
@@ -696,9 +709,10 @@ const AdminPage: React.FC<AdminPageProps> = ({
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={() => downloadNote(selectedNote)}
-                    className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-200 font-medium text-sm sm:text-base shadow-lg hover:shadow-xl"
+                    className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-200 font-medium text-sm sm:text-base shadow-lg hover:shadow-xl flex items-center justify-center"
                   >
-                    📥 Download All Notes
+                    <Download className="h-4 w-4 mr-2" />
+                    Download All Notes
                   </button>
                   <button
                     onClick={() => {
@@ -711,15 +725,17 @@ const AdminPage: React.FC<AdminPageProps> = ({
                         setShowNoteDetails(false);
                       }
                     }}
-                    className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 font-medium text-sm sm:text-base shadow-lg hover:shadow-xl"
+                    className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 font-medium text-sm sm:text-base shadow-lg hover:shadow-xl flex items-center justify-center"
                   >
-                    🗑️ Delete Note
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Note
                   </button>
                   <button
                     onClick={() => setShowNoteDetails(false)}
-                    className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl hover:from-gray-600 hover:to-gray-700 transition-all duration-200 font-medium text-sm sm:text-base shadow-lg hover:shadow-xl"
+                    className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl hover:from-gray-600 hover:to-gray-700 transition-all duration-200 font-medium text-sm sm:text-base shadow-lg hover:shadow-xl flex items-center justify-center"
                   >
-                    ✕ Close
+                    <X className="h-4 w-4 mr-2" />
+                    Close
                   </button>
                 </div>
               </div>

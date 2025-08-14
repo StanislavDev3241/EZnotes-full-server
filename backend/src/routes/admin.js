@@ -203,10 +203,12 @@ router.delete("/notes/:noteId", async (req, res) => {
       [note.file_id]
     );
 
-    // If no more notes for this file, also delete the file
+    // If no more notes for this file, also delete the file and related data
     if (parseInt(remainingNotes.rows[0].count) === 0) {
-      await pool.query("DELETE FROM files WHERE id = $1", [note.file_id]);
+      // Delete tasks first (due to foreign key constraint)
       await pool.query("DELETE FROM tasks WHERE file_id = $1", [note.file_id]);
+      // Then delete the file
+      await pool.query("DELETE FROM files WHERE id = $1", [note.file_id]);
     }
 
     res.json({
