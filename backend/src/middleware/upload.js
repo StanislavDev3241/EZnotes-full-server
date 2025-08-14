@@ -28,9 +28,10 @@ const fileFilter = (req, file, cb) => {
   const allowedExtensions = [".mp3", ".m4a", ".wav", ".txt"];
 
   const fileExtension = path.extname(file.originalname).toLowerCase();
-  const isValidType = allowedTypes.includes(file.mimetype) || 
-                     file.mimetype.startsWith("audio/") || // Accept any audio type
-                     file.mimetype === "application/octet-stream"; // Accept generic types
+  const isValidType =
+    allowedTypes.includes(file.mimetype) ||
+    file.mimetype.startsWith("audio/") || // Accept any audio type
+    file.mimetype === "application/octet-stream"; // Accept generic types
   const isValidExtension = allowedExtensions.includes(fileExtension);
 
   console.log(`🔍 File validation:`, {
@@ -38,7 +39,7 @@ const fileFilter = (req, file, cb) => {
     mimetype: file.mimetype,
     extension: fileExtension,
     isValidType,
-    isValidExtension
+    isValidExtension,
   });
 
   if (isValidType && isValidExtension) {
@@ -46,7 +47,9 @@ const fileFilter = (req, file, cb) => {
   } else {
     cb(
       new Error(
-        `Invalid file type. Allowed types: ${allowedExtensions.join(", ")}. Got: ${file.mimetype}`
+        `Invalid file type. Allowed types: ${allowedExtensions.join(
+          ", "
+        )}. Got: ${file.mimetype}`
       ),
       false
     );

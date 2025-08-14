@@ -2270,20 +2270,25 @@ function App() {
                         )}
 
                         {/* Chunk Progress for Large Files */}
-                        {uploadStatus === "uploading" && uploadProgress > 10 && (
-                          <div className="mt-2 text-xs text-blue-600">
-                            <div className="flex justify-between">
-                              <span>Chunk Progress:</span>
-                              <span>{Math.round((uploadProgress - 10) / 0.8)}%</span>
+                        {uploadStatus === "uploading" &&
+                          uploadProgress > 10 && (
+                            <div className="mt-2 text-xs text-blue-600">
+                              <div className="flex justify-between">
+                                <span>Chunk Progress:</span>
+                                <span>
+                                  {Math.round((uploadProgress - 10) / 0.8)}%
+                                </span>
+                              </div>
+                              <div className="w-full bg-blue-100 rounded-full h-1 mt-1">
+                                <div
+                                  className="bg-blue-500 h-1 rounded-full transition-all duration-200"
+                                  style={{
+                                    width: `${(uploadProgress - 10) / 0.8}%`,
+                                  }}
+                                ></div>
+                              </div>
                             </div>
-                            <div className="w-full bg-blue-100 rounded-full h-1 mt-1">
-                              <div
-                                className="bg-blue-500 h-1 rounded-full transition-all duration-200"
-                                style={{ width: `${(uploadProgress - 10) / 0.8}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        )}
+                          )}
 
                         {/* Status Messages */}
                         <div className="mt-3 text-center">
@@ -2294,12 +2299,15 @@ function App() {
                           )}
                           {uploadStatus === "uploading" && (
                             <p className="text-sm text-blue-600">
-                              📤 Uploading file... {uploadProgress > 10 && `(${Math.round(uploadProgress)}% complete)`}
+                              📤 Uploading file...{" "}
+                              {uploadProgress > 10 &&
+                                `(${Math.round(uploadProgress)}% complete)`}
                             </p>
                           )}
                           {uploadStatus === "processing" && (
                             <p className="text-sm text-blue-600">
-                              🤖 AI is processing your file... This may take a few minutes
+                              🤖 AI is processing your file... This may take a
+                              few minutes
                             </p>
                           )}
                           {uploadStatus === "error" && (

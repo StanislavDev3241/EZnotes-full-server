@@ -331,7 +331,7 @@ router.post(
         console.error("❌ Error creating chunks directory:", mkdirError);
         return res.status(500).json({
           error: "Failed to create chunks directory",
-          message: mkdirError.message
+          message: mkdirError.message,
         });
       }
 
@@ -360,12 +360,14 @@ router.post(
 
       try {
         await fs.writeFile(chunkPath, chunkBuffer);
-        console.log(`✅ Chunk ${chunkIndex}/${totalChunks} saved for file ${fileName}`);
+        console.log(
+          `✅ Chunk ${chunkIndex}/${totalChunks} saved for file ${fileName}`
+        );
       } catch (writeError) {
         console.error("❌ Error writing chunk file:", writeError);
         return res.status(500).json({
           error: "Failed to save chunk",
-          message: writeError.message
+          message: writeError.message,
         });
       }
 
@@ -427,11 +429,11 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       "../../temp",
       `${fileId}_${fileName}`
     );
-    
+
     // Use native fs writeFile instead of streams for better error handling
     let totalSize = 0;
     const chunkBuffers = [];
-    
+
     for (const chunkFile of sortedChunks) {
       const chunkPath = path.join(chunksDir, chunkFile);
       try {
@@ -450,14 +452,14 @@ router.post("/finalize", optionalAuth, async (req, res) => {
         console.error(`❌ Error reading chunk ${chunkFile}:`, readError);
         return res.status(500).json({
           error: "Failed to read chunk",
-          message: `Error reading chunk ${chunkFile}: ${readError.message}`
+          message: `Error reading chunk ${chunkFile}: ${readError.message}`,
         });
       }
     }
 
     // Combine all chunks into one buffer
     const finalBuffer = Buffer.concat(chunkBuffers);
-    
+
     try {
       await fs.writeFile(finalFilePath, finalBuffer);
       console.log(
@@ -471,7 +473,7 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       console.error("❌ Error writing final file:", writeError);
       return res.status(500).json({
         error: "Failed to write final file",
-        message: writeError.message
+        message: writeError.message,
       });
     }
 
@@ -523,7 +525,10 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       await fs.unlink(finalFilePath);
       console.log("🧹 Cleaned up temporary files");
     } catch (cleanupError) {
-      console.warn("⚠️ Warning: Could not clean up some temporary files:", cleanupError);
+      console.warn(
+        "⚠️ Warning: Could not clean up some temporary files:",
+        cleanupError
+      );
       // Don't fail the operation if cleanup fails
     }
 
