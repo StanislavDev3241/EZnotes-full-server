@@ -55,6 +55,26 @@ function App() {
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
 
+  // Check URL on component mount and handle routing
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path === "/admin") {
+      // Check if admin token exists
+      const token = localStorage.getItem("adminToken");
+      if (token) {
+        setCurrentPage("admin");
+        setIsAdmin(true);
+        setIsLoggedIn(true);
+      } else {
+        // Redirect to main page if no admin token
+        window.history.pushState({}, "", "/");
+        setCurrentPage("main");
+      }
+    } else {
+      setCurrentPage("main");
+    }
+  }, []);
+
   // Add upload progress tracking
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState<
@@ -227,10 +247,14 @@ function App() {
     setIsAdmin(false);
     setIsLoggedIn(false);
     setCurrentPage("main"); // Go back to main page
+    // Change URL back to root
+    window.history.pushState({}, "", "/");
   };
 
   const handleBackToMain = () => {
     setCurrentPage("main");
+    // Change URL back to root
+    window.history.pushState({}, "", "/");
   };
 
   const handleAdminLogin = async (email: string, password: string) => {
@@ -248,7 +272,10 @@ function App() {
         localStorage.setItem("adminToken", data.token);
         setIsAdmin(true);
         setIsLoggedIn(true);
-        setCurrentPage("admin"); // Switch to admin page
+        setCurrentPage("admin");
+        // Change URL to /admin
+        window.history.pushState({}, "", "/admin");
+        setShowAdminLogin(false);
         fetchUserNotes(); // Fetch user notes for authenticated users
       } else {
         const errorData = await response.json();
@@ -1024,8 +1051,8 @@ function App() {
             </h3>
             <p className="text-gray-600 mb-4">
               This application processes medical information. By continuing, you
-              acknowledge that you will handle this data in compliance with HIPAA
-              regulations.
+              acknowledge that you will handle this data in compliance with
+              HIPAA regulations.
             </p>
             <div className="flex space-x-3">
               <button
@@ -1056,10 +1083,12 @@ function App() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4">Admin Login</h3>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              handleAdminLogin(adminEmail, adminPassword);
-            }}>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleAdminLogin(adminEmail, adminPassword);
+              }}
+            >
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Email
@@ -1108,8 +1137,8 @@ function App() {
 
       {/* Main App or Admin Page Routing */}
       {currentPage === "admin" ? (
-        <AdminPage 
-          API_BASE_URL={API_BASE_URL} 
+        <AdminPage
+          API_BASE_URL={API_BASE_URL}
           onBackToMain={handleBackToMain}
         />
       ) : (
@@ -1159,7 +1188,8 @@ function App() {
           <section className="bg-white py-16">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
               <h1 className="text-4xl md:text-5xl font-bold text-clearly-blue mb-6">
-                Generate SOAP notes & patient-ready appointment summaries with AI
+                Generate SOAP notes & patient-ready appointment summaries with
+                AI
               </h1>
               <p className="text-xl text-gray-600 mb-8">
                 Upload your audio recording or transcription and receive
@@ -1181,7 +1211,9 @@ function App() {
                       onDrop={!!output ? undefined : handleDrop}
                       onDragOver={!!output ? undefined : handleDragOver}
                       onClick={
-                        !!output ? undefined : () => fileInputRef.current?.click()
+                        !!output
+                          ? undefined
+                          : () => fileInputRef.current?.click()
                       }
                     >
                       <Upload
@@ -1250,8 +1282,8 @@ function App() {
                             Record directly on the website
                           </p>
                           <p className="text-xs text-gray-500 mb-4">
-                            🔒 HIPAA Compliant: Recordings are processed locally and
-                            not stored on our servers
+                            🔒 HIPAA Compliant: Recordings are processed locally
+                            and not stored on our servers
                           </p>
                           <button
                             onClick={() => {
@@ -1267,7 +1299,9 @@ function App() {
                             }
                           >
                             <Mic className="h-5 w-5 mr-2" />
-                            {isProcessing ? "Initializing..." : "Start Recording"}
+                            {isProcessing
+                              ? "Initializing..."
+                              : "Start Recording"}
                           </button>
                         </div>
                       )}
@@ -1289,7 +1323,9 @@ function App() {
                             disabled={isProcessing}
                           >
                             <Mic className="h-5 w-5 mr-2" />
-                            {isProcessing ? "Initializing..." : "Start Recording"}
+                            {isProcessing
+                              ? "Initializing..."
+                              : "Start Recording"}
                           </button>
                         </div>
                       )}
@@ -1314,7 +1350,9 @@ function App() {
                                   Math.min(
                                     maxHeight,
                                     baseHeight +
-                                      audioLevel * maxHeight * (0.3 + index * 0.1)
+                                      audioLevel *
+                                        maxHeight *
+                                        (0.3 + index * 0.1)
                                   )
                                 );
                                 const opacity = audioLevel > 0.01 ? 1 : 0.2;
@@ -1506,7 +1544,8 @@ function App() {
                     </div>
                     {output && (
                       <p className="text-xs text-gray-500 mb-4 text-center">
-                        💡 Click "Generate Another Note" to change these selections
+                        💡 Click "Generate Another Note" to change these
+                        selections
                       </p>
                     )}
 
@@ -1551,7 +1590,9 @@ function App() {
                         {/* Timer Display */}
                         {uploadStatus === "uploading" && (
                           <div className="flex justify-between text-xs text-gray-600 mt-2">
-                            <span>⏱️ Elapsed: {formatUploadTime(elapsedTime)}</span>
+                            <span>
+                              ⏱️ Elapsed: {formatUploadTime(elapsedTime)}
+                            </span>
                             {remainingTime !== null && (
                               <span>
                                 ⏳ Remaining: {formatUploadTime(remainingTime)}
@@ -1642,8 +1683,8 @@ function App() {
                             : "Your patient summary is ready below."}
                         </p>
                         <p className="text-xs text-green-600 mt-1">
-                          🔒 <strong>HIPAA Notice:</strong> The original file will
-                          be removed from our servers for compliance.
+                          🔒 <strong>HIPAA Notice:</strong> The original file
+                          will be removed from our servers for compliance.
                         </p>
                       </div>
                     </div>
@@ -1692,10 +1733,10 @@ function App() {
                           </button>
                         </div>
                         <p className="text-xs text-blue-600 mt-3">
-                          💡 <strong>Note:</strong> If you choose to save, the file
-                          will be downloaded to your device. If you choose to
-                          delete, the file will be permanently removed from our
-                          servers.
+                          💡 <strong>Note:</strong> If you choose to save, the
+                          file will be downloaded to your device. If you choose
+                          to delete, the file will be permanently removed from
+                          our servers.
                         </p>
                       </div>
                     </div>
@@ -1847,4 +1888,3 @@ function App() {
 }
 
 export default App;
-

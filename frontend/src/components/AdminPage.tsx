@@ -32,7 +32,10 @@ interface AdminNote {
   };
 }
 
-const AdminPage: React.FC<AdminPageProps> = ({ API_BASE_URL, onBackToMain }) => {
+const AdminPage: React.FC<AdminPageProps> = ({
+  API_BASE_URL,
+  onBackToMain,
+}) => {
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [notes, setNotes] = useState<AdminNote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,22 +125,27 @@ const AdminPage: React.FC<AdminPageProps> = ({ API_BASE_URL, onBackToMain }) => 
   const downloadNote = (note: AdminNote) => {
     try {
       let content = "";
-      
+
       if (note.content.soapNote) {
         content += `=== SOAP NOTE ===\n\n${note.content.soapNote}\n\n`;
       }
-      
+
       if (note.content.patientSummary) {
         content += `=== PATIENT SUMMARY ===\n\n${note.content.patientSummary}\n\n`;
       }
-      
-      content += `\n---\nFile: ${note.file.originalName}\nUser: ${note.user.email}\nGenerated: ${new Date(note.createdAt).toLocaleString()}`;
-      
+
+      content += `\n---\nFile: ${note.file.originalName}\nUser: ${
+        note.user.email
+      }\nGenerated: ${new Date(note.createdAt).toLocaleString()}`;
+
       const blob = new Blob([content], { type: "text/plain" });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${note.file.originalName.replace(/\.[^/.]+$/, "")}_notes.txt`;
+      a.download = `${note.file.originalName.replace(
+        /\.[^/.]+$/,
+        ""
+      )}_notes.txt`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -186,7 +194,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ API_BASE_URL, onBackToMain }) => 
               >
                 ← Back to Main App
               </button>
-              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Admin Dashboard
+              </h1>
             </div>
             <div className="flex items-center space-x-4">
               <button
@@ -219,8 +229,12 @@ const AdminPage: React.FC<AdminPageProps> = ({ API_BASE_URL, onBackToMain }) => 
                   <span className="text-2xl">📁</span>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Files</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalFiles}</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Files
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stats.totalFiles}
+                  </p>
                 </div>
               </div>
             </div>
@@ -230,8 +244,12 @@ const AdminPage: React.FC<AdminPageProps> = ({ API_BASE_URL, onBackToMain }) => 
                   <span className="text-2xl">📝</span>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Notes</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalNotes}</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Notes
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stats.totalNotes}
+                  </p>
                 </div>
               </div>
             </div>
@@ -241,8 +259,12 @@ const AdminPage: React.FC<AdminPageProps> = ({ API_BASE_URL, onBackToMain }) => 
                   <span className="text-2xl">👥</span>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Users</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalUsers}</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Users
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stats.totalUsers}
+                  </p>
                 </div>
               </div>
             </div>
@@ -252,8 +274,12 @@ const AdminPage: React.FC<AdminPageProps> = ({ API_BASE_URL, onBackToMain }) => 
                   <span className="text-2xl">⚡</span>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Tasks</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalTasks}</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Total Tasks
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stats.totalTasks}
+                  </p>
                 </div>
               </div>
             </div>
@@ -406,7 +432,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ API_BASE_URL, onBackToMain }) => 
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
               <div className="space-y-6">
                 {selectedNote.content.soapNote && (
@@ -419,10 +445,12 @@ const AdminPage: React.FC<AdminPageProps> = ({ API_BASE_URL, onBackToMain }) => 
                     </div>
                   </div>
                 )}
-                
+
                 {selectedNote.content.patientSummary && (
                   <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                    <h4 className="font-bold text-green-800 mb-3">Patient Summary</h4>
+                    <h4 className="font-bold text-green-800 mb-3">
+                      Patient Summary
+                    </h4>
                     <div className="bg-white rounded-lg p-4 border border-green-200">
                       <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
                         {selectedNote.content.patientSummary}
@@ -432,7 +460,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ API_BASE_URL, onBackToMain }) => 
                 )}
               </div>
             </div>
-            
+
             <div className="bg-gray-50 border-t border-gray-200 p-4">
               <div className="flex justify-end gap-3">
                 <button
@@ -456,4 +484,4 @@ const AdminPage: React.FC<AdminPageProps> = ({ API_BASE_URL, onBackToMain }) => 
   );
 };
 
-export default AdminPage; 
+export default AdminPage;
