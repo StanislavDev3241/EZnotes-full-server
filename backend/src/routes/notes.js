@@ -5,6 +5,19 @@ const { noteGenerationQueue } = require("../config/queue");
 
 const router = express.Router();
 
+// CORS middleware for webhook endpoints - DEFINE THIS FIRST
+const webhookCors = (req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  if (req.method === "OPTIONS") {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+};
+
 // Get notes for anonymous users (no authentication required) - PUT THIS FIRST
 router.get("/anonymous", async (req, res) => {
   try {
@@ -65,10 +78,10 @@ router.get("/anonymous", async (req, res) => {
 // Simple test endpoint to verify routing
 router.get("/test-anonymous", (req, res) => {
   console.log("🧪 Test anonymous endpoint accessed");
-  res.json({ 
+  res.json({
     message: "Anonymous test endpoint working",
     timestamp: new Date().toISOString(),
-    status: "working"
+    status: "working",
   });
 });
 
@@ -388,19 +401,6 @@ router.get("/user", authenticateToken, async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-// CORS middleware for webhook endpoints
-const webhookCors = (req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-  if (req.method === "OPTIONS") {
-    res.sendStatus(200);
-  } else {
-    next();
-  }
-};
 
 // Download notes as text file
 router.get("/download/:noteId", authenticateToken, async (req, res) => {
