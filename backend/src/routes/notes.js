@@ -81,26 +81,38 @@ router.get("/file-anonymous/:fileId", async (req, res) => {
     const { fileId } = req.params;
     console.log(`👤 Anonymous user requesting notes for file ${fileId}`);
 
-    const result = await pool.query(
-      `
-      SELECT f.*, n.id as note_id, n.note_type, n.content, n.created_at as note_created_at
-      FROM files f
-      LEFT JOIN notes n ON f.id = n.file_id
-      WHERE f.id = $1 AND f.user_id IS NULL
-    `,
+    // First get the file information
+    const fileResult = await pool.query(
+      `SELECT * FROM files WHERE id = $1 AND user_id IS NULL`,
       [fileId]
     );
 
-    if (result.rows.length === 0) {
+    if (fileResult.rows.length === 0) {
       console.log(`❌ File ${fileId} not found for anonymous user`);
       return res.status(404).json({ error: "File not found" });
     }
 
-    const file = result.rows[0];
+    const file = fileResult.rows[0];
+    
+    // Then get all notes for this file
+    const notesResult = await pool.query(
+      `SELECT id, note_type, content, created_at FROM notes WHERE file_id = $1 ORDER BY created_at ASC`,
+      [fileId]
+    );
+
+    const notes = notesResult.rows.map(row => ({
+      id: row.id,
+      type: row.note_type,
+      content: JSON.parse(row.content),
+      createdAt: row.created_at,
+    }));
+
     console.log(`📋 File ${fileId} found for anonymous user:`, {
       filename: file.filename,
       status: file.status,
-      hasNotes: !!file.note_id,
+      hasNotes: notes.length > 0,
+      noteCount: notes.length,
+      noteTypes: notes.map(n => n.type)
     });
 
     const fileData = {
@@ -111,14 +123,7 @@ router.get("/file-anonymous/:fileId", async (req, res) => {
       fileType: file.file_type,
       status: file.status,
       createdAt: file.created_at,
-      note: file.note_id
-        ? {
-            id: file.note_id,
-            type: file.note_type,
-            content: JSON.parse(file.content),
-            createdAt: file.note_created_at,
-          }
-        : null,
+      notes: notes, // Return all notes instead of just one
     };
 
     console.log(`📝 Returning file data with notes for anonymous user`);

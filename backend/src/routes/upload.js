@@ -990,7 +990,10 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
               ]
             );
             console.log("✅ SOAP note saved to database");
-            console.log("📝 SOAP note content:", makeResponse.soap_note_text.substring(0, 100) + "...");
+            console.log(
+              "📝 SOAP note content:",
+              makeResponse.soap_note_text.substring(0, 100) + "..."
+            );
           }
 
           // Save patient summary if available
@@ -1007,7 +1010,10 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
               ]
             );
             console.log("✅ Patient summary saved to database");
-            console.log("📝 Patient summary content:", makeResponse.patient_summary_text.substring(0, 100) + "...");
+            console.log(
+              "📝 Patient summary content:",
+              makeResponse.patient_summary_text.substring(0, 100) + "..."
+            );
           }
 
           // Update task status to completed
@@ -1025,14 +1031,16 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
           console.log(
             "🎉 File processing completed immediately with Make.com results"
           );
-          
+
           // Verify notes were saved to database
           try {
             const notesResult = await pool.query(
               `SELECT COUNT(*) as count FROM notes WHERE file_id = $1`,
               [fileId_db]
             );
-            console.log(`📊 Verification: ${notesResult.rows[0].count} notes found in database for file ${fileId_db}`);
+            console.log(
+              `📊 Verification: ${notesResult.rows[0].count} notes found in database for file ${fileId_db}`
+            );
           } catch (verifyError) {
             console.warn("⚠️ Could not verify notes in database:", verifyError);
           }

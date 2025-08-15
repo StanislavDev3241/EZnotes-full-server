@@ -211,15 +211,28 @@ function App() {
         const data = await response.json();
         console.log(`📝 Received file notes data:`, data);
 
-        if (data.file && data.file.note) {
+        if (data.file && data.file.notes && data.file.notes.length > 0) {
+          // Process all notes from the array
+          let soapNote = "";
+          let patientSummary = "";
+          
+          data.file.notes.forEach((note: any) => {
+            if (note.type === 'soap_note' && note.content.soapNote) {
+              soapNote = note.content.soapNote;
+            } else if (note.type === 'patient_summary' && note.content.patientSummary) {
+              patientSummary = note.content.patientSummary;
+            }
+          });
+          
           // Set the output with the AI-generated notes
           setOutput({
-            soapNote: data.file.note.content.soapNote || "",
-            patientSummary: data.file.note.content.patientSummary || "",
+            soapNote: soapNote,
+            patientSummary: patientSummary,
           });
+          
           console.log(
             `✅ Notes loaded for file ${fileId}:`,
-            data.file.note.content
+            { soapNote: soapNote.substring(0, 100) + "...", patientSummary: patientSummary.substring(0, 100) + "..." }
           );
         } else {
           console.log(`⚠️ No notes found for file ${fileId}`);
