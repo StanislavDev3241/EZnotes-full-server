@@ -93,14 +93,14 @@ router.get("/file-anonymous/:fileId", async (req, res) => {
     }
 
     const file = fileResult.rows[0];
-    
+
     // Then get all notes for this file
     const notesResult = await pool.query(
       `SELECT id, note_type, content, created_at FROM notes WHERE file_id = $1 ORDER BY created_at ASC`,
       [fileId]
     );
 
-    const notes = notesResult.rows.map(row => ({
+    const notes = notesResult.rows.map((row) => ({
       id: row.id,
       type: row.note_type,
       content: JSON.parse(row.content),
@@ -112,7 +112,7 @@ router.get("/file-anonymous/:fileId", async (req, res) => {
       status: file.status,
       hasNotes: notes.length > 0,
       noteCount: notes.length,
-      noteTypes: notes.map(n => n.type)
+      noteTypes: notes.map((n) => n.type),
     });
 
     const fileData = {

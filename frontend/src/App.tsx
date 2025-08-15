@@ -215,25 +215,28 @@ function App() {
           // Process all notes from the array
           let soapNote = "";
           let patientSummary = "";
-          
+
           data.file.notes.forEach((note: any) => {
-            if (note.type === 'soap_note' && note.content.soapNote) {
+            if (note.type === "soap_note" && note.content.soapNote) {
               soapNote = note.content.soapNote;
-            } else if (note.type === 'patient_summary' && note.content.patientSummary) {
+            } else if (
+              note.type === "patient_summary" &&
+              note.content.patientSummary
+            ) {
               patientSummary = note.content.patientSummary;
             }
           });
-          
+
           // Set the output with the AI-generated notes
           setOutput({
             soapNote: soapNote,
             patientSummary: patientSummary,
           });
-          
-          console.log(
-            `✅ Notes loaded for file ${fileId}:`,
-            { soapNote: soapNote.substring(0, 100) + "...", patientSummary: patientSummary.substring(0, 100) + "..." }
-          );
+
+          console.log(`✅ Notes loaded for file ${fileId}:`, {
+            soapNote: soapNote.substring(0, 100) + "...",
+            patientSummary: patientSummary.substring(0, 100) + "...",
+          });
         } else {
           console.log(`⚠️ No notes found for file ${fileId}`);
         }

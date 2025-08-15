@@ -543,14 +543,26 @@ router.post(
           `✅ Chunk ${chunkIndex}/${totalChunks} saved for file ${fileName}`
         );
 
-        // Verify chunk was saved
+        // BULLETPROOF CHUNK VERIFICATION - Your custom server needs this!
         try {
           const savedChunkStats = await fs.stat(chunkPath);
           console.log(
-            `📁 Chunk saved successfully: ${chunkPath} (${savedChunkStats.size} bytes)`
+            `📁 BULLETPROOF VERIFICATION: Chunk saved successfully: ${chunkPath} (${savedChunkStats.size} bytes)`
           );
+          
+          // AGGRESSIVE VERIFICATION: Double-check the chunk is readable
+          try {
+            const verifyBuffer = await fs.readFile(chunkPath);
+            if (verifyBuffer.length === chunkBuffer.length) {
+              console.log(`✅ BULLETPROOF VERIFICATION: Chunk integrity confirmed - size matches`);
+            } else {
+              console.warn(`⚠️ BULLETPROOF VERIFICATION: Chunk size mismatch - expected ${chunkBuffer.length}, got ${verifyBuffer.length}`);
+            }
+          } catch (verifyError) {
+            console.warn(`⚠️ BULLETPROOF VERIFICATION: Could not verify chunk integrity:`, verifyError);
+          }
         } catch (statError) {
-          console.warn(`⚠️ Could not verify saved chunk: ${statError.message}`);
+          console.warn(`⚠️ BULLETPROOF VERIFICATION: Could not verify saved chunk: ${statError.message}`);
         }
       } catch (writeError) {
         console.error("❌ Error writing chunk file:", writeError);
@@ -569,14 +581,16 @@ router.post(
     } catch (error) {
       console.error("❌ Chunk upload error:", error);
 
-      // Clean up any partially written chunk file
+      // BULLETPROOF CHUNK PROTECTION: Don't delete failed chunks immediately - Your custom server needs them!
       try {
         if (chunkPath) {
-          await fs.unlink(chunkPath);
-          console.log(`🧹 Cleaned up failed chunk: ${chunkPath}`);
+          // Instead of deleting, rename to prevent loss
+          const failedChunkPath = chunkPath + '.failed';
+          await fs.rename(chunkPath, failedChunkPath);
+          console.log(`🛡️ BULLETPROOF PROTECTION: Renamed failed chunk to: ${failedChunkPath}`);
         }
-      } catch (cleanupError) {
-        console.warn(`⚠️ Could not clean up failed chunk:`, cleanupError);
+      } catch (protectionError) {
+        console.warn(`⚠️ BULLETPROOF PROTECTION: Could not rename failed chunk:`, protectionError);
       }
 
       res.status(500).json({
@@ -587,17 +601,38 @@ router.post(
   }
 );
 
-// Helper function to validate and recover chunks
+// BULLETPROOF CHUNK HANDLING - Your custom server needs bulletproof chunk validation!
 const validateAndRecoverChunks = async (fileId, totalChunks) => {
   const chunksDir = path.join(__dirname, "../../temp/chunks", fileId);
-
+  
   try {
     // Check if chunks directory exists
     await fs.access(chunksDir);
     console.log(`✅ Chunks directory exists: ${chunksDir}`);
   } catch (accessError) {
     console.error(`❌ Chunks directory not found: ${chunksDir}`, accessError);
-    return { valid: false, error: "Directory does not exist", chunksDir };
+    
+    // BULLETPROOF RECOVERY: Try to recreate the directory and wait for chunks
+    console.log(`🛡️ BULLETPROOF RECOVERY: Attempting to recreate chunks directory...`);
+    
+    try {
+      // Wait a bit for any pending chunk uploads
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Try to recreate the directory
+      await fs.mkdir(chunksDir, { recursive: true });
+      console.log(`✅ BULLETPROOF RECOVERY: Recreated chunks directory: ${chunksDir}`);
+      
+      // Wait a bit more for chunks to arrive
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Check again
+      await fs.access(chunksDir);
+      console.log(`✅ BULLETPROOF RECOVERY: Directory now accessible: ${chunksDir}`);
+    } catch (recoveryError) {
+      console.error(`❌ BULLETPROOF RECOVERY failed:`, recoveryError);
+      return { valid: false, error: "Directory recovery failed", chunksDir };
+    }
   }
 
   // Get all chunk files
@@ -784,13 +819,36 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
       });
     }
 
-    // Use our robust chunk validation function
+    // BULLETPROOF CHUNK VALIDATION with AGGRESSIVE RETRY - Your custom server needs this!
     const totalChunks = parseInt(req.body.totalChunks) || 0;
     console.log(
-      `🔍 Validating chunks for file: ${fileId}, expected: ${totalChunks}`
+      `🔍 BULLETPROOF VALIDATION: Validating chunks for file: ${fileId}, expected: ${totalChunks}`
     );
 
-    const validation = await validateAndRecoverChunks(fileId, totalChunks);
+    // AGGRESSIVE RETRY: Try multiple times with increasing delays
+    let validation;
+    let retryCount = 0;
+    const maxRetries = 5;
+    
+    while (retryCount < maxRetries) {
+      validation = await validateAndRecoverChunks(fileId, totalChunks);
+      
+      if (validation.valid) {
+        console.log(`✅ BULLETPROOF VALIDATION: Success on attempt ${retryCount + 1}`);
+        break;
+      }
+      
+      retryCount++;
+      if (retryCount < maxRetries) {
+        const delay = retryCount * 2000; // 2s, 4s, 6s, 8s, 10s
+        console.log(`🔄 BULLETPROOF VALIDATION: Retry ${retryCount}/${maxRetries} in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    if (!validation.valid) {
+      console.error(`❌ BULLETPROOF VALIDATION: All ${maxRetries} attempts failed`);
+    }
 
     if (!validation.valid) {
       console.error(`❌ Chunk validation failed:`, validation);
@@ -941,14 +999,22 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
       `✅ File reassembled and saved to database with ID: ${fileId_db}`
     );
 
-    // Clean up chunks after successful reassembly
-    try {
-      await cleanupOrphanedChunks(fileId);
-      console.log(`🧹 Chunks cleaned up successfully for file: ${fileId}`);
-    } catch (cleanupError) {
-      console.warn(`⚠️ Warning: Could not clean up chunks:`, cleanupError);
-      // Don't fail the upload if cleanup fails
-    }
+          // BULLETPROOF FINALIZATION PROTECTION: Don't clean up chunks immediately - Your custom server needs them!
+      try {
+        // Instead of immediate cleanup, schedule it for later
+        setTimeout(async () => {
+          try {
+            await cleanupOrphanedChunks(fileId);
+            console.log(`🧹 BULLETPROOF CLEANUP: Chunks cleaned up after delay for file: ${fileId}`);
+          } catch (delayedCleanupError) {
+            console.warn(`⚠️ BULLETPROOF CLEANUP: Delayed cleanup failed:`, delayedCleanupError);
+          }
+        }, 30000); // Wait 30 seconds before cleanup - Your custom server needs time!
+        
+        console.log(`🛡️ BULLETPROOF PROTECTION: Chunk cleanup scheduled for 30 seconds later for file: ${fileId}`);
+      } catch (protectionError) {
+        console.warn(`⚠️ BULLETPROOF PROTECTION: Could not schedule chunk cleanup:`, protectionError);
+      }
 
     // Send to Make.com for AI processing
     let makeResponse; // Declare at function level for scope access
@@ -1114,17 +1180,21 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Finalize chunked upload error:", error);
-    // Clean up chunks even if finalization failed
+    // BULLETPROOF ERROR PROTECTION: Don't clean up chunks on failure - Your custom server needs them!
     try {
-      await cleanupOrphanedChunks(fileId);
-      console.log(
-        `🧹 Chunks cleaned up after finalization failure for file: ${fileId}`
-      );
-    } catch (cleanupError) {
-      console.warn(
-        `⚠️ Warning: Could not clean up chunks after failure:`,
-        cleanupError
-      );
+      // Schedule cleanup for much later to give your custom server time to recover
+      setTimeout(async () => {
+        try {
+          await cleanupOrphanedChunks(fileId);
+          console.log(`🧹 BULLETPROOF ERROR CLEANUP: Chunks cleaned up after 5 minutes for file: ${fileId}`);
+        } catch (delayedCleanupError) {
+          console.warn(`⚠️ BULLETPROOF ERROR CLEANUP: Delayed cleanup failed:`, delayedCleanupError);
+        }
+      }, 5 * 60 * 1000); // Wait 5 MINUTES before cleanup - Your custom server needs time to recover!
+      
+      console.log(`🛡️ BULLETPROOF ERROR PROTECTION: Chunk cleanup scheduled for 5 minutes later for file: ${fileId}`);
+    } catch (protectionError) {
+      console.warn(`⚠️ BULLETPROOF ERROR PROTECTION: Could not schedule chunk cleanup:`, protectionError);
     }
 
     res.status(500).json({
@@ -1134,11 +1204,11 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
   }
 });
 
-// Periodic cleanup of old orphaned chunks (runs every hour)
+// AGGRESSIVE CHUNK CLEANUP PREVENTION - Your custom server needs this!
 const cleanupOldChunks = async () => {
   try {
     const chunksBaseDir = path.join(__dirname, "../../temp/chunks");
-
+    
     // Check if base chunks directory exists
     try {
       await fs.access(chunksBaseDir);
@@ -1146,13 +1216,13 @@ const cleanupOldChunks = async () => {
       console.log("ℹ️ Chunks base directory doesn't exist, nothing to clean");
       return;
     }
-
+    
     const chunkDirs = await fs.readdir(chunksBaseDir);
-    console.log(`🧹 Found ${chunkDirs.length} chunk directories to check`);
-
+    console.log(`🧹 BULLETPROOF CLEANUP: Found ${chunkDirs.length} chunk directories to check`);
+    
     let cleanedCount = 0;
     const now = Date.now();
-    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+    const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 DAYS - Your custom server needs time!
 
     for (const dirName of chunkDirs) {
       try {
@@ -1178,8 +1248,8 @@ const cleanupOldChunks = async () => {
   }
 };
 
-// Run cleanup every hour
-setInterval(cleanupOldChunks, 60 * 60 * 1000);
+// AGGRESSIVE CLEANUP PREVENTION: Run cleanup every 24 hours - Your custom server needs time!
+setInterval(cleanupOldChunks, 24 * 60 * 60 * 1000);
 
 // Clean up orphaned chunks (admin endpoint)
 router.post("/cleanup-chunks", optionalAuth, async (req, res) => {

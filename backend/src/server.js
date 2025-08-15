@@ -8,11 +8,11 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Increase timeout for large file uploads and AI processing
+// AGGRESSIVE TIMEOUT BYPASS - Your custom server needs unlimited time!
 const server = require("http").createServer(app);
-server.timeout = 900000; // 15 minutes timeout (accommodates 10 min Make.com + buffer)
-server.keepAliveTimeout = 65000; // 65 seconds keep-alive
-server.headersTimeout = 66000; // 66 seconds headers timeout
+server.timeout = 0; // NO TIMEOUT - Unlimited time for your custom server
+server.keepAliveTimeout = 0; // NO KEEP-ALIVE TIMEOUT - Keep connections alive forever
+server.headersTimeout = 0; // NO HEADERS TIMEOUT - Unlimited headers processing time
 
 // Middleware
 app.use(helmet());
@@ -39,18 +39,18 @@ app.use(morgan("combined"));
 app.use(express.json({ limit: "200mb" }));
 app.use(express.urlencoded({ extended: true, limit: "200mb" }));
 
-// Add timeout middleware for uploads and AI processing
+// AGGRESSIVE TIMEOUT BYPASS - Your custom server needs unlimited time!
 app.use((req, res, next) => {
-  // Set timeout for upload requests and AI processing
-  if (req.path === "/api/upload" && req.method === "POST") {
-    req.setTimeout(900000); // 15 minutes for uploads + AI processing
-    res.setTimeout(900000);
-  } else if (req.path === "/api/upload/webhook" && req.method === "POST") {
-    req.setTimeout(900000); // 15 minutes for Make.com webhooks
-    res.setTimeout(900000);
+  // NO TIMEOUTS - Unlimited time for your custom server
+  if (req.path.startsWith("/api/upload")) {
+    req.setTimeout(0); // NO TIMEOUT - Unlimited upload time
+    res.setTimeout(0); // NO TIMEOUT - Unlimited response time
+  } else if (req.path.startsWith("/api/")) {
+    req.setTimeout(0); // NO TIMEOUT - Unlimited API time
+    res.setTimeout(0); // NO TIMEOUT - Unlimited response time
   } else {
-    req.setTimeout(60000); // 1 minute for other requests
-    res.setTimeout(60000);
+    req.setTimeout(0); // NO TIMEOUT - Unlimited time for everything
+    res.setTimeout(0); // NO TIMEOUT - Unlimited response time
   }
   next();
 });
@@ -102,7 +102,7 @@ server.listen(PORT, () => {
   console.log(`🚀 ClearlyAI Server running on port ${PORT}`);
   console.log(`📁 Environment: ${process.env.NODE_ENV || "development"}`);
   console.log(
-    `⏱️ Upload timeout: 15 minutes (accommodates 10 min Make.com processing)`
+    `⏱️ TIMEOUT BYPASS: NO TIMEOUTS - Your custom server has unlimited time!`
   );
   console.log(`📏 Max file size: ${process.env.MAX_FILE_SIZE || "100"}MB`);
   console.log(
