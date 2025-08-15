@@ -954,13 +954,13 @@ function App() {
   ) => {
     // Dynamic chunk sizing based on file size for optimal performance
     let chunkSize = 2 * 1024 * 1024; // Default: 2MB chunks
-    
+
     if (file.size > 100 * 1024 * 1024) {
       chunkSize = 5 * 1024 * 1024; // 5MB chunks for files >100MB
     } else if (file.size > 50 * 1024 * 1024) {
       chunkSize = 3 * 1024 * 1024; // 3MB chunks for files >50MB
     }
-    
+
     const totalChunks = Math.ceil(file.size / chunkSize);
     const fileId = generateFileId();
 
@@ -971,10 +971,10 @@ function App() {
         1024
       ).toFixed(1)}MB each`
     );
-    
+
     // Upload chunks in parallel for faster uploads
     const maxConcurrent = 3; // Upload 3 chunks simultaneously for 3x speed boost
-    
+
     // Estimate upload time
     const estimatedUploadTime = Math.ceil(totalChunks / maxConcurrent) * 0.5; // 0.5 seconds per chunk batch
     console.log(`⏱️ Estimated upload time: ~${estimatedUploadTime} seconds`);

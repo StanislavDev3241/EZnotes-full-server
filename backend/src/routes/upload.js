@@ -568,6 +568,17 @@ router.post(
       });
     } catch (error) {
       console.error("❌ Chunk upload error:", error);
+      
+      // Clean up any partially written chunk file
+      try {
+        if (chunkPath) {
+          await fs.unlink(chunkPath);
+          console.log(`🧹 Cleaned up failed chunk: ${chunkPath}`);
+        }
+      } catch (cleanupError) {
+        console.warn(`⚠️ Could not clean up failed chunk:`, cleanupError);
+      }
+      
       res.status(500).json({
         error: "Chunk upload failed",
         message: error.message || "An error occurred during chunk upload",
@@ -575,6 +586,111 @@ router.post(
     }
   }
 );
+
+// Helper function to validate and recover chunks
+const validateAndRecoverChunks = async (fileId, totalChunks) => {
+  const chunksDir = path.join(__dirname, "../../temp/chunks", fileId);
+  
+  try {
+    // Check if chunks directory exists
+    await fs.access(chunksDir);
+    console.log(`✅ Chunks directory exists: ${chunksDir}`);
+  } catch (accessError) {
+    console.error(`❌ Chunks directory not found: ${chunksDir}`, accessError);
+    return { valid: false, error: "Directory does not exist", chunksDir };
+  }
+
+  // Get all chunk files
+  let chunkFiles;
+  try {
+    chunkFiles = await fs.readdir(chunksDir);
+    console.log(`📁 Found ${chunkFiles.length} files in chunks directory:`, chunkFiles);
+  } catch (readError) {
+    console.error(`❌ Error reading chunks directory: ${chunksDir}`, readError);
+    return { valid: false, error: "Failed to read directory", chunksDir };
+  }
+
+  // Filter and validate chunks
+  const validChunks = chunkFiles
+    .filter((file) => file.startsWith("chunk_"))
+    .sort((a, b) => {
+      const aIndex = parseInt(a.replace("chunk_", ""));
+      const bIndex = parseInt(b.replace("chunk_", ""));
+      return aIndex - bIndex;
+    });
+
+  console.log(`🎯 Found ${validChunks.length} valid chunks out of ${chunkFiles.length} total files`);
+
+  // Check for missing chunks
+  const missingChunks = [];
+  for (let i = 0; i < totalChunks; i++) {
+    const expectedChunk = `chunk_${i}`;
+    if (!validChunks.includes(expectedChunk)) {
+      missingChunks.push(i);
+    }
+  }
+
+  if (missingChunks.length > 0) {
+    console.warn(`⚠️ Missing chunks: ${missingChunks.join(", ")}`);
+    return { 
+      valid: false, 
+      error: "Missing chunks", 
+      missingChunks,
+      validChunks: validChunks.length,
+      totalChunks,
+      chunksDir
+    };
+  }
+
+  // Verify chunk sizes and integrity
+  const chunkDetails = [];
+  for (const chunkFile of validChunks) {
+    try {
+      const chunkPath = path.join(chunksDir, chunkFile);
+      const stats = await fs.stat(chunkPath);
+      chunkDetails.push({
+        name: chunkFile,
+        size: stats.size,
+        path: chunkPath
+      });
+    } catch (statError) {
+      console.error(`❌ Error checking chunk ${chunkFile}:`, statError);
+      return { 
+        valid: false, 
+        error: "Chunk validation failed", 
+        failedChunk: chunkFile,
+        chunksDir
+      };
+    }
+  }
+
+  return { 
+    valid: true, 
+    chunks: validChunks,
+    chunkDetails,
+    chunksDir
+  };
+};
+
+// Helper function to clean up orphaned chunk directories
+const cleanupOrphanedChunks = async (fileId) => {
+  const chunksDir = path.join(__dirname, "../../temp/chunks", fileId);
+  
+  try {
+    // Check if directory exists
+    await fs.access(chunksDir);
+    
+    // Remove the entire chunks directory and all its contents
+    await fs.rm(chunksDir, { recursive: true, force: true });
+    console.log(`🧹 Cleaned up chunks directory: ${chunksDir}`);
+    
+    return true;
+  } catch (error) {
+    // Directory doesn't exist or already cleaned up
+    console.log(`ℹ️ Chunks directory already cleaned up or doesn't exist: ${chunksDir}`);
+    return false;
+  }
+};
 
 // Finalize chunked upload
 router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
@@ -652,65 +768,37 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
       });
     }
 
-    const chunksDir = path.join(__dirname, "../../temp/chunks", fileId);
-    console.log(`🔍 Looking for chunks in directory: ${chunksDir}`);
-
-    // Check if chunks directory exists
-    try {
-      await fs.access(chunksDir);
-      console.log(`✅ Chunks directory exists: ${chunksDir}`);
-    } catch (accessError) {
-      console.error(`❌ Chunks directory not found: ${chunksDir}`, accessError);
-      return res.status(400).json({
-        error: "No chunks found for this file",
-        details: `Directory ${chunksDir} does not exist`,
-        fileId: fileId,
-      });
-    }
-
-    // Get all chunk files and sort them
-    let sortedChunks = [];
-    try {
-      const chunkFiles = await fs.readdir(chunksDir);
-      console.log(
-        `📁 Found ${chunkFiles.length} files in chunks directory:`,
-        chunkFiles
-      );
-
-      sortedChunks = chunkFiles
-        .filter((file) => file.startsWith("chunk_"))
-        .sort((a, b) => {
-          const aIndex = parseInt(a.replace("chunk_", ""));
-          const bIndex = parseInt(b.replace("chunk_", ""));
-          return aIndex - bIndex;
-        });
-
-      console.log(
-        `🎯 Filtered ${sortedChunks.length} valid chunks:`,
-        sortedChunks
-      );
-
-      if (sortedChunks.length === 0) {
-        console.error(`❌ No valid chunks found in directory: ${chunksDir}`);
-        console.error(`📁 All files found:`, chunkFiles);
-        return res.status(400).json({
-          error: "No valid chunks found",
-          details: `Found ${chunkFiles.length} files but none are valid chunks`,
-          allFiles: chunkFiles,
-          fileId: fileId,
-        });
+    // Use our robust chunk validation function
+    const totalChunks = parseInt(req.body.totalChunks) || 0;
+    console.log(`🔍 Validating chunks for file: ${fileId}, expected: ${totalChunks}`);
+    
+    const validation = await validateAndRecoverChunks(fileId, totalChunks);
+    
+    if (!validation.valid) {
+      console.error(`❌ Chunk validation failed:`, validation);
+      
+      // Provide detailed error information for debugging
+      let errorMessage = validation.error;
+      if (validation.missingChunks) {
+        errorMessage = `Missing chunks: ${validation.missingChunks.join(", ")}. Expected ${validation.totalChunks}, found ${validation.validChunks}`;
       }
-    } catch (readError) {
-      console.error(
-        `❌ Error reading chunks directory: ${chunksDir}`,
-        readError
-      );
-      return res.status(500).json({
-        error: "Failed to read chunks directory",
-        details: readError.message,
+      
+      return res.status(400).json({
+        error: "Chunk validation failed",
+        details: errorMessage,
         fileId: fileId,
+        validation: {
+          error: validation.error,
+          missingChunks: validation.missingChunks,
+          validChunks: validation.validChunks,
+          totalChunks: validation.totalChunks,
+          chunksDir: validation.chunksDir
+        }
       });
     }
+    
+    const { chunks: sortedChunks, chunksDir } = validation;
+    console.log(`🎯 Using ${sortedChunks.length} validated chunks from: ${chunksDir}`);
 
     console.log(
       `🎯 Reassembling file from ${sortedChunks.length} chunks: ${cleanFileName}`
@@ -828,6 +916,15 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
     console.log(
       `✅ File reassembled and saved to database with ID: ${fileId_db}`
     );
+    
+    // Clean up chunks after successful reassembly
+    try {
+      await cleanupOrphanedChunks(fileId);
+      console.log(`🧹 Chunks cleaned up successfully for file: ${fileId}`);
+    } catch (cleanupError) {
+      console.warn(`⚠️ Warning: Could not clean up chunks:`, cleanupError);
+      // Don't fail the upload if cleanup fails
+    }
 
     // Send to Make.com for AI processing
     try {
@@ -872,9 +969,99 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Finalize chunked upload error:", error);
+    // Clean up chunks even if finalization failed
+    try {
+      await cleanupOrphanedChunks(fileId);
+      console.log(`🧹 Chunks cleaned up after finalization failure for file: ${fileId}`);
+    } catch (cleanupError) {
+      console.warn(`⚠️ Warning: Could not clean up chunks after failure:`, cleanupError);
+    }
+    
     res.status(500).json({
       error: "Finalization failed",
       message: error.message || "An error occurred during finalization",
+    });
+  }
+});
+
+// Periodic cleanup of old orphaned chunks (runs every hour)
+const cleanupOldChunks = async () => {
+  try {
+    const chunksBaseDir = path.join(__dirname, "../../temp/chunks");
+    
+    // Check if base chunks directory exists
+    try {
+      await fs.access(chunksBaseDir);
+    } catch (accessError) {
+      console.log("ℹ️ Chunks base directory doesn't exist, nothing to clean");
+      return;
+    }
+    
+    const chunkDirs = await fs.readdir(chunksBaseDir);
+    console.log(`🧹 Found ${chunkDirs.length} chunk directories to check`);
+    
+    let cleanedCount = 0;
+    const now = Date.now();
+    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+    
+    for (const dirName of chunkDirs) {
+      try {
+        const dirPath = path.join(chunksBaseDir, dirName);
+        const stats = await fs.stat(dirPath);
+        
+        // Check if directory is older than 24 hours
+        if (now - stats.mtime.getTime() > maxAge) {
+          await fs.rm(dirPath, { recursive: true, force: true });
+          console.log(`🧹 Cleaned up old chunk directory: ${dirName}`);
+          cleanedCount++;
+        }
+      } catch (dirError) {
+        console.warn(`⚠️ Could not process directory ${dirName}:`, dirError);
+      }
+    }
+    
+    console.log(`🧹 Periodic cleanup completed: ${cleanedCount} directories removed`);
+  } catch (error) {
+    console.error("❌ Periodic cleanup error:", error);
+  }
+};
+
+// Run cleanup every hour
+setInterval(cleanupOldChunks, 60 * 60 * 1000);
+
+// Clean up orphaned chunks (admin endpoint)
+router.post("/cleanup-chunks", optionalAuth, async (req, res) => {
+  try {
+    const { fileId } = req.body;
+    
+    if (!fileId) {
+      return res.status(400).json({
+        error: "Missing fileId",
+        message: "fileId is required for cleanup"
+      });
+    }
+    
+    console.log(`🧹 Manual cleanup requested for file: ${fileId}`);
+    const cleaned = await cleanupOrphanedChunks(fileId);
+    
+    if (cleaned) {
+      res.json({
+        success: true,
+        message: `Chunks cleaned up for file: ${fileId}`,
+        fileId: fileId
+      });
+    } else {
+      res.json({
+        success: true,
+        message: `No chunks to clean up for file: ${fileId}`,
+        fileId: fileId
+      });
+    }
+  } catch (error) {
+    console.error("❌ Chunk cleanup error:", error);
+    res.status(500).json({
+      error: "Cleanup failed",
+      message: error.message || "An error occurred during cleanup"
     });
   }
 });
