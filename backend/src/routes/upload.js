@@ -720,13 +720,13 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
 
     // Parse FormData manually since we're not using multer for this endpoint
     const { fileId, fileName, fileSize, action } = req.body;
-    
+
     // Ensure fileId is available for error handling
     if (!fileId) {
       return res.status(400).json({
         error: "Missing fileId parameter",
         received: req.body,
-        message: "fileId is required for finalization"
+        message: "fileId is required for finalization",
       });
     }
 
@@ -952,7 +952,7 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
 
     // Send to Make.com for AI processing
     let makeResponse; // Declare at function level for scope access
-    
+
     try {
       console.log(`📤 Sending reassembled file to Make.com for AI processing`);
 
@@ -981,31 +981,33 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
           // Save SOAP note if available
           if (makeResponse.soap_note_text) {
             await pool.query(
-              `INSERT INTO notes (file_id, user_id, note_type, content, created_at)
-               VALUES ($1, $2, 'soap_note', $3, NOW())`,
+              `INSERT INTO notes (file_id, note_type, content, user_id, created_at)
+               VALUES ($1, 'soap_note', $2, $3, NOW())`,
               [
                 fileId_db,
-                userId,
                 JSON.stringify({ soapNote: makeResponse.soap_note_text }),
+                userId,
               ]
             );
             console.log("✅ SOAP note saved to database");
+            console.log("📝 SOAP note content:", makeResponse.soap_note_text.substring(0, 100) + "...");
           }
 
           // Save patient summary if available
           if (makeResponse.patient_summary_text) {
             await pool.query(
-              `INSERT INTO notes (file_id, user_id, note_type, content, created_at)
-               VALUES ($1, $2, 'patient_summary', $3, NOW())`,
+              `INSERT INTO notes (file_id, note_type, content, user_id, created_at)
+               VALUES ($1, 'patient_summary', $2, $3, NOW())`,
               [
                 fileId_db,
-                userId,
                 JSON.stringify({
                   patientSummary: makeResponse.patient_summary_text,
                 }),
+                userId,
               ]
             );
             console.log("✅ Patient summary saved to database");
+            console.log("📝 Patient summary content:", makeResponse.patient_summary_text.substring(0, 100) + "...");
           }
 
           // Update task status to completed
@@ -1023,6 +1025,17 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
           console.log(
             "🎉 File processing completed immediately with Make.com results"
           );
+          
+          // Verify notes were saved to database
+          try {
+            const notesResult = await pool.query(
+              `SELECT COUNT(*) as count FROM notes WHERE file_id = $1`,
+              [fileId_db]
+            );
+            console.log(`📊 Verification: ${notesResult.rows[0].count} notes found in database for file ${fileId_db}`);
+          } catch (verifyError) {
+            console.warn("⚠️ Could not verify notes in database:", verifyError);
+          }
         } catch (dbError) {
           console.error(
             "❌ Error saving Make.com results to database:",
