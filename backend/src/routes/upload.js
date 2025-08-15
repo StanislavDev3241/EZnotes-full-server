@@ -74,19 +74,24 @@ const sendToMakeCom = async (fileInfo, fileId) => {
         try {
           const makeResponse = await response.json();
           console.log(`📋 Make.com response:`, makeResponse);
-          
+
           // If Make.com returns immediate results, use them
-          if (makeResponse.soap_note_text || makeResponse.patient_summary_text) {
+          if (
+            makeResponse.soap_note_text ||
+            makeResponse.patient_summary_text
+          ) {
             console.log("🎉 Make.com returned immediate results");
             return makeResponse;
           }
-          
+
           // Otherwise, treat as asynchronous processing
-          console.log("⏳ Make.com processing asynchronously - waiting for webhook");
+          console.log(
+            "⏳ Make.com processing asynchronously - waiting for webhook"
+          );
           return {
             status: "processing",
             message: "File sent to Make.com for asynchronous processing",
-            webhookExpected: true
+            webhookExpected: true,
           };
         } catch (jsonError) {
           console.warn(`⚠️ Make.com response is not valid JSON:`, jsonError);
@@ -94,7 +99,7 @@ const sendToMakeCom = async (fileInfo, fileId) => {
           return {
             status: "processing",
             message: "File sent to Make.com for processing",
-            webhookExpected: true
+            webhookExpected: true,
           };
         }
       } else {
@@ -105,7 +110,7 @@ const sendToMakeCom = async (fileInfo, fileId) => {
         return {
           status: "processing",
           message: "File sent to Make.com for processing",
-          webhookExpected: true
+          webhookExpected: true,
         };
       }
     } else {
@@ -268,8 +273,10 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
         });
       } else {
         // Normal case: Make.com is processing asynchronously via webhook
-        console.log("⏳ AI processing started asynchronously - waiting for webhook");
-        
+        console.log(
+          "⏳ AI processing started asynchronously - waiting for webhook"
+        );
+
         // Update task status to indicate processing started
         await pool.query(
           `UPDATE tasks SET status = 'sent_to_make' WHERE file_id = $1`,
@@ -285,9 +292,10 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
         return res.json({
           success: true,
           file: { id: fileId, status: "processing" },
-          message: "File uploaded successfully and sent for AI processing. Processing in progress...",
+          message:
+            "File uploaded successfully and sent for AI processing. Processing in progress...",
           taskStatus: "sent_to_make",
-          note: "Results will be available when AI processing completes. This may take several minutes."
+          note: "Results will be available when AI processing completes. This may take several minutes.",
         });
       }
     } catch (makeError) {
@@ -1006,7 +1014,7 @@ router.post("/webhook", async (req, res) => {
   // Set longer timeout for webhook processing
   req.setTimeout(900000); // 15 minutes
   res.setTimeout(900000);
-  
+
   try {
     console.log("📥 Received webhook from Make.com:", req.body);
 

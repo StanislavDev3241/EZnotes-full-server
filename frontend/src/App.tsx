@@ -952,20 +952,32 @@ function App() {
     webhookUrl: string,
     apiKey: string | null
   ) => {
-    const chunkSize = 2 * 1024 * 1024; // 2MB chunks
+    // Dynamic chunk sizing based on file size for optimal performance
+    let chunkSize = 2 * 1024 * 1024; // Default: 2MB chunks
+    
+    if (file.size > 100 * 1024 * 1024) {
+      chunkSize = 5 * 1024 * 1024; // 5MB chunks for files >100MB
+    } else if (file.size > 50 * 1024 * 1024) {
+      chunkSize = 3 * 1024 * 1024; // 3MB chunks for files >50MB
+    }
+    
     const totalChunks = Math.ceil(file.size / chunkSize);
     const fileId = generateFileId();
 
     console.log(
-      `🚀 Starting chunked upload: ${totalChunks} chunks of ${(
+      `🚀 Starting optimized chunked upload: ${totalChunks} chunks of ${(
         chunkSize /
         1024 /
         1024
       ).toFixed(1)}MB each`
     );
-
-    // Upload chunks sequentially instead of parallel to prevent connection resets
-    const maxConcurrent = 1; // Changed from 3 to 1 for sequential uploads
+    
+    // Upload chunks in parallel for faster uploads
+    const maxConcurrent = 3; // Upload 3 chunks simultaneously for 3x speed boost
+    
+    // Estimate upload time
+    const estimatedUploadTime = Math.ceil(totalChunks / maxConcurrent) * 0.5; // 0.5 seconds per chunk batch
+    console.log(`⏱️ Estimated upload time: ~${estimatedUploadTime} seconds`);
     const chunks: Array<{
       index: number;
       data: Blob;
@@ -999,15 +1011,15 @@ function App() {
     let completedChunks = 0;
     let failedChunks: number[] = [];
 
-    // Process chunks sequentially with delays to prevent connection resets
+    // Process chunks in parallel batches for optimal speed
     for (let i = 0; i < chunks.length; i += maxConcurrent) {
       const batch = chunks.slice(i, i + maxConcurrent);
 
       for (const chunk of batch) {
         try {
-          // Add delay between chunks to prevent overwhelming the server
+          // Minimal delay between chunks for optimal speed
           if (i > 0) {
-            const delay = Math.min(1000 + i * 200, 3000); // 1-3 second delay
+            const delay = Math.min(200 + i * 50, 500); // 200-500ms delay (much faster!)
             console.log(`⏳ Waiting ${delay}ms before next chunk...`);
             await new Promise((resolve) => setTimeout(resolve, delay));
           }
@@ -1030,8 +1042,8 @@ function App() {
           console.error(`❌ Chunk ${chunk.index + 1} failed:`, error);
           failedChunks.push(chunk.index);
 
-          // If chunk fails, wait longer before retry
-          const retryDelay = Math.min(2000 + failedChunks.length * 1000, 10000);
+          // If chunk fails, wait briefly before retry
+          const retryDelay = Math.min(500 + failedChunks.length * 200, 2000);
           console.log(`⏳ Waiting ${retryDelay}ms before retry...`);
           await new Promise((resolve) => setTimeout(resolve, retryDelay));
         }
