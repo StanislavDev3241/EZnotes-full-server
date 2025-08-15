@@ -720,6 +720,15 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
 
     // Parse FormData manually since we're not using multer for this endpoint
     const { fileId, fileName, fileSize, action } = req.body;
+    
+    // Ensure fileId is available for error handling
+    if (!fileId) {
+      return res.status(400).json({
+        error: "Missing fileId parameter",
+        received: req.body,
+        message: "fileId is required for finalization"
+      });
+    }
 
     // Validate and clean fileName to prevent corruption
     let cleanFileName = fileName ? fileName.trim().replace(/\s+/g, " ") : "";
@@ -942,6 +951,8 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
     }
 
     // Send to Make.com for AI processing
+    let makeResponse; // Declare at function level for scope access
+    
     try {
       console.log(`📤 Sending reassembled file to Make.com for AI processing`);
 
@@ -953,53 +964,70 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
         userId: userId,
       };
 
-      const makeResponse = await sendToMakeCom(fileInfo, fileId_db);
+      makeResponse = await sendToMakeCom(fileInfo, fileId_db);
 
       if (makeResponse.status === "no_webhook") {
         console.log(
           "⚠️ Make.com webhook not configured - file saved but not processed"
         );
-      } else if (makeResponse.soap_note_text || makeResponse.patient_summary_text) {
+      } else if (
+        makeResponse.soap_note_text ||
+        makeResponse.patient_summary_text
+      ) {
         // 🎉 Make.com returned immediate results - process them now!
         console.log("🎉 Processing immediate Make.com results");
-        
+
         try {
           // Save SOAP note if available
           if (makeResponse.soap_note_text) {
             await pool.query(
               `INSERT INTO notes (file_id, user_id, note_type, content, created_at)
                VALUES ($1, $2, 'soap_note', $3, NOW())`,
-              [fileId_db, userId, JSON.stringify({ soapNote: makeResponse.soap_note_text })]
+              [
+                fileId_db,
+                userId,
+                JSON.stringify({ soapNote: makeResponse.soap_note_text }),
+              ]
             );
             console.log("✅ SOAP note saved to database");
           }
-          
+
           // Save patient summary if available
           if (makeResponse.patient_summary_text) {
             await pool.query(
               `INSERT INTO notes (file_id, user_id, note_type, content, created_at)
                VALUES ($1, $2, 'patient_summary', $3, NOW())`,
-              [fileId_db, userId, JSON.stringify({ patientSummary: makeResponse.patient_summary_text })]
+              [
+                fileId_db,
+                userId,
+                JSON.stringify({
+                  patientSummary: makeResponse.patient_summary_text,
+                }),
+              ]
             );
             console.log("✅ Patient summary saved to database");
           }
-          
+
           // Update task status to completed
           await pool.query(
-            `UPDATE tasks SET status = 'completed', completed_at = NOW() WHERE file_id = $1`,
+            `UPDATE tasks SET status = 'completed', processed_at = NOW(), updated_at = NOW() WHERE file_id = $1`,
             [fileId_db]
           );
-          
+
           // Update file status to processed
           await pool.query(
             `UPDATE files SET status = 'processed' WHERE id = $1`,
             [fileId_db]
           );
-          
-          console.log("🎉 File processing completed immediately with Make.com results");
-          
+
+          console.log(
+            "🎉 File processing completed immediately with Make.com results"
+          );
         } catch (dbError) {
-          console.error("❌ Error saving Make.com results to database:", dbError);
+          console.error(
+            "❌ Error saving Make.com results to database:",
+            dbError
+          );
           // Fall back to asynchronous processing
           await pool.query(
             `UPDATE tasks SET status = 'sent_to_make' WHERE file_id = $1`,
@@ -1007,10 +1035,11 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
           );
           console.log("📋 Task status updated to 'sent_to_make' (fallback)");
         }
-        
       } else if (makeResponse.webhookExpected) {
         // Make.com is processing asynchronously
-        console.log("⏳ Make.com processing asynchronously - waiting for webhook");
+        console.log(
+          "⏳ Make.com processing asynchronously - waiting for webhook"
+        );
 
         // Update task status to sent_to_make
         await pool.query(
@@ -1021,8 +1050,10 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
         console.log("📋 Task status updated to 'sent_to_make'");
       } else {
         // Unknown response format
-        console.log("⚠️ Unknown Make.com response format, treating as asynchronous");
-        
+        console.log(
+          "⚠️ Unknown Make.com response format, treating as asynchronous"
+        );
+
         // Update task status to sent_to_make
         await pool.query(
           `UPDATE tasks SET status = 'sent_to_make' WHERE file_id = $1`,
@@ -1035,27 +1066,30 @@ router.post("/finalize", optionalAuth, finalizeParser, async (req, res) => {
       console.error("❌ Error sending file to Make.com:", makeError);
       // Don't fail the finalization if Make.com fails
       // The file is still saved and can be processed later
+      makeResponse = { status: "error", message: "Make.com processing failed" };
     }
 
     // Check if we have immediate results to determine the response
-    const hasImmediateResults = makeResponse && (makeResponse.soap_note_text || makeResponse.patient_summary_text);
-    
+    const hasImmediateResults =
+      makeResponse &&
+      (makeResponse.soap_note_text || makeResponse.patient_summary_text);
+
     // Ensure makeResponse is defined for the response
     if (!makeResponse) {
       console.warn("⚠️ No Make.com response received");
     }
-    
+
     res.json({
       success: true,
-      file: { 
-        id: fileId_db, 
-        status: hasImmediateResults ? "processed" : "uploaded" 
+      file: {
+        id: fileId_db,
+        status: hasImmediateResults ? "processed" : "uploaded",
       },
-      message: hasImmediateResults 
+      message: hasImmediateResults
         ? "Chunked upload finalized successfully and AI processing completed immediately!"
         : "Chunked upload finalized successfully and sent for AI processing",
       processingStatus: hasImmediateResults ? "completed" : "sent_to_make",
-      hasResults: !!hasImmediateResults
+      hasResults: !!hasImmediateResults,
     });
   } catch (error) {
     console.error("❌ Finalize chunked upload error:", error);
