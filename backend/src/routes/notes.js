@@ -271,74 +271,126 @@ router.delete("/:noteId", authenticateToken, async (req, res) => {
   }
 });
 
-// Save encrypted note (new endpoint)
+// Save encrypted note (create or update)
 router.post("/save", authenticateToken, async (req, res) => {
   try {
-    const { content, noteType, userId, conversationId, fileId } = req.body;
+    const { content, noteType, noteName, fileId, conversationId } = req.body;
+    const userId = req.user.userId;
 
-    if (!content || !noteType) {
+    if (!content || !noteType || !noteName) {
       return res.status(400).json({
         success: false,
-        message: "Content and note type are required",
+        message: "Content, note type, and note name are required",
       });
     }
 
-    // Verify user can save notes for this user
-    if (req.user.role !== "admin" && req.user.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied",
-      });
+    // Check if table exists, if not create it
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS encrypted_saved_notes (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+          note_type VARCHAR(50) NOT NULL,
+          note_name VARCHAR(200) NOT NULL,
+          encrypted_content TEXT NOT NULL,
+          encryption_iv VARCHAR(32) NOT NULL,
+          encryption_algorithm VARCHAR(20) DEFAULT 'aes-256-cbc',
+          content_hash VARCHAR(64) NOT NULL,
+          file_id INTEGER REFERENCES files(id) ON DELETE SET NULL,
+          conversation_id INTEGER REFERENCES chat_conversations(id) ON DELETE SET NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+    } catch (tableError) {
+      console.error("Table creation error:", tableError);
     }
 
-    // Encrypt the note content
-    const encrypted = encryptionUtils.encryptData(content, userId);
-    const contentHash = encryptionUtils.hashData(content);
+    // Check if note with same name already exists for this user
+    const existingNote = await pool.query(
+      `SELECT id FROM encrypted_saved_notes 
+       WHERE user_id = $1 AND note_name = $2 AND note_type = $3`,
+      [userId, noteName, noteType]
+    );
 
-    // Save to encrypted_saved_notes table
-    const savedNote = await pool.query(
-      `INSERT INTO encrypted_saved_notes 
-       (user_id, note_type, encrypted_content, encryption_iv, content_hash, file_id, conversation_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, created_at`,
-      [
+    let result;
+    if (existingNote.rows.length > 0) {
+      // Update existing note
+      const noteId = existingNote.rows[0].id;
+      const encrypted = encryptionUtils.encryptData(content, userId);
+      const contentHash = encryptionUtils.hashData(content);
+
+      result = await pool.query(
+        `UPDATE encrypted_saved_notes 
+         SET encrypted_content = $1, encryption_iv = $2, content_hash = $3, 
+             file_id = $4, conversation_id = $5, updated_at = NOW()
+         WHERE id = $6
+         RETURNING *`,
+        [
+          encrypted.encryptedData,
+          encrypted.iv,
+          contentHash,
+          fileId || null,
+          conversationId || null,
+          noteId,
+        ]
+      );
+
+      // Log data modification
+      await auditService.logDataModify(
         userId,
-        noteType,
-        encrypted.encryptedData,
-        encrypted.iv,
-        contentHash,
-        fileId || null,
-        conversationId || null,
-      ]
-    );
+        "encrypted_saved_notes",
+        noteId,
+        "update",
+        "Updated existing note",
+        noteName
+      );
+    } else {
+      // Create new note
+      const encrypted = encryptionUtils.encryptData(content, userId);
+      const contentHash = encryptionUtils.hashData(content);
 
-    // Log encryption operation
-    await auditService.logEncryption(
-      req.user.userId,
-      "encrypt",
-      "encrypted_saved_notes",
-      savedNote.rows[0].id,
-      true
-    );
+      result = await pool.query(
+        `INSERT INTO encrypted_saved_notes 
+         (user_id, note_type, note_name, encrypted_content, encryption_iv, 
+          content_hash, file_id, conversation_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [
+          userId,
+          noteType,
+          noteName,
+          encrypted.encryptedData,
+          encrypted.iv,
+          contentHash,
+          fileId || null,
+          conversationId || null,
+        ]
+      );
 
-    // Log data modification
-    await auditService.logDataModify(
-      req.user.userId,
-      "encrypted_saved_notes",
-      savedNote.rows[0].id,
-      "create",
-      null,
-      content.substring(0, 100) + "..."
-    );
+      // Log data creation
+      await auditService.logAction(
+        userId,
+        "save_note",
+        "encrypted_saved_notes",
+        result.rows[0].id,
+        { noteType, noteName, contentLength: content.length }
+      );
+    }
 
     res.json({
       success: true,
-      noteId: savedNote.rows[0].id,
-      message: "Note saved successfully",
-      timestamp: savedNote.rows[0].created_at,
+      message: existingNote.rows.length > 0 ? "Note updated successfully" : "Note saved successfully",
+      note: {
+        id: result.rows[0].id,
+        noteName: result.rows[0].note_name,
+        noteType: result.rows[0].note_type,
+        createdAt: result.rows[0].created_at,
+        updatedAt: result.rows[0].updated_at,
+      },
     });
   } catch (error) {
-    console.error("Save encrypted note error:", error);
+    console.error("Save note error:", error);
     res.status(500).json({
       success: false,
       message: "Failed to save note",

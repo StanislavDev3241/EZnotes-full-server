@@ -71,7 +71,7 @@ const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
       document.body.appendChild(textArea);
       textArea.select();
       try {
-        document.execCommand('copy');
+        document.execCommand("copy");
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } catch (fallbackErr) {

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { LogOut, Trash2, Save, Download } from "lucide-react";
+import { LogOut, Trash2, Save, Download, FileText } from "lucide-react";
 import EnhancedUpload from "./EnhancedUpload";
 import ResultsDisplay from "./ResultsDisplay";
 import ManagementPage from "./ManagementPage";
@@ -168,19 +168,23 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
   const handleEditMessage = async (messageId: string, newText: string) => {
     try {
       // Update message in local state
-      setMessages(prev => prev.map(msg => 
-        msg.id === messageId ? { ...msg, text: newText } : msg
-      ));
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, text: newText } : msg
+        )
+      );
 
       // Find the edited message and get conversation context
-      const editedMessageIndex = messages.findIndex(msg => msg.id === messageId);
+      const editedMessageIndex = messages.findIndex(
+        (msg) => msg.id === messageId
+      );
       if (editedMessageIndex !== -1) {
         // Get conversation history up to the edited message
         const conversationHistory = messages.slice(0, editedMessageIndex + 1);
-        
+
         // Send the edited message to get a new AI response
         setIsLoading(true);
-        
+
         try {
           const response = await fetch(`${API_BASE_URL}/api/chat`, {
             method: "POST",
@@ -211,12 +215,11 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
           };
 
           // Insert AI response after the edited message
-          setMessages(prev => {
+          setMessages((prev) => {
             const newMessages = [...prev];
             newMessages.splice(editedMessageIndex + 1, 0, aiMessage);
             return newMessages;
           });
-
         } catch (error) {
           console.error("Failed to get AI response for edited message:", error);
         } finally {
@@ -431,172 +434,201 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                 />
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4">
-                {messages.length === 0 ? (
-                  <div className="text-center text-gray-500 mt-20">
-                    <p className="text-lg">No messages yet</p>
-                    <p className="text-sm">
-                      Upload a file or start recording to begin chatting with AI
-                    </p>
-                  </div>
-                ) : (
-                  messages.map((message) => (
-                    <EnhancedMessage
-                      key={message.id}
-                      message={message}
-                      isOwnMessage={message.sender === "user"}
-                      onEditMessage={handleEditMessage}
-                      onDeleteMessage={handleDeleteMessage}
-                      onSaveNote={handleSaveNote}
-                      onDownloadNote={handleDownloadNote}
-                    />
-                  ))
-                )}
-                {isLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg">
-                      <p className="text-gray-500">AI is thinking...</p>
+              {/* Chat Interface */}
+              <div className="flex-1 flex flex-col">
+                {/* Current Note Context Display */}
+                {currentNote && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <FileText className="w-4 h-4 text-blue-600" />
+                        <span className="font-medium text-blue-900">Current Note Context:</span>
+                      </div>
+                      <button
+                        onClick={() => setCurrentNote(null)}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        Clear Context
+                      </button>
+                    </div>
+                    <div className="mt-2 text-sm text-blue-800">
+                      <p><strong>File:</strong> {currentNote.fileName}</p>
+                      <p><strong>Type:</strong> {currentNote.fileName.split('.').pop() || 'Unknown'}</p>
+                      {currentNote.transcription && (
+                        <p><strong>Transcription:</strong> {currentNote.transcription.substring(0, 100)}...</p>
+                      )}
                     </div>
                   </div>
                 )}
-                <div ref={messagesEndRef} />
+
+                {/* Chat Messages */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {messages.length === 0 ? (
+                    <div className="text-center text-gray-500 mt-20">
+                      <p className="text-lg">No messages yet</p>
+                      <p className="text-sm">
+                        Upload a file or start recording to begin chatting with AI
+                      </p>
+                    </div>
+                  ) : (
+                    messages.map((message) => (
+                      <EnhancedMessage
+                        key={message.id}
+                        message={message}
+                        isOwnMessage={message.sender === "user"}
+                        onEditMessage={handleEditMessage}
+                        onDeleteMessage={handleDeleteMessage}
+                        onSaveNote={handleSaveNote}
+                        onDownloadNote={handleDownloadNote}
+                      />
+                    ))
+                  )}
+                  {isLoading && (
+                    <div className="flex justify-start">
+                      <div className="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg">
+                        <p className="text-gray-500">AI is thinking...</p>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Chat Input */}
+                <div className="border-t bg-white p-4">
+                  {/* Chat Controls */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              "Are you sure you want to clear the chat?"
+                            )
+                          ) {
+                            setMessages([]);
+                            setCurrentConversationId(null);
+                          }
+                        }}
+                        className="flex items-center px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Clear Chat
+                      </button>
+                      {currentNote && (
+                        <>
+                          <button
+                            onClick={() => {
+                              const allContent = messages
+                                .filter((msg) => msg.sender === "ai")
+                                .map((msg) => msg.text)
+                                .join("\n\n---\n\n");
+                              handleSaveNote(allContent, "complete_conversation");
+                            }}
+                            className="flex items-center px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                          >
+                            <Save className="w-4 h-4 mr-1" />
+                            Save All
+                          </button>
+                          <button
+                            onClick={() => {
+                              const allContent = messages
+                                .filter((msg) => msg.sender === "ai")
+                                .map((msg) => msg.text)
+                                .join("\n\n---\n\n");
+                              handleDownloadNote(
+                                allContent,
+                                `chat_${Date.now()}.txt`
+                              );
+                            }}
+                            className="flex items-center px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors"
+                          >
+                            <Download className="w-4 h-4 mr-1" />
+                            Download All
+                          </button>
+                        </>
+                      )}
+                      {/* New Save Notes Button */}
+                      <button
+                        onClick={() => setShowSaveNotesDialog(true)}
+                        className="flex items-center px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                      >
+                        <Save className="w-4 h-4 mr-1" />
+                        Save Notes
+                      </button>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {messages.length} messages
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                    <textarea
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Ask me about the uploaded content or request improvements..."
+                      className="flex-1 resize-none border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      rows={2}
+                    />
+                    <button
+                      onClick={sendMessage}
+                      disabled={!inputMessage.trim() || isLoading}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Send
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* Chat Input */}
-              <div className="border-t bg-white p-4">
-                {/* Chat Controls */}
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => {
-                        if (
-                          window.confirm(
-                            "Are you sure you want to clear the chat?"
-                          )
-                        ) {
-                          setMessages([]);
-                          setCurrentConversationId(null);
-                        }
-                      }}
-                      className="flex items-center px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4 mr-1" />
-                      Clear Chat
-                    </button>
-                    {currentNote && (
-                      <>
-                        <button
-                          onClick={() => {
-                            const allContent = messages
-                              .filter((msg) => msg.sender === "ai")
-                              .map((msg) => msg.text)
-                              .join("\n\n---\n\n");
-                            handleSaveNote(allContent, "complete_conversation");
-                          }}
-                          className="flex items-center px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
-                        >
-                          <Save className="w-4 h-4 mr-1" />
-                          Save All
-                        </button>
-                        <button
-                          onClick={() => {
-                            const allContent = messages
-                              .filter((msg) => msg.sender === "ai")
-                              .map((msg) => msg.text)
-                              .join("\n\n---\n\n");
-                            handleDownloadNote(
-                              allContent,
-                              `chat_${Date.now()}.txt`
-                            );
-                          }}
-                          className="flex items-center px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors"
-                        >
-                          <Download className="w-4 h-4 mr-1" />
-                          Download All
-                        </button>
-                      </>
-                    )}
-                    {/* New Save Notes Button */}
-                    <button
-                      onClick={() => setShowSaveNotesDialog(true)}
-                      className="flex items-center px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                    >
-                      <Save className="w-4 h-4 mr-1" />
-                      Save Notes
-                    </button>
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {messages.length} messages
-                  </div>
-                </div>
+              {/* Notes Display - Right Side */}
+              <div className="w-full lg:w-96 bg-gray-50 border-t lg:border-l lg:border-t-0 p-4 lg:p-6 overflow-y-auto mx-2 rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Current Notes
+                </h3>
+                {currentNote ? (
+                  <div className="space-y-4">
+                    <div className="bg-white p-4 rounded-lg shadow-sm">
+                      <h4 className="font-medium text-gray-900 mb-2">
+                        File: {currentNote.fileName}
+                      </h4>
+                      <p className="text-sm text-gray-600 mb-2">
+                        <strong>Custom Prompt:</strong> {currentNote.customPrompt}
+                      </p>
+                    </div>
 
-                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-                  <textarea
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Ask me about the uploaded content or request improvements..."
-                    className="flex-1 resize-none border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    rows={2}
-                  />
-                  <button
-                    onClick={sendMessage}
-                    disabled={!inputMessage.trim() || isLoading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Send
-                  </button>
-                </div>
+                    <div className="bg-white p-4 rounded-lg shadow-sm">
+                      <h4 className="font-medium text-gray-900 mb-2">
+                        SOAP Note
+                      </h4>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                        {currentNote.notes.soapNote.substring(0, 300)}...
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-lg shadow-sm">
+                      <h4 className="font-medium text-gray-900 mb-2">
+                        Patient Summary
+                      </h4>
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                        {currentNote.notes.patientSummary.substring(0, 200)}...
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => setShowResults(true)}
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                    >
+                      View Full Results
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 mt-20">
+                    <p className="text-sm">No notes yet</p>
+                    <p className="text-xs">Upload a file to see notes here</p>
+                  </div>
+                )}
               </div>
-            </div>
-
-            {/* Notes Display - Right Side */}
-            <div className="w-full lg:w-96 bg-gray-50 border-t lg:border-l lg:border-t-0 p-4 lg:p-6 overflow-y-auto mx-2 rounded-lg">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Current Notes
-              </h3>
-              {currentNote ? (
-                <div className="space-y-4">
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h4 className="font-medium text-gray-900 mb-2">
-                      File: {currentNote.fileName}
-                    </h4>
-                    <p className="text-sm text-gray-600 mb-2">
-                      <strong>Custom Prompt:</strong> {currentNote.customPrompt}
-                    </p>
-                  </div>
-
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h4 className="font-medium text-gray-900 mb-2">
-                      SOAP Note
-                    </h4>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                      {currentNote.notes.soapNote.substring(0, 300)}...
-                    </p>
-                  </div>
-
-                  <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h4 className="font-medium text-gray-900 mb-2">
-                      Patient Summary
-                    </h4>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                      {currentNote.notes.patientSummary.substring(0, 200)}...
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() => setShowResults(true)}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                  >
-                    View Full Results
-                  </button>
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 mt-20">
-                  <p className="text-sm">No notes yet</p>
-                  <p className="text-xs">Upload a file to see notes here</p>
-                </div>
-              )}
             </div>
           </div>
         )}
@@ -709,11 +741,15 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
             <div className="flex space-x-3">
               <button
                 onClick={() => {
-                  const notesName = (document.getElementById('notesNameInput') as HTMLInputElement)?.value;
+                  const notesName = (
+                    document.getElementById(
+                      "notesNameInput"
+                    ) as HTMLInputElement
+                  )?.value;
                   if (notesName && notesName.trim()) {
                     const allContent = messages
-                      .filter(msg => msg.sender === "ai")
-                      .map(msg => msg.text)
+                      .filter((msg) => msg.sender === "ai")
+                      .map((msg) => msg.text)
                       .join("\n\n---\n\n");
                     handleSaveNote(allContent, notesName.trim());
                     setShowSaveNotesDialog(false);
