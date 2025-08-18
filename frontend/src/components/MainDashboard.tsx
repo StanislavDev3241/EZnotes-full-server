@@ -23,6 +23,8 @@ interface Message {
 
 interface UploadResult {
   fileId: string;
+  noteId: string;
+  conversationId: string;
   fileName: string;
   status: string;
   transcription: string;
@@ -30,7 +32,7 @@ interface UploadResult {
     soapNote: string;
     patientSummary: string;
   };
-  customPrompt: string;
+  customPrompt?: string;
 }
 
 interface MainDashboardProps {
@@ -73,6 +75,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
     } else {
       // No current note, set it directly
       setCurrentNote(result);
+      setCurrentConversationId(result.conversationId);
       setShowResults(true);
     }
   };
@@ -82,6 +85,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
       // Create new chat - clear current messages and set new note
       setMessages([]);
       setCurrentNote(pendingUpload);
+      setCurrentConversationId(pendingUpload?.conversationId || null);
       setShowResults(true);
     } else {
       // Continue with current chat - just show results
@@ -119,7 +123,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("userToken")}`, // Fixed: was "token", should be "userToken"
+          Authorization: `Bearer ${localStorage.getItem("userToken")}`,
         },
         body: JSON.stringify({
           message: inputMessage,
@@ -132,24 +136,36 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
         throw new Error("Failed to get AI response");
       }
 
-      const aiResponse = await response.json();
+      const result = await response.json();
 
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: aiResponse.response,
-        sender: "ai",
-        timestamp: new Date(),
-        noteContext: currentNote,
-      };
+      if (result.success) {
+        // Add AI response to messages
+        const aiMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: result.response,
+          sender: "ai",
+          timestamp: new Date(),
+          noteContext: currentNote,
+        };
 
-      setMessages((prev) => [...prev, aiMessage]);
+        setMessages((prev) => [...prev, aiMessage]);
+
+        // Update conversation ID if this is a new conversation
+        if (result.conversationId && !currentConversationId) {
+          setCurrentConversationId(result.conversationId);
+        }
+      } else {
+        throw new Error(result.message || "Failed to get AI response");
+      }
     } catch (error) {
-      console.error("Chat error:", error);
+      console.error("Failed to send message:", error);
+      // Add error message to chat
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: "Sorry, I encountered an error. Please try again.",
         sender: "ai",
         timestamp: new Date(),
+        noteContext: currentNote,
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
@@ -203,23 +219,32 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
             throw new Error("Failed to get AI response");
           }
 
-          const aiResponse = await response.json();
+          const result = await response.json();
 
-          // Add the new AI response after the edited message
-          const aiMessage: Message = {
-            id: (Date.now() + 1).toString(),
-            text: aiResponse.response,
-            sender: "ai",
-            timestamp: new Date(),
-            noteContext: currentNote,
-          };
+          if (result.success) {
+            // Add the new AI response after the edited message
+            const aiMessage: Message = {
+              id: (Date.now() + 1).toString(),
+              text: result.response,
+              sender: "ai",
+              timestamp: new Date(),
+              noteContext: currentNote,
+            };
 
-          // Insert AI response after the edited message
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            newMessages.splice(editedMessageIndex + 1, 0, aiMessage);
-            return newMessages;
-          });
+            // Insert AI response after the edited message
+            setMessages((prev) => {
+              const newMessages = [...prev];
+              newMessages.splice(editedMessageIndex + 1, 0, aiMessage);
+              return newMessages;
+            });
+
+            // Update conversation ID if this is a new conversation
+            if (result.conversationId && !currentConversationId) {
+              setCurrentConversationId(result.conversationId);
+            }
+          } else {
+            throw new Error(result.message || "Failed to get AI response");
+          }
         } catch (error) {
           console.error("Failed to get AI response for edited message:", error);
         } finally {
@@ -263,7 +288,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
         body: JSON.stringify({
           content,
           noteType,
-          noteName: noteName || noteType, // Use provided name or fallback to type
+          noteName: noteName || noteType,
           fileId: currentNote?.fileId,
           conversationId: currentConversationId,
         }),
@@ -503,7 +528,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                   {isLoading && (
                     <div className="flex justify-start">
                       <div className="bg-gray-100 text-gray-800 px-3 py-2 rounded-lg">
-                        <p className="text-gray-500 text-sm">AI is thinking...</p>
+                        <p className="text-gray-500 text-sm">
+                          AI is thinking...
+                        </p>
                       </div>
                     </div>
                   )}
@@ -615,8 +642,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                       File: {currentNote.fileName}
                     </h4>
                     <p className="text-xs sm:text-sm text-gray-600 mb-2">
-                      <strong>Custom Prompt:</strong>{" "}
-                      {currentNote.customPrompt}
+                      <strong>Custom Prompt:</strong> {currentNote.customPrompt}
                     </p>
                   </div>
 

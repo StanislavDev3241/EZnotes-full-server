@@ -56,10 +56,11 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
-// Chat with AI
+// Send chat message
 router.post("/", authenticateToken, async (req, res) => {
   try {
     const { message, noteContext, conversationHistory } = req.body;
+    const userId = req.user.userId;
 
     if (!message) {
       return res.status(400).json({
@@ -68,111 +69,92 @@ router.post("/", authenticateToken, async (req, res) => {
       });
     }
 
-    // Prepare context for AI
-    let context = {};
-    if (noteContext) {
-      context = {
-        transcription: noteContext.transcription,
-        soapNote: noteContext.notes?.soapNote,
-        patientSummary: noteContext.notes?.patientSummary,
-        customPrompt: noteContext.customPrompt,
-        fileName: noteContext.fileName,
-      };
+    // Find or create conversation
+    let conversationId = null;
+    
+    if (noteContext && noteContext.conversationId) {
+      // Use existing conversation
+      conversationId = noteContext.conversationId;
+    } else if (noteContext && noteContext.noteId) {
+      // Find conversation by note ID
+      const convResult = await pool.query(
+        `SELECT id FROM chat_conversations WHERE note_id = $1 AND user_id = $2`,
+        [noteContext.noteId, userId]
+      );
+      
+      if (convResult.rows.length > 0) {
+        conversationId = convResult.rows[0].id;
+      } else {
+        // Create new conversation for this note
+        const newConvResult = await pool.query(
+          `INSERT INTO chat_conversations (user_id, note_id, title)
+           VALUES ($1, $2, $3)
+           RETURNING id`,
+          [userId, noteContext.noteId, `Chat for ${noteContext.fileName || 'Note'}`]
+        );
+        conversationId = newConvResult.rows[0].id;
+      }
+    } else {
+      // Create new general conversation
+      const newConvResult = await pool.query(
+        `INSERT INTO chat_conversations (user_id, title)
+         VALUES ($1, $2)
+         RETURNING id`,
+        [userId, `General Chat - ${new Date().toLocaleDateString()}`]
+      );
+      conversationId = newConvResult.rows[0].id;
     }
 
-    // Format conversation history for AI
-    const formattedHistory = (conversationHistory || []).map((msg) => ({
-      role: msg.sender === "user" ? "user" : "assistant",
-      content: msg.text,
-    }));
-
-    // Get AI response with context
-    const response = await openaiService.chatWithAI(
-      formattedHistory,
-      message,
-      context
+    // Save user message to database
+    const userMessageResult = await pool.query(
+      `INSERT INTO chat_messages (conversation_id, sender_type, message_text)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+      [conversationId, "user", message]
     );
 
-    // Always save chat message to database
-    try {
-      let conversationId;
+    const userMessageId = userMessageResult.rows[0].id;
 
-      if (noteContext?.fileId) {
-        // File-specific conversation
-        const existingConversation = await pool.query(
-          "SELECT id FROM chat_conversations WHERE note_id = $1 AND user_id = $2",
-          [noteContext.fileId, req.user.userId]
-        );
+    // Generate AI response
+    const aiResponse = await openaiService.generateChatResponse(
+      message,
+      noteContext,
+      conversationHistory
+    );
 
-        if (existingConversation.rows.length > 0) {
-          conversationId = existingConversation.rows[0].id;
-        } else {
-          const newConversation = await pool.query(
-            "INSERT INTO chat_conversations (user_id, note_id, title) VALUES ($1, $2, $3) RETURNING id",
-            [
-              req.user.userId,
-              noteContext.fileId,
-              `Chat about ${noteContext.fileName}`,
-            ]
-          );
-          conversationId = newConversation.rows[0].id;
-        }
-      } else {
-        // General chat conversation (not file-specific)
-        const existingConversation = await pool.query(
-          "SELECT id FROM chat_conversations WHERE user_id = $1 AND note_id IS NULL AND title = 'General Chat'",
-          [req.user.userId]
-        );
+    // Save AI response to database
+    await pool.query(
+      `INSERT INTO chat_messages (conversation_id, sender_type, message_text, ai_response)
+       VALUES ($1, $2, $3, $4)`,
+      [conversationId, "ai", "", aiResponse]
+    );
 
-        if (existingConversation.rows.length > 0) {
-          conversationId = existingConversation.rows[0].id;
-        } else {
-          const newConversation = await pool.query(
-            "INSERT INTO chat_conversations (user_id, title) VALUES ($1, $2) RETURNING id",
-            [req.user.userId, "General Chat"]
-          );
-          conversationId = newConversation.rows[0].id;
-        }
-      }
-
-      // Save user message
+    // Update conversation title if it's generic
+    const convTitleResult = await pool.query(
+      `SELECT title FROM chat_conversations WHERE id = $1`,
+      [conversationId]
+    );
+    
+    if (convTitleResult.rows[0].title.startsWith("General Chat")) {
       await pool.query(
-        "INSERT INTO chat_messages (conversation_id, sender_type, message_text) VALUES ($1, $2, $3)",
-        [conversationId, "user", message]
+        `UPDATE chat_conversations SET title = $1 WHERE id = $2`,
+        [`Chat: ${message.substring(0, 50)}...`, conversationId]
       );
-
-      // Save AI response
-      await pool.query(
-        "INSERT INTO chat_messages (conversation_id, sender_type, message_text, ai_response) VALUES ($1, $2, $3, $4)",
-        [conversationId, "ai", "", response]
-      );
-
-      // Log chat activity
-      await auditService.logDataModify(
-        req.user.userId,
-        "chat_messages",
-        conversationId,
-        "create",
-        null,
-        message.substring(0, 100) + "..."
-      );
-
-      console.log(`💬 Chat saved to database: conversation ${conversationId}`);
-    } catch (dbError) {
-      console.error("Failed to save chat to database:", dbError);
-      // Don't fail the request if database save fails
     }
 
     res.json({
       success: true,
-      response: response,
-      timestamp: new Date().toISOString(),
+      message: "Chat message processed successfully",
+      response: aiResponse,
+      conversationId: conversationId,
+      userMessageId: userMessageId
     });
+
   } catch (error) {
-    console.error("Chat error:", error);
+    console.error("❌ Chat error:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to get AI response",
+      message: "Failed to process chat message",
       error: error.message,
     });
   }
