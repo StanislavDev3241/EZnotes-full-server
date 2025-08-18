@@ -64,7 +64,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   <Upload className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Upload audio or text transcript at the end of the patient visit
+                  Upload audio or text transcript at the end of the patient
+                  visit
                 </h3>
               </div>
 
@@ -112,7 +113,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 Speed up charting
               </h3>
               <p className="text-gray-600">
-                Stop spending hours crafting notes after a long clinic day -- just upload and go
+                Stop spending hours crafting notes after a long clinic day --
+                just upload and go
               </p>
             </div>
 
@@ -122,7 +124,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 Minimize errors
               </h3>
               <p className="text-gray-600">
-                Ensure your notes are complete, formatted correctly, and free of mistakes
+                Ensure your notes are complete, formatted correctly, and free of
+                mistakes
               </p>
             </div>
 
@@ -132,7 +135,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                 Improve patient communications
               </h3>
               <p className="text-gray-600">
-                Receive a plain-language summary script you can share with the patient
+                Receive a plain-language summary script you can share with the
+                patient
               </p>
             </div>
           </div>

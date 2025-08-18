@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { LogOut, Trash2, Save, Download, FileText } from "lucide-react";
+import { Trash2, Save, Download, FileText } from "lucide-react";
 import EnhancedUpload from "./EnhancedUpload";
 import ResultsDisplay from "./ResultsDisplay";
 import EnhancedMessage from "./EnhancedMessage";
@@ -111,11 +111,6 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
     // Reset the choice dialog
     setShowChatChoice(false);
     setPendingUpload(null);
-  };
-
-  const handleUploadError = (error: string) => {
-    console.error("Upload error:", error);
-    // You can add a toast notification here if needed
   };
 
   // Send chat message
@@ -809,8 +804,16 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    <svg
+                      className="h-5 w-5 text-blue-400"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   </div>
                   <div className="ml-3">
@@ -819,22 +822,24 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                     </h3>
                     <div className="mt-2 text-sm text-blue-700">
                       <p>
-                        Upload your transcription or audio files to generate AI-powered SOAP notes and patient summaries. 
+                        Upload your transcription or audio files to generate
+                        AI-powered SOAP notes and patient summaries.
                         <button
                           onClick={() => setActiveSection("chat")}
                           className="ml-1 font-medium underline hover:text-blue-600"
                         >
                           Sign up
                         </button>{" "}
-                        to unlock chat functionality, save notes, and access your full history.
+                        to unlock chat functionality, save notes, and access
+                        your full history.
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
             )}
-            <EnhancedUpload 
-              onUploadComplete={handleUploadComplete} 
+            <EnhancedUpload
+              onUploadComplete={handleUploadComplete}
               onError={(error) => console.error("Upload error:", error)}
             />
           </div>

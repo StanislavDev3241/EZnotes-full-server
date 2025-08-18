@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -27,6 +27,10 @@ function App() {
     import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
 
   useEffect(() => {
+    // Clear any existing tokens to ensure landing page shows first
+    localStorage.removeItem("userToken");
+    localStorage.removeItem("adminToken");
+    
     // Check if user is already logged in
     const token = localStorage.getItem("userToken");
     if (token) {
@@ -116,8 +120,8 @@ function App() {
           path="/"
           element={
             user?.role === "admin" ? (
-              <AdminPage
-                API_BASE_URL={API_BASE_URL}
+            <AdminPage
+              API_BASE_URL={API_BASE_URL}
                 onBackToMain={() => {}} // Admin doesn't need to go back to main
                 onLogout={handleLogout}
               />

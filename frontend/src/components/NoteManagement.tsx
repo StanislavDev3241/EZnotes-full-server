@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FileText, Download, Trash2, Eye, Edit, Plus } from "lucide-react";
+import { FileText, Trash2, Eye, Plus } from "lucide-react";
 
 interface SavedNote {
   id: number;
