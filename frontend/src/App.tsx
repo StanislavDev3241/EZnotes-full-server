@@ -1,42 +1,30 @@
-import { useState, useEffect } from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-  useNavigate,
-} from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./components/LoginPage";
 import MainDashboard from "./components/MainDashboard";
+import LandingPage from "./components/LandingPage";
 import AdminPage from "./components/AdminPage";
 
 interface User {
   id: number;
-  name: string;
   email: string;
-  role: "user" | "admin";
+  name: string;
+  role: string;
 }
 
 function App() {
-  // API Configuration
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showLanding, setShowLanding] = useState(true);
+
   const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
 
-  // Authentication state
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Check authentication on app load
   useEffect(() => {
+    // Check if user is already logged in
     const token = localStorage.getItem("userToken");
-    const adminToken = localStorage.getItem("adminToken");
-
     if (token) {
-      // Verify user token
       verifyUserToken(token);
-    } else if (adminToken) {
-      // Verify admin token
-      verifyAdminToken(adminToken);
     } else {
       setIsLoading(false);
     }
@@ -53,6 +41,7 @@ function App() {
       if (response.ok) {
         const userData = await response.json();
         setUser(userData.user);
+        setShowLanding(false); // Skip landing page if user is logged in
       } else {
         localStorage.removeItem("userToken");
       }
@@ -64,152 +53,64 @@ function App() {
     }
   };
 
-  const verifyAdminToken = async (token: string) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/admin/verify`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const adminData = await response.json();
-        setUser({ ...adminData.user, role: "admin" });
-      } else {
-        localStorage.removeItem("adminToken");
-      }
-    } catch (error) {
-      console.error("Admin token verification failed:", error);
-      localStorage.removeItem("adminToken");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleLogin = (token: string, userData: any) => {
-    localStorage.setItem("userToken", token);
     setUser(userData);
+    localStorage.setItem("userToken", token);
+    setShowLanding(false); // Hide landing page after login
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("userToken");
-    localStorage.removeItem("adminToken");
     setUser(null);
+    localStorage.removeItem("userToken");
+    setShowLanding(true); // Show landing page after logout
   };
 
-  // Protected Route component
-  const ProtectedRoute = ({
-    children,
-    requireAdmin = false,
-  }: {
-    children: React.ReactNode;
-    requireAdmin?: boolean;
-  }) => {
-    if (isLoading) {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading...</p>
-          </div>
-        </div>
-      );
-    }
-
-    if (!user) {
-      return <Navigate to="/login" replace />;
-    }
-
-    if (requireAdmin && user.role !== "admin") {
-      return <Navigate to="/dashboard" replace />;
-    }
-
-    return <>{children}</>;
+  const handleGetStarted = () => {
+    setShowLanding(false); // Hide landing page when user clicks "Get Started"
   };
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
         </div>
       </div>
     );
   }
 
+  // Show landing page if not logged in and landing should be shown
+  if (showLanding && !user) {
+    return <LandingPage onGetStarted={handleGetStarted} />;
+  }
+
+  // Show login page if not logged in and landing is hidden
+  if (!user) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
+  // Show main application if user is logged in
   return (
     <Router>
-      <div className="App">
-        <Routes>
-          {/* Public Routes */}
-          <Route
-            path="/login"
-            element={
-              user ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <LoginPage onLogin={handleLogin} />
-              )
-            }
-          />
-
-          {/* User Dashboard */}
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <MainDashboard user={user!} onLogout={handleLogout} />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Admin Routes */}
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute requireAdmin>
-                <AdminPageWrapper
-                  API_BASE_URL={API_BASE_URL}
-                  onLogout={handleLogout}
-                />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Default Route */}
-          <Route
-            path="/"
-            element={<Navigate to={user ? "/dashboard" : "/login"} replace />}
-          />
-
-          {/* Catch all route */}
-          <Route
-            path="*"
-            element={<Navigate to={user ? "/dashboard" : "/login"} replace />}
-          />
-        </Routes>
-      </div>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            user.role === "admin" ? (
+              <AdminPage 
+                API_BASE_URL={API_BASE_URL}
+                onBackToMain={() => {}} // Admin doesn't need to go back to main
+                onLogout={handleLogout}
+              />
+            ) : (
+              <MainDashboard user={user} onLogout={handleLogout} />
+            )
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </Router>
-  );
-}
-
-// Wrapper component to use useNavigate hook
-function AdminPageWrapper({
-  API_BASE_URL,
-  onLogout,
-}: {
-  API_BASE_URL: string;
-  onLogout: () => void;
-}) {
-  const navigate = useNavigate();
-
-  return (
-    <AdminPage
-      API_BASE_URL={API_BASE_URL}
-      onBackToMain={() => navigate("/dashboard")}
-      onLogout={onLogout}
-    />
   );
 }
 
