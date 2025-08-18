@@ -25,7 +25,9 @@ interface ResultsDisplayProps {
 }
 
 const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result, onClose }) => {
-  const [activeTab, setActiveTab] = useState<"soap" | "summary" | "transcription">("soap");
+  const [activeTab, setActiveTab] = useState<
+    "soap" | "summary" | "transcription"
+  >("soap");
   const [copied, setCopied] = useState<string | null>(null);
 
   const copyToClipboard = async (text: string, type: string) => {
@@ -56,7 +58,9 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result, onClose }) => {
         <div className="bg-white rounded-lg p-6 max-w-md w-full">
           <div className="flex items-center mb-4">
             <AlertCircle className="w-8 h-8 text-red-500 mr-3" />
-            <h2 className="text-xl font-bold text-gray-800">Processing Failed</h2>
+            <h2 className="text-xl font-bold text-gray-800">
+              Processing Failed
+            </h2>
           </div>
           <p className="text-gray-600 mb-4">
             {result.error || "An error occurred while processing your file."}
@@ -80,7 +84,9 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result, onClose }) => {
           <div className="flex items-center">
             <CheckCircle className="w-8 h-8 text-green-500 mr-3" />
             <div>
-              <h2 className="text-xl font-bold text-gray-800">AI Processing Complete</h2>
+              <h2 className="text-xl font-bold text-gray-800">
+                AI Processing Complete
+              </h2>
               <p className="text-sm text-gray-600">File ID: {result.fileId}</p>
             </div>
           </div>
@@ -136,17 +142,23 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result, onClose }) => {
           {activeTab === "soap" && result.notes?.soapNote && (
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">SOAP Note</h3>
+                <h3 className="text-lg font-semibold text-gray-800">
+                  SOAP Note
+                </h3>
                 <div className="flex space-x-2">
                   <button
-                    onClick={() => copyToClipboard(result.notes!.soapNote, "soap")}
+                    onClick={() =>
+                      copyToClipboard(result.notes!.soapNote, "soap")
+                    }
                     className="flex items-center px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
                   >
                     <Copy className="w-4 h-4 mr-1" />
                     {copied === "soap" ? "Copied!" : "Copy"}
                   </button>
                   <button
-                    onClick={() => downloadAsText(result.notes!.soapNote, "soap_note.txt")}
+                    onClick={() =>
+                      downloadAsText(result.notes!.soapNote, "soap_note.txt")
+                    }
                     className="flex items-center px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
                   >
                     <Download className="w-4 h-4 mr-1" />
@@ -163,17 +175,26 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result, onClose }) => {
           {activeTab === "summary" && result.notes?.patientSummary && (
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">Patient Summary</h3>
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Patient Summary
+                </h3>
                 <div className="flex space-x-2">
                   <button
-                    onClick={() => copyToClipboard(result.notes!.patientSummary, "summary")}
+                    onClick={() =>
+                      copyToClipboard(result.notes!.patientSummary, "summary")
+                    }
                     className="flex items-center px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
                   >
                     <Copy className="w-4 h-4 mr-1" />
                     {copied === "summary" ? "Copied!" : "Copy"}
                   </button>
                   <button
-                    onClick={() => downloadAsText(result.notes!.patientSummary, "patient_summary.txt")}
+                    onClick={() =>
+                      downloadAsText(
+                        result.notes!.patientSummary,
+                        "patient_summary.txt"
+                      )
+                    }
                     className="flex items-center px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
                   >
                     <Download className="w-4 h-4 mr-1" />
@@ -190,17 +211,23 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result, onClose }) => {
           {activeTab === "transcription" && result.transcription && (
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">Audio Transcription</h3>
+                <h3 className="text-lg font-semibold text-gray-800">
+                  Audio Transcription
+                </h3>
                 <div className="flex space-x-2">
                   <button
-                    onClick={() => copyToClipboard(result.transcription!, "transcription")}
+                    onClick={() =>
+                      copyToClipboard(result.transcription!, "transcription")
+                    }
                     className="flex items-center px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
                   >
                     <Copy className="w-4 h-4 mr-1" />
                     {copied === "transcription" ? "Copied!" : "Copy"}
                   </button>
                   <button
-                    onClick={() => downloadAsText(result.transcription!, "transcription.txt")}
+                    onClick={() =>
+                      downloadAsText(result.transcription!, "transcription.txt")
+                    }
                     className="flex items-center px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
                   >
                     <Download className="w-4 h-4 mr-1" />
@@ -234,4 +261,4 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result, onClose }) => {
   );
 };
 
-export default ResultsDisplay; 
+export default ResultsDisplay;

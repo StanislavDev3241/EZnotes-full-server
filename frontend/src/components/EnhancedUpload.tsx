@@ -46,7 +46,8 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
   const progressIntervalRef = useRef<number | null>(null);
 
   // API Configuration
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
+  const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
   const UPLOAD_ENDPOINT = `${API_BASE_URL}/api/upload`;
 
   const startProgressTimer = useCallback(() => {
@@ -106,7 +107,7 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
     try {
       const formData = new FormData();
       formData.append("file", file);
-      
+
       if (customPrompt.trim()) {
         formData.append("customPrompt", customPrompt.trim());
       }
@@ -133,7 +134,9 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
       clearInterval(progressInterval);
 
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Upload failed: ${response.status} ${response.statusText}`
+        );
       }
 
       const result: UploadResult = await response.json();
@@ -144,13 +147,12 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
 
       setUploadProgress(100);
       setUploadStatus("complete");
-      
+
       // Wait a moment to show completion
       setTimeout(() => {
         onUploadComplete(result);
         resetUpload();
       }, 1000);
-
     } catch (error) {
       console.error("Upload error:", error);
       setUploadStatus("error");
@@ -225,7 +227,8 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
           Enhanced AI Medical Note Generator
         </h2>
         <p className="text-gray-600">
-          Upload audio or text files to generate comprehensive SOAP notes and patient summaries
+          Upload audio or text files to generate comprehensive SOAP notes and
+          patient summaries
         </p>
       </div>
 
@@ -285,7 +288,7 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
           <Settings className="w-4 h-4 mr-2" />
           {showCustomPrompt ? "Hide" : "Add"} Custom Instructions
         </button>
-        
+
         {showCustomPrompt && (
           <div className="bg-gray-50 p-4 rounded-lg">
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -318,14 +321,14 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
               </span>
             )}
           </div>
-          
+
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
               className="bg-blue-600 h-2 rounded-full transition-all duration-300"
               style={{ width: `${uploadProgress}%` }}
             />
           </div>
-          
+
           <div className="flex items-center justify-center mt-2">
             {getStatusIcon()}
           </div>
@@ -350,21 +353,27 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
         <div className="p-3">
           <Mic className="w-8 h-8 text-blue-500 mx-auto mb-2" />
           <h3 className="font-medium text-gray-800">Audio Transcription</h3>
-          <p className="text-sm text-gray-600">Whisper AI for accurate audio processing</p>
+          <p className="text-sm text-gray-600">
+            Whisper AI for accurate audio processing
+          </p>
         </div>
         <div className="p-3">
           <MessageSquare className="w-8 h-8 text-green-500 mx-auto mb-2" />
           <h3 className="font-medium text-gray-800">AI Generation</h3>
-          <p className="text-sm text-gray-600">GPT-4 for comprehensive medical notes</p>
+          <p className="text-sm text-gray-600">
+            GPT-4 for comprehensive medical notes
+          </p>
         </div>
         <div className="p-3">
           <CheckCircle className="w-8 h-8 text-purple-500 mx-auto mb-2" />
           <h3 className="font-medium text-gray-800">Custom Instructions</h3>
-          <p className="text-sm text-gray-600">Tailored AI responses for your needs</p>
+          <p className="text-sm text-gray-600">
+            Tailored AI responses for your needs
+          </p>
         </div>
       </div>
     </div>
   );
 };
 
-export default EnhancedUpload; 
+export default EnhancedUpload;
