@@ -94,50 +94,71 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("userToken"); // Fixed: was "token", should be "userToken"
+      console.log("🔍 Loading data for tab:", activeTab);
+      console.log("🔍 User ID:", user.id);
+      console.log("🔍 Token:", token ? "Present" : "Missing");
 
       switch (activeTab) {
         case "chat":
+          console.log("🔍 Fetching chat history...");
           const chatResponse = await fetch(
             `${API_BASE_URL}/api/chat/history/${user.id}`,
             {
               headers: { Authorization: `Bearer ${token}` },
             }
           );
+          console.log("🔍 Chat response status:", chatResponse.status);
           if (chatResponse.ok) {
             const chatData = await chatResponse.json();
+            console.log("🔍 Chat data received:", chatData);
             setChatConversations(chatData.conversations || []);
+          } else {
+            const errorText = await chatResponse.text();
+            console.error("❌ Chat history error:", errorText);
           }
           break;
 
         case "notes":
+          console.log("🔍 Fetching notes...");
           const notesResponse = await fetch(
             `${API_BASE_URL}/api/notes/user/${user.id}`,
             {
               headers: { Authorization: `Bearer ${token}` },
             }
           );
+          console.log("🔍 Notes response status:", notesResponse.status);
           if (notesResponse.ok) {
             const notesData = await notesResponse.json();
+            console.log("🔍 Notes data received:", notesData);
             setNotes(notesData.notes || []);
+          } else {
+            const errorText = await notesResponse.text();
+            console.error("❌ Notes error:", errorText);
           }
           break;
 
         case "files":
+          console.log("🔍 Fetching files...");
           const filesResponse = await fetch(
             `${API_BASE_URL}/api/files/user/${user.id}`,
             {
               headers: { Authorization: `Bearer ${token}` },
             }
           );
+          console.log("🔍 Files response status:", filesResponse.status);
           if (filesResponse.ok) {
             const filesData = await filesResponse.json();
+            console.log("🔍 Files data received:", filesData);
             setFiles(filesData.files || []);
+          } else {
+            const errorText = await filesResponse.text();
+            console.error("❌ Files error:", errorText);
           }
           break;
       }
     } catch (error) {
-      console.error("Failed to load data:", error);
+      console.error("❌ Load data error:", error);
     } finally {
       setIsLoading(false);
     }

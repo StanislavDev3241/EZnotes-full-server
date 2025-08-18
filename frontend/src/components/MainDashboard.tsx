@@ -113,7 +113,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${localStorage.getItem("userToken")}`, // Fixed: was "token", should be "userToken"
         },
         body: JSON.stringify({
           message: inputMessage,
