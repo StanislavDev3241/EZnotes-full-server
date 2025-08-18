@@ -20,11 +20,11 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "3002:3001"
+      - "3001:3001"
     environment:
       NODE_ENV: production
       PORT: 3001
-      FRONTEND_URL: http://localhost:8081 # Updated to match new port
+      FRONTEND_URL: http://83.229.115.190:8081 # Updated to match new port
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: clearlyai_db
