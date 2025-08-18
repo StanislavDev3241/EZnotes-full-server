@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { LogOut, Trash2, Save, Download, FileText } from "lucide-react";
 import EnhancedUpload from "./EnhancedUpload";
 import ResultsDisplay from "./ResultsDisplay";
-import ManagementPage from "./ManagementPage";
 import EnhancedMessage from "./EnhancedMessage";
 import ChatHistoryManager from "./ChatHistoryManager";
+import NoteManagement from "./NoteManagement";
+import FileManagement from "./FileManagement";
 
 interface User {
   id: number;
@@ -318,25 +319,91 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
     URL.revokeObjectURL(url);
   };
 
-  const handleContinueFromHistory = (
+  const handleContinueFromHistory = async (
     conversationId: string,
     historyMessages: any[]
   ) => {
-    setCurrentConversationId(conversationId);
+    try {
+      // Load conversation details to get note context
+      const response = await fetch(
+        `${API_BASE_URL}/api/chat/conversation/${conversationId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+          },
+        }
+      );
 
-    // Convert history messages to our Message format
-    const convertedMessages = historyMessages.map((msg) => ({
-      id: msg.id.toString(),
-      text:
-        msg.sender_type === "user"
-          ? msg.message_text
-          : msg.ai_response || msg.message_text,
-      sender: msg.sender_type === "user" ? "user" : ("ai" as "user" | "ai"),
-      timestamp: new Date(msg.created_at),
-      noteContext: currentNote,
-    }));
+      if (!response.ok) {
+        throw new Error("Failed to load conversation");
+      }
 
-    setMessages(convertedMessages);
+      const conversationData = await response.json();
+      
+      // Set current conversation ID
+      setCurrentConversationId(conversationId);
+
+      // Convert history messages to our Message format
+      const convertedMessages = historyMessages.map((msg) => ({
+        id: msg.id.toString(),
+        text:
+          msg.sender_type === "user"
+            ? msg.message_text
+            : msg.ai_response || msg.message_text,
+        sender: msg.sender_type === "user" ? "user" : ("ai" as "user" | "ai"),
+        timestamp: new Date(msg.created_at),
+        noteContext: currentNote,
+      }));
+
+      setMessages(convertedMessages);
+
+      // If we have a note ID from the conversation, load the note context
+      if (conversationData.note_id) {
+        await loadNoteContext(conversationData.note_id);
+      }
+
+      // Switch to chat section
+      setActiveSection("chat");
+    } catch (error) {
+      console.error("Failed to continue from history:", error);
+      alert("Failed to load conversation history. Please try again.");
+    }
+  };
+
+  // Load note context for a conversation
+  const loadNoteContext = async (noteId: number) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/notes/${noteId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const noteData = await response.json();
+        
+        // Create a note context object that matches our UploadResult interface
+        const noteContext = {
+          fileId: noteData.file_id?.toString() || "",
+          noteId: noteData.id?.toString() || "",
+          conversationId: currentConversationId || "",
+          fileName: `Note ${noteData.id}`,
+          status: "completed",
+          transcription: noteData.content || "",
+          notes: {
+            soapNote: noteData.content || "",
+            patientSummary: noteData.content || "",
+          },
+        };
+
+        setCurrentNote(noteContext);
+      }
+    } catch (error) {
+      console.error("Failed to load note context:", error);
+    }
   };
 
   const handleSaveHistoryPoint = async (name: string, messages: any[]) => {
@@ -386,6 +453,29 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
     } catch (error) {
       console.error("Failed to delete chat point:", error);
       alert("Failed to delete chat point. Please try again.");
+    }
+  };
+
+  const loadFileNotes = async (fileId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/notes/file/${fileId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to load file notes");
+      }
+
+      const notes = await response.json();
+      // Assuming notes is an array of { id, name, content, type, fileId, conversationId }
+      // For now, we'll just log it or update state if needed
+      console.log("Loaded notes for file:", notes);
+      // Example: setCurrentNote(notes[0]); // If you want to display a specific note
+    } catch (error) {
+      console.error("Failed to load file notes:", error);
+      alert("Failed to load file notes. Please try again.");
     }
   };
 
@@ -697,11 +787,51 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
 
         {activeSection === "management" && (
           <div className="mx-2">
-            <ManagementPage
-              user={user}
-              onBackToMain={() => setActiveSection("chat")}
-              onLogout={onLogout}
-            />
+            <div className="max-w-6xl mx-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl lg:text-2xl font-bold text-gray-900">
+                  Management & History
+                </h2>
+                <button
+                  onClick={() => setActiveSection("chat")}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  ← Back to Chat
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Left Column - Note Management */}
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <NoteManagement
+                    userId={user.id}
+                    onSelectNote={(note) => {
+                      // Handle note selection
+                      console.log("Selected note:", note);
+                    }}
+                    onLoadConversation={(conversationId) => {
+                      // Load conversation and sync current notes
+                      handleContinueFromHistory(conversationId.toString(), []);
+                    }}
+                  />
+                </div>
+                
+                {/* Right Column - File Management */}
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <FileManagement
+                    userId={user.id}
+                    onSelectFile={(file) => {
+                      // Handle file selection
+                      console.log("Selected file:", file);
+                    }}
+                    onLoadFileNotes={(fileId) => {
+                      // Load notes for this file
+                      loadFileNotes(fileId.toString());
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -55,7 +55,7 @@ const processFileWithOpenAI = async (fileInfo, userId = null) => {
         fileInfo.fileType,
         userId,
         transcription,
-        "processed"
+        "processed",
       ]
     );
 
@@ -64,10 +64,14 @@ const processFileWithOpenAI = async (fileInfo, userId = null) => {
 
     // Generate notes using OpenAI
     const customPrompt = await getCustomPrompt(userId);
-    const notesResponse = await openaiService.generateNotes(transcription, customPrompt);
-    
+    const notesResponse = await openaiService.generateNotes(
+      transcription,
+      customPrompt
+    );
+
     // Parse the notes response
-    const soapNote = notesResponse.soapNote || notesResponse.content || notesResponse;
+    const soapNote =
+      notesResponse.soapNote || notesResponse.content || notesResponse;
     const patientSummary = notesResponse.patientSummary || "";
 
     // Save notes to database
@@ -82,7 +86,7 @@ const processFileWithOpenAI = async (fileInfo, userId = null) => {
         soapNote,
         customPrompt,
         process.env.OPENAI_MODEL || "gpt-4o",
-        "generated"
+        "generated",
       ]
     );
 
@@ -94,11 +98,7 @@ const processFileWithOpenAI = async (fileInfo, userId = null) => {
       `INSERT INTO chat_conversations (user_id, note_id, title)
        VALUES ($1, $2, $3)
        RETURNING id`,
-      [
-        userId,
-        noteId,
-        `Chat for ${fileInfo.originalName}`
-      ]
+      [userId, noteId, `Chat for ${fileInfo.originalName}`]
     );
 
     const conversationId = conversationResult.rows[0].id;
@@ -108,21 +108,15 @@ const processFileWithOpenAI = async (fileInfo, userId = null) => {
     await pool.query(
       `INSERT INTO chat_messages (conversation_id, sender_type, message_text, ai_response)
        VALUES ($1, $2, $3, $4)`,
-      [
-        conversationId,
-        "ai",
-        "Initial note generation",
-        soapNote
-      ]
+      [conversationId, "ai", "Initial note generation", soapNote]
     );
 
     console.log(`✅ Initial chat message saved`);
 
     // Update file status
-    await pool.query(
-      `UPDATE files SET status = 'completed' WHERE id = $1`,
-      [fileId]
-    );
+    await pool.query(`UPDATE files SET status = 'completed' WHERE id = $1`, [
+      fileId,
+    ]);
 
     return {
       fileId,
@@ -131,11 +125,10 @@ const processFileWithOpenAI = async (fileInfo, userId = null) => {
       transcription,
       notes: {
         soapNote,
-        patientSummary
+        patientSummary,
       },
-      status: "completed"
+      status: "completed",
     };
-
   } catch (error) {
     console.error("❌ Error processing file with OpenAI:", error);
     throw error;
@@ -251,10 +244,7 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
 
     // Process file with OpenAI
     try {
-      const processingResult = await processFileWithOpenAI(
-        fileInfo,
-        userId
-      );
+      const processingResult = await processFileWithOpenAI(fileInfo, userId);
 
       // Return the complete result with database IDs
       res.json({
@@ -267,19 +257,17 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
           fileName: fileInfo.originalName,
           transcription: processingResult.transcription,
           notes: processingResult.notes,
-          status: processingResult.status
-        }
+          status: processingResult.status,
+        },
       });
-
     } catch (error) {
       console.error("❌ File processing error:", error);
-      
+
       // Update file status to failed
       if (fileId) {
-        await pool.query(
-          `UPDATE files SET status = 'failed' WHERE id = $1`,
-          [fileId]
-        );
+        await pool.query(`UPDATE files SET status = 'failed' WHERE id = $1`, [
+          fileId,
+        ]);
       }
 
       res.status(500).json({

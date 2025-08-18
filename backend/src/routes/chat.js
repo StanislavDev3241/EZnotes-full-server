@@ -71,7 +71,7 @@ router.post("/", authenticateToken, async (req, res) => {
 
     // Find or create conversation
     let conversationId = null;
-    
+
     if (noteContext && noteContext.conversationId) {
       // Use existing conversation
       conversationId = noteContext.conversationId;
@@ -81,7 +81,7 @@ router.post("/", authenticateToken, async (req, res) => {
         `SELECT id FROM chat_conversations WHERE note_id = $1 AND user_id = $2`,
         [noteContext.noteId, userId]
       );
-      
+
       if (convResult.rows.length > 0) {
         conversationId = convResult.rows[0].id;
       } else {
@@ -90,7 +90,11 @@ router.post("/", authenticateToken, async (req, res) => {
           `INSERT INTO chat_conversations (user_id, note_id, title)
            VALUES ($1, $2, $3)
            RETURNING id`,
-          [userId, noteContext.noteId, `Chat for ${noteContext.fileName || 'Note'}`]
+          [
+            userId,
+            noteContext.noteId,
+            `Chat for ${noteContext.fileName || "Note"}`,
+          ]
         );
         conversationId = newConvResult.rows[0].id;
       }
@@ -134,7 +138,7 @@ router.post("/", authenticateToken, async (req, res) => {
       `SELECT title FROM chat_conversations WHERE id = $1`,
       [conversationId]
     );
-    
+
     if (convTitleResult.rows[0].title.startsWith("General Chat")) {
       await pool.query(
         `UPDATE chat_conversations SET title = $1 WHERE id = $2`,
@@ -147,9 +151,8 @@ router.post("/", authenticateToken, async (req, res) => {
       message: "Chat message processed successfully",
       response: aiResponse,
       conversationId: conversationId,
-      userMessageId: userMessageId
+      userMessageId: userMessageId,
     });
-
   } catch (error) {
     console.error("❌ Chat error:", error);
     res.status(500).json({
