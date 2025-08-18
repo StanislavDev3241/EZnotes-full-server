@@ -22,9 +22,14 @@ interface ResultsDisplayProps {
     error?: string;
   };
   onClose: () => void;
+  onNextToChat?: () => void; // Add callback for chat navigation
 }
 
-const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result, onClose }) => {
+const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ 
+  result, 
+  onClose, 
+  onNextToChat 
+}) => {
   const [activeTab, setActiveTab] = useState<
     "soap" | "summary" | "transcription"
   >("soap");
@@ -248,12 +253,23 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result, onClose }) => {
             <p className="text-sm text-gray-600">
               Generated with OpenAI GPT-4 and Whisper AI
             </p>
-            <button
-              onClick={onClose}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Close
-            </button>
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-3 mt-6">
+              {onNextToChat && (
+                <button
+                  onClick={onNextToChat}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                >
+                  Next to Chat
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       </div>

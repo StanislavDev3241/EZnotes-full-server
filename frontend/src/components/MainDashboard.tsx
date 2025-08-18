@@ -371,6 +371,21 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
         <ResultsDisplay
           result={currentNote}
           onClose={() => setShowResults(false)}
+          onNextToChat={() => {
+            setShowResults(false);
+            setActiveSection("chat");
+            // Add the AI's clarification question as the first message
+            if (currentNote.notes?.soapNote) {
+              const aiMessage: Message = {
+                id: Date.now().toString(),
+                text: currentNote.notes.soapNote,
+                sender: "ai",
+                timestamp: new Date(),
+                noteContext: currentNote,
+              };
+              setMessages([aiMessage]);
+            }
+          }}
         />
       )}
 
