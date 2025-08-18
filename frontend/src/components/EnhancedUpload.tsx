@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback } from "react";
-import { Upload, Mic, X, CheckCircle, Loader2 } from "lucide-react";
+import { Upload, Mic, X, CheckCircle, Loader2, AlertCircle } from "lucide-react";
 
 interface EnhancedUploadProps {
   onUploadComplete: (data: any) => void;
@@ -17,7 +17,9 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
   onError,
 }) => {
   const [file, setFile] = useState<File | null>(null);
-  const [customPrompt, setCustomPrompt] = useState("");
+  const [customPrompt, setCustomPrompt] = useState(
+    "Generate a comprehensive dental SOAP note with proper formatting, including Subjective, Objective, Assessment, and Plan sections. Focus on dental-specific terminology and ensure all required details are captured."
+  );
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({
     stage: "uploading",
@@ -27,6 +29,7 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -35,6 +38,11 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
   const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
 
+  // Clear local error when user starts new action
+  const clearLocalError = () => {
+    setLocalError(null);
+  };
+
   // File handling
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -42,6 +50,7 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
       setFile(selectedFile);
       setAudioBlob(null);
       setRecordingTime(0);
+      clearLocalError();
     }
   };
 
@@ -52,6 +61,7 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
       setFile(droppedFile);
       setAudioBlob(null);
       setRecordingTime(0);
+      clearLocalError();
     }
   }, []);
 
@@ -82,15 +92,16 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
       mediaRecorderRef.current = mediaRecorder;
       setIsRecording(true);
       setRecordingTime(0);
+      clearLocalError();
 
       // Start timer
       recordingIntervalRef.current = window.setInterval(() => {
         setRecordingTime((prev) => prev + 1);
       }, 1000);
     } catch (error) {
-      onError(
-        "Failed to start recording. Please check microphone permissions."
-      );
+      const errorMsg = "Failed to start recording. Please check microphone permissions.";
+      setLocalError(errorMsg);
+      onError(errorMsg);
     }
   };
 
@@ -107,11 +118,13 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
   // Upload processing
   const processUpload = async () => {
     if (!file && !audioBlob) {
-      onError("Please select a file or record audio first.");
+      const errorMsg = "Please select a file or record audio first.";
+      setLocalError(errorMsg);
       return;
     }
 
     setIsUploading(true);
+    setLocalError(null);
     setUploadProgress({
       stage: "uploading",
       message: "Uploading file...",
@@ -184,14 +197,19 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
       // Reset form
       setFile(null);
       setAudioBlob(null);
-      setCustomPrompt("");
+      setCustomPrompt(
+        "Generate a comprehensive dental SOAP note with proper formatting, including Subjective, Objective, Assessment, and Plan sections. Focus on dental-specific terminology and ensure all required details are captured."
+      );
       setRecordingTime(0);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+
     } catch (error) {
       console.error("Upload error:", error);
-      onError(error instanceof Error ? error.message : "Upload failed");
+      const errorMsg = error instanceof Error ? error.message : "Upload failed";
+      setLocalError(errorMsg);
+      // Don't call onError here - keep error local to upload page
     } finally {
       setIsUploading(false);
       setUploadProgress({
@@ -214,33 +232,50 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
     setFile(null);
     setAudioBlob(null);
     setRecordingTime(0);
+    clearLocalError();
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Error Display - Local to upload page */}
+      {localError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <AlertCircle className="w-5 h-5 text-red-400 mr-2" />
+            <div className="text-sm text-red-800">
+              <p className="font-medium">Upload Error</p>
+              <p>{localError}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Custom Prompt Input */}
       <div className="space-y-2">
         <label className="block text-sm font-medium text-gray-700">
-          Custom Instructions (Optional)
+          Custom Instructions
         </label>
         <textarea
           value={customPrompt}
           onChange={(e) => setCustomPrompt(e.target.value)}
-          placeholder="Enter custom instructions for note generation (e.g., 'Focus on anesthetic details and procedure steps')"
+          placeholder="Enter custom instructions for note generation..."
           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          rows={3}
+          rows={4}
         />
+        <p className="text-xs text-gray-500">
+          These instructions will guide the AI in generating your dental SOAP notes.
+        </p>
       </div>
 
       {/* File Upload Section */}
       <div className="space-y-4">
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
           >
             <Upload className="w-4 h-4" />
             <span>Choose File</span>
@@ -273,7 +308,7 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
               </p>
               <button
                 onClick={removeFile}
-                className="text-red-600 hover:text-red-800 text-sm"
+                className="text-red-600 hover:text-red-800 text-sm transition-colors"
               >
                 Remove
               </button>
@@ -294,10 +329,10 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
 
       {/* Audio Recording Section */}
       <div className="space-y-4">
-        <div className="flex items-center space-x-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
           <button
             onClick={isRecording ? stopRecording : startRecording}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
               isRecording
                 ? "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500"
                 : "bg-green-600 text-white hover:bg-green-700 focus:ring-green-500"
@@ -327,7 +362,7 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
       <button
         onClick={processUpload}
         disabled={isUploading || (!file && !audioBlob)}
-        className={`w-full py-3 px-4 rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+        className={`w-full py-3 px-4 rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
           isUploading || (!file && !audioBlob)
             ? "bg-gray-300 text-gray-500 cursor-not-allowed"
             : "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500"

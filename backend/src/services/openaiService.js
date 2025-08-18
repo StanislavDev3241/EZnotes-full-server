@@ -37,7 +37,9 @@ class OpenAIService {
         `🤖 Generating notes with custom prompt for ${transcription.length} characters`
       );
 
-      const systemPrompt = customPrompt.systemPrompt || `SOAP note generator update; SYSTEM PROMPT — Dental SOAP Note Generator (Compact, <8k)
+      const systemPrompt =
+        customPrompt.systemPrompt ||
+        `SOAP note generator update; SYSTEM PROMPT — Dental SOAP Note Generator (Compact, <8k)
 
 ROLE
 You are a clinical documentation assistant for dental professionals. From a transcribed dictation, you will produce a structured SOAP note. You are category‑aware, anesthesia‑aware, and compliance‑safe.
@@ -99,7 +101,9 @@ COMPLIANCE GUARDRAILS
 
 END.`;
 
-      const userPrompt = customPrompt.userPrompt || `Based on the following dental transcript, generate a comprehensive SOAP note following the system prompt guidelines.
+      const userPrompt =
+        customPrompt.userPrompt ||
+        `Based on the following dental transcript, generate a comprehensive SOAP note following the system prompt guidelines.
 
 Dental Transcript:
 ${transcription}
@@ -152,18 +156,30 @@ Your role:
       // Add note context if available
       if (noteContext && Object.keys(noteContext).length > 0) {
         systemContent += `\n\nCurrent note context:
-- File: ${noteContext.fileName || 'Unknown'}
-- Custom Instructions: ${noteContext.customPrompt || 'Default'}
-- Transcription: ${noteContext.transcription ? noteContext.transcription.substring(0, 500) + '...' : 'Not available'}
-- SOAP Note: ${noteContext.soapNote ? noteContext.soapNote.substring(0, 500) + '...' : 'Not available'}
-- Patient Summary: ${noteContext.patientSummary ? noteContext.patientSummary.substring(0, 300) + '...' : 'Not available'}`;
+- File: ${noteContext.fileName || "Unknown"}
+- Custom Instructions: ${noteContext.customPrompt || "Default"}
+- Transcription: ${
+          noteContext.transcription
+            ? noteContext.transcription.substring(0, 500) + "..."
+            : "Not available"
+        }
+- SOAP Note: ${
+          noteContext.soapNote
+            ? noteContext.soapNote.substring(0, 500) + "..."
+            : "Not available"
+        }
+- Patient Summary: ${
+          noteContext.patientSummary
+            ? noteContext.patientSummary.substring(0, 300) + "..."
+            : "Not available"
+        }`;
       }
 
       const messages = [
         {
           role: "system",
           content: systemContent,
-        }
+        },
       ];
 
       // Add conversation history if available

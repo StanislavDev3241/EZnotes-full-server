@@ -218,10 +218,10 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
         {activeSection === "chat" && (
-          <div className="flex h-full">
+          <div className="flex flex-col lg:flex-row h-full">
             {/* Chat Interface - Left Side */}
             <div className="flex-1 flex flex-col bg-white">
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4">
                 {messages.length === 0 ? (
                   <div className="text-center text-gray-500 mt-20">
                     <p className="text-lg">No messages yet</p>
@@ -246,7 +246,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                             : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        <p className="whitespace-pre-wrap">{message.text}</p>
+                        <p className="whitespace-pre-wrap text-sm lg:text-base">
+                          {message.text}
+                        </p>
                         <p className="text-xs opacity-70 mt-1">
                           {message.timestamp.toLocaleTimeString()}
                         </p>
@@ -266,7 +268,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
 
               {/* Chat Input */}
               <div className="border-t bg-white p-4">
-                <div className="flex space-x-2">
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                   <textarea
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
@@ -278,7 +280,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                   <button
                     onClick={sendMessage}
                     disabled={!inputMessage.trim() || isLoading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     Send
                   </button>
@@ -287,7 +289,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
             </div>
 
             {/* Notes Display - Right Side */}
-            <div className="w-96 bg-gray-50 border-l p-6 overflow-y-auto">
+            <div className="w-full lg:w-96 bg-gray-50 border-t lg:border-l lg:border-t-0 p-4 lg:p-6 overflow-y-auto">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Current Notes
               </h3>
@@ -303,9 +305,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                   </div>
 
                   <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h4 className="font-medium text-gray-900 mb-2">
-                      SOAP Note
-                    </h4>
+                    <h4 className="font-medium text-gray-900 mb-2">SOAP Note</h4>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap">
                       {currentNote.notes.soapNote.substring(0, 300)}...
                     </p>
@@ -322,7 +322,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
 
                   <button
                     onClick={() => setShowResults(true)}
-                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
                   >
                     View Full Results
                   </button>
@@ -338,9 +338,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
         )}
 
         {activeSection === "upload" && (
-          <div className="p-6">
+          <div className="p-4 lg:p-6">
             <div className="max-w-4xl mx-auto">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              <h2 className="text-xl lg:text-2xl font-bold text-gray-900 mb-6">
                 Upload & Record
               </h2>
               <EnhancedUpload
