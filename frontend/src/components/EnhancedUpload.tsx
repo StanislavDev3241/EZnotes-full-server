@@ -1,11 +1,5 @@
 import React, { useState, useRef, useCallback } from "react";
-import {
-  Upload,
-  Mic,
-  X,
-  CheckCircle,
-  Loader2,
-} from "lucide-react";
+import { Upload, Mic, X, CheckCircle, Loader2 } from "lucide-react";
 
 interface EnhancedUploadProps {
   onUploadComplete: (data: any) => void;
