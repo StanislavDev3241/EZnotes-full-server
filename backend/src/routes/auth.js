@@ -1,151 +1,360 @@
 const express = require("express");
-const bcrypt = require("bcryptjs");
+const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { body, validationResult } = require("express-validator");
 const { pool } = require("../config/database");
-const { createRateLimiter } = require("../middleware/auth");
 
 const router = express.Router();
 
-// Rate limiting for auth endpoints
-const authRateLimiter = createRateLimiter(15 * 60 * 1000, 5); // 5 attempts per 15 minutes
-
-// Validation middleware
-const validateLogin = [
-  body("email").isEmail().normalizeEmail(),
-  body("password").isLength({ min: 6 }),
-];
-
-// Login endpoint
-router.post("/login", authRateLimiter, validateLogin, async (req, res) => {
+// User Registration
+router.post("/register", async (req, res) => {
   try {
-    // Check validation errors
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
+    const { name, email, password } = req.body;
+
+    // Validate input
+    if (!name || !email || !password) {
       return res.status(400).json({
-        error: "Validation error",
-        details: errors.array(),
+        success: false,
+        message: "Name, email, and password are required",
       });
     }
 
-    const { email, password } = req.body;
-
-    // Find user by email
-    const userResult = await pool.query(
-      "SELECT id, email, password_hash, role FROM users WHERE email = $1",
+    // Check if user already exists
+    const existingUser = await pool.query(
+      "SELECT id FROM users WHERE email = $1",
       [email]
     );
 
-    if (userResult.rows.length === 0) {
-      return res.status(401).json({ error: "Invalid credentials" });
+    if (existingUser.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "User with this email already exists",
+      });
     }
 
-    const user = userResult.rows[0];
+    // Hash password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Create user
+    const newUser = await pool.query(
+      `INSERT INTO users (name, email, password_hash, role, is_active, created_at) 
+       VALUES ($1, $2, $3, 'user', true, NOW()) 
+       RETURNING id, name, email, role, created_at`,
+      [name, email, hashedPassword]
+    );
+
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        userId: newUser.rows[0].id,
+        email: newUser.rows[0].email,
+        role: newUser.rows[0].role,
+      },
+      process.env.JWT_SECRET || "your-secret-key",
+      { expiresIn: "24h" }
+    );
+
+    res.json({
+      success: true,
+      message: "User registered successfully",
+      token,
+      user: {
+        id: newUser.rows[0].id,
+        name: newUser.rows[0].name,
+        email: newUser.rows[0].email,
+        role: newUser.rows[0].role,
+      },
+    });
+  } catch (error) {
+    console.error("Registration error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+});
+
+// User Login
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
+    }
+
+    // Find user
+    const user = await pool.query(
+      "SELECT id, name, email, password_hash, role, is_active FROM users WHERE email = $1",
+      [email]
+    );
+
+    if (user.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    const userData = user.rows[0];
+
+    // Check if user is active
+    if (!userData.is_active) {
+      return res.status(401).json({
+        success: false,
+        message: "Account is deactivated",
+      });
+    }
 
     // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    const isValidPassword = await bcrypt.compare(
+      password,
+      userData.password_hash
+    );
     if (!isValidPassword) {
-      return res.status(401).json({ error: "Invalid credentials" });
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password",
+      });
     }
 
     // Generate JWT token
     const token = jwt.sign(
       {
-        userId: user.id,
-        email: user.email,
-        role: user.role,
+        userId: userData.id,
+        email: userData.email,
+        role: userData.role,
       },
-      process.env.JWT_SECRET || "your_super_secret_jwt_key_here",
-      { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
+      process.env.JWT_SECRET || "your-secret-key",
+      { expiresIn: "24h" }
     );
 
-    // Update last login
-    await pool.query(
-      "UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE id = $1",
-      [user.id]
-    );
-
-    // Return user info and token
     res.json({
+      success: true,
       message: "Login successful",
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
       token,
+      user: {
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+      },
     });
   } catch (error) {
     console.error("Login error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Verify token endpoint
-router.get("/verify", async (req, res) => {
-  try {
-    const authHeader = req.headers["authorization"];
-    const token = authHeader && authHeader.split(" ")[1];
-
-    if (!token) {
-      return res.status(401).json({ error: "No token provided" });
-    }
-
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "your_super_secret_jwt_key_here"
-    );
-
-    // Get updated user info
-    const userResult = await pool.query(
-      "SELECT id, email, role, created_at FROM users WHERE id = $1",
-      [decoded.userId]
-    );
-
-    if (userResult.rows.length === 0) {
-      return res.status(401).json({ error: "Invalid token" });
-    }
-
-    res.json({
-      valid: true,
-      user: userResult.rows[0],
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
     });
-  } catch (error) {
-    if (error.name === "TokenExpiredError") {
-      return res.status(401).json({ error: "Token expired" });
-    }
-    res.status(401).json({ error: "Invalid token" });
   }
 });
 
-// Change password endpoint (admin only)
-router.post("/change-password", validateLogin, async (req, res) => {
+// Admin Login
+router.post("/admin/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Update password
-    const result = await pool.query(
-      "UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE email = $2 RETURNING id",
-      [hashedPassword, email]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "User not found" });
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required",
+      });
     }
 
-    res.json({ message: "Password updated successfully" });
+    // Find admin user
+    const admin = await pool.query(
+      "SELECT id, name, email, password_hash, role, is_active FROM users WHERE email = $1 AND role = $2",
+      [email, "admin"]
+    );
+
+    if (admin.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid admin credentials",
+      });
+    }
+
+    const adminData = admin.rows[0];
+
+    // Check if admin is active
+    if (!adminData.is_active) {
+      return res.status(401).json({
+        success: false,
+        message: "Admin account is deactivated",
+      });
+    }
+
+    // Verify password
+    const isValidPassword = await bcrypt.compare(
+      password,
+      adminData.password_hash
+    );
+    if (!isValidPassword) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid admin credentials",
+      });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        userId: adminData.id,
+        email: adminData.email,
+        role: adminData.role,
+      },
+      process.env.JWT_SECRET || "your-secret-key",
+      { expiresIn: "24h" }
+    );
+
+    res.json({
+      success: true,
+      message: "Admin login successful",
+      token,
+      user: {
+        id: adminData.id,
+        name: adminData.name,
+        email: adminData.email,
+        role: adminData.role,
+      },
+    });
   } catch (error) {
-    console.error("Password change error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Admin login error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
   }
 });
 
-// Logout endpoint (client-side token removal)
-router.post("/logout", (req, res) => {
-  res.json({ message: "Logout successful" });
+// Verify User Token
+router.get("/verify", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        message: "No token provided",
+      });
+    }
+
+    const token = authHeader.substring(7);
+
+    // Verify token
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "your-secret-key"
+    );
+
+    // Get user data
+    const user = await pool.query(
+      "SELECT id, name, email, role, is_active FROM users WHERE id = $1",
+      [decoded.userId]
+    );
+
+    if (user.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const userData = user.rows[0];
+
+    if (!userData.is_active) {
+      return res.status(401).json({
+        success: false,
+        message: "Account is deactivated",
+      });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+      },
+    });
+  } catch (error) {
+    console.error("Token verification error:", error);
+    res.status(401).json({
+      success: false,
+      message: "Invalid token",
+    });
+  }
+});
+
+// Verify Admin Token
+router.get("/admin/verify", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        message: "No token provided",
+      });
+    }
+
+    const token = authHeader.substring(7);
+
+    // Verify token
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "your-secret-key"
+    );
+
+    if (decoded.role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Admin access required",
+      });
+    }
+
+    // Get admin data
+    const admin = await pool.query(
+      "SELECT id, name, email, role, is_active FROM users WHERE id = $1 AND role = $2",
+      [decoded.userId, "admin"]
+    );
+
+    if (admin.rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: "Admin not found",
+      });
+    }
+
+    const adminData = admin.rows[0];
+
+    if (!adminData.is_active) {
+      return res.status(401).json({
+        success: false,
+        message: "Admin account is deactivated",
+      });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: adminData.id,
+        name: adminData.name,
+        email: adminData.email,
+        role: adminData.role,
+      },
+    });
+  } catch (error) {
+    console.error("Admin token verification error:", error);
+    res.status(401).json({
+      success: false,
+      message: "Invalid admin token",
+    });
+  }
 });
 
 module.exports = router;
