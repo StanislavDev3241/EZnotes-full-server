@@ -1,13 +1,10 @@
 import React, { useState, useRef, useCallback } from "react";
 import {
   Upload,
-  FileText,
   Mic,
   X,
   CheckCircle,
-  AlertCircle,
   Loader2,
-  Settings,
 } from "lucide-react";
 
 interface EnhancedUploadProps {

@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from "react";
-import {
-  MessageSquare,
-  FileText,
-  Mic,
-  Clock,
-  Download,
-  Trash2,
+import { 
+  MessageSquare, 
+  FileText, 
+  Mic, 
+  Clock, 
+  Download, 
   Eye,
   Search,
-  Filter,
   Calendar,
-  User,
+  User
 } from "lucide-react";
 
 interface User {

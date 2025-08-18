@@ -11,7 +11,7 @@ import MainDashboard from "./components/MainDashboard";
 import AdminPage from "./components/AdminPage";
 
 interface User {
-  id: string;
+  id: number;
   name: string;
   email: string;
   role: "user" | "admin";
