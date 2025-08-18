@@ -1,18 +1,33 @@
 import { useState, useRef, useEffect } from "react";
 import { LogOut } from "lucide-react";
+import EnhancedUpload from "./EnhancedUpload";
+import ResultsDisplay from "./ResultsDisplay";
 
 interface User {
-  id: string;
+  id: number;
   name: string;
   email: string;
-  role: "user" | "admin";
+  role: string;
 }
 
 interface Message {
   id: string;
-  content: string;
-  role: "user" | "assistant";
+  text: string;
+  sender: "user" | "ai";
   timestamp: Date;
+  noteContext?: any;
+}
+
+interface UploadResult {
+  fileId: string;
+  fileName: string;
+  status: string;
+  transcription: string;
+  notes: {
+    soapNote: string;
+    patientSummary: string;
+  };
+  customPrompt: string;
 }
 
 interface MainDashboardProps {
@@ -21,347 +36,289 @@ interface MainDashboardProps {
 }
 
 const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
-  const [activeSection, setActiveSection] = useState<
-    "chat" | "upload" | "recording"
-  >("chat");
+  const [activeSection, setActiveSection] = useState<"chat" | "upload" | "recording">("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [file, setFile] = useState<File | null>(null);
+  const [currentNote, setCurrentNote] = useState<UploadResult | null>(null);
+  const [showResults, setShowResults] = useState(false);
 
-  const mediaRecorder = useRef<MediaRecorder | null>(null);
-  const audioChunks = useRef<Blob[]>([]);
-  const recordingInterval = useRef<number>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
 
-  const API_BASE_URL =
-    import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
-
+  // Auto-scroll to bottom of chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  useEffect(() => {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices
-        .getUserMedia({ audio: true })
-        .then((stream) => {
-          const recorder = new MediaRecorder(stream);
-          mediaRecorder.current = recorder;
-        })
-        .catch((err) => {
-          console.error("Error accessing microphone:", err);
-        });
-    }
-
-    return () => {
-      if (recordingInterval.current) {
-        clearInterval(recordingInterval.current);
-      }
+  // Handle upload completion
+  const handleUploadComplete = (result: UploadResult) => {
+    setCurrentNote(result);
+    setShowResults(true);
+    
+    // Add initial AI message about the uploaded content
+    const aiMessage: Message = {
+      id: Date.now().toString(),
+      text: `I've processed your ${result.fileName} file. Here's what I found:\n\n**Transcription:** ${result.transcription.substring(0, 200)}...\n\n**Generated Notes:** ${result.notes.soapNote.substring(0, 200)}...\n\nYou can now ask me questions about this content or request improvements to the notes.`,
+      sender: "ai",
+      timestamp: new Date(),
+      noteContext: result
     };
-  }, []);
+    
+    setMessages(prev => [...prev, aiMessage]);
+    setActiveSection("chat");
+  };
 
-  const sendMessage = async (content: string) => {
-    if (!content.trim()) return;
+  const handleUploadError = (error: string) => {
+    const errorMessage: Message = {
+      id: Date.now().toString(),
+      text: `Upload failed: ${error}`,
+      sender: "ai",
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, errorMessage]);
+    setActiveSection("chat");
+  };
+
+  // Send chat message
+  const sendMessage = async () => {
+    if (!inputMessage.trim() || isLoading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      content: content.trim(),
-      role: "user",
-      timestamp: new Date(),
+      text: inputMessage,
+      sender: "user",
+      timestamp: new Date()
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
     setInputMessage("");
     setIsLoading(true);
 
     try {
+      // Send message to backend chat API
       const response = await fetch(`${API_BASE_URL}/api/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
         },
         body: JSON.stringify({
-          message: content.trim(),
-          userId: user.id,
-        }),
+          message: inputMessage,
+          noteContext: currentNote,
+          conversationHistory: messages.slice(-10) // Send last 10 messages for context
+        })
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          content: data.response,
-          role: "assistant",
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-      } else {
-        throw new Error("Failed to get response");
+      if (!response.ok) {
+        throw new Error("Failed to get AI response");
       }
+
+      const aiResponse = await response.json();
+      
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: aiResponse.response,
+        sender: "ai",
+        timestamp: new Date(),
+        noteContext: currentNote
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
       console.error("Chat error:", error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: "Sorry, I encountered an error. Please try again.",
-        role: "assistant",
-        timestamp: new Date(),
+        text: "Sorry, I encountered an error. Please try again.",
+        sender: "ai",
+        timestamp: new Date()
       };
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const startRecording = () => {
-    if (mediaRecorder.current && mediaRecorder.current.state === "inactive") {
-      audioChunks.current = [];
-      mediaRecorder.current.start();
-      setIsRecording(true);
-      setRecordingTime(0);
-
-      recordingInterval.current = setInterval(() => {
-        setRecordingTime((prev) => prev + 1);
-      }, 1000);
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorder.current && mediaRecorder.current.state === "recording") {
-      mediaRecorder.current.stop();
-      setIsRecording(false);
-
-      if (recordingInterval.current) {
-        clearInterval(recordingInterval.current);
-      }
-
-      mediaRecorder.current.stream.getTracks().forEach((track) => track.stop());
-    }
-  };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`;
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-blue-600">ClearlyAI</h1>
-              <p className="text-gray-600">Medical Notes Generator</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm font-medium text-gray-900">
-                {user.name}
-              </span>
-              <button
-                onClick={onLogout}
-                className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-              >
-                <LogOut className="h-4 w-4 mr-2 inline" />
-                Logout
-              </button>
-            </div>
+      <div className="bg-white shadow-sm border-b px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <h1 className="text-2xl font-bold text-gray-900">ClearlyAI Dashboard</h1>
+            <span className="text-sm text-gray-500">Welcome, {user.name}</span>
           </div>
+          <button
+            onClick={onLogout}
+            className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Logout</span>
+          </button>
         </div>
-      </header>
+      </div>
 
-      {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex space-x-8">
-            <button
-              onClick={() => setActiveSection("chat")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeSection === "chat"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Chat with AI
-            </button>
-            <button
-              onClick={() => setActiveSection("upload")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeSection === "upload"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Upload Files
-            </button>
-            <button
-              onClick={() => setActiveSection("recording")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeSection === "recording"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Audio Recording
-            </button>
-          </div>
+      {/* Navigation Tabs */}
+      <div className="bg-white border-b px-6">
+        <div className="flex space-x-8">
+          <button
+            onClick={() => setActiveSection("chat")}
+            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeSection === "chat"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            Chat & Notes
+          </button>
+          <button
+            onClick={() => setActiveSection("upload")}
+            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeSection === "upload"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            Upload & Record
+          </button>
         </div>
-      </nav>
+      </div>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Chat Section */}
+      <div className="flex-1 overflow-hidden">
         {activeSection === "chat" && (
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Chat with AI
-            </h2>
+          <div className="flex h-full">
+            {/* Chat Interface - Left Side */}
+            <div className="flex-1 flex flex-col bg-white">
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {messages.length === 0 ? (
+                  <div className="text-center text-gray-500 mt-20">
+                    <p className="text-lg">No messages yet</p>
+                    <p className="text-sm">Upload a file or start recording to begin chatting with AI</p>
+                  </div>
+                ) : (
+                  messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                          message.sender === "user"
+                            ? "bg-blue-600 text-white"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        <p className="whitespace-pre-wrap">{message.text}</p>
+                        <p className="text-xs opacity-70 mt-1">
+                          {message.timestamp.toLocaleTimeString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg">
+                      <p className="text-gray-500">AI is thinking...</p>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
 
-            <div className="h-96 overflow-y-auto mb-4 border border-gray-200 rounded-lg p-4">
-              {messages.length === 0 ? (
-                <div className="text-center text-gray-500 mt-20">
-                  <h3 className="text-lg font-medium mb-2">
-                    Start a conversation
-                  </h3>
-                  <p className="text-sm">Ask me anything about medical notes</p>
+              {/* Chat Input */}
+              <div className="border-t bg-white p-4">
+                <div className="flex space-x-2">
+                  <textarea
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Ask me about the uploaded content or request improvements..."
+                    className="flex-1 resize-none border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={2}
+                  />
+                  <button
+                    onClick={sendMessage}
+                    disabled={!inputMessage.trim() || isLoading}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes Display - Right Side */}
+            <div className="w-96 bg-gray-50 border-l p-6 overflow-y-auto">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Notes</h3>
+              {currentNote ? (
+                <div className="space-y-4">
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <h4 className="font-medium text-gray-900 mb-2">File: {currentNote.fileName}</h4>
+                    <p className="text-sm text-gray-600 mb-2">
+                      <strong>Custom Prompt:</strong> {currentNote.customPrompt}
+                    </p>
+                  </div>
+                  
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <h4 className="font-medium text-gray-900 mb-2">SOAP Note</h4>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                      {currentNote.notes.soapNote.substring(0, 300)}...
+                    </p>
+                  </div>
+                  
+                  <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <h4 className="font-medium text-gray-900 mb-2">Patient Summary</h4>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                      {currentNote.notes.patientSummary.substring(0, 200)}...
+                    </p>
+                  </div>
+                  
+                  <button
+                    onClick={() => setShowResults(true)}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    View Full Results
+                  </button>
                 </div>
               ) : (
-                messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${
-                      message.role === "user" ? "justify-end" : "justify-start"
-                    } mb-4`}
-                  >
-                    <div
-                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                        message.role === "user"
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-100 text-gray-900"
-                      }`}
-                    >
-                      <p className="text-sm">{message.content}</p>
-                    </div>
-                  </div>
-                ))
-              )}
-              {isLoading && (
-                <div className="flex justify-start mb-4">
-                  <div className="bg-gray-100 text-gray-900 px-4 py-2 rounded-lg">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    </div>
-                  </div>
+                <div className="text-center text-gray-500 mt-20">
+                  <p className="text-sm">No notes yet</p>
+                  <p className="text-xs">Upload a file to see notes here</p>
                 </div>
               )}
-              <div ref={messagesEndRef} />
-            </div>
-
-            <div className="flex space-x-3">
-              <input
-                type="text"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Type your message..."
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={isLoading}
-              />
-              <button
-                onClick={() => sendMessage(inputMessage)}
-                disabled={!inputMessage.trim() || isLoading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-              >
-                Send
-              </button>
             </div>
           </div>
         )}
 
-        {/* Upload Section */}
         {activeSection === "upload" && (
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Upload Medical Files
-            </h2>
-
-            <div className="space-y-4">
-              <input
-                type="file"
-                onChange={handleFileSelect}
-                accept="audio/*,text/plain,application/pdf"
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+          <div className="p-6">
+            <div className="max-w-4xl mx-auto">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Upload & Record</h2>
+              <EnhancedUpload
+                onUploadComplete={handleUploadComplete}
+                onError={handleUploadError}
               />
-              {file && (
-                <p className="text-sm text-gray-600">
-                  Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)}{" "}
-                  MB)
-                </p>
-              )}
-              <button
-                disabled={!file}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-              >
-                Upload and Process
-              </button>
             </div>
           </div>
         )}
+      </div>
 
-        {/* Recording Section */}
-        {activeSection === "recording" && (
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Audio Recording
-            </h2>
-
-            <div className="text-center space-y-6">
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {isRecording ? "Recording..." : "Ready to Record"}
-                </h3>
-                {isRecording && (
-                  <div className="text-4xl font-mono text-red-600">
-                    {formatTime(recordingTime)}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-center space-x-4">
-                {!isRecording ? (
-                  <button
-                    onClick={startRecording}
-                    className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                  >
-                    Start Recording
-                  </button>
-                ) : (
-                  <button
-                    onClick={stopRecording}
-                    className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-                  >
-                    Stop Recording
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
+      {/* Results Modal */}
+      {showResults && currentNote && (
+        <ResultsDisplay
+          result={currentNote}
+          onClose={() => setShowResults(false)}
+        />
+      )}
     </div>
   );
 };
