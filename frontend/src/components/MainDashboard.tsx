@@ -45,6 +45,8 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentNote, setCurrentNote] = useState<UploadResult | null>(null);
   const [showResults, setShowResults] = useState(false);
+  const [showChatChoice, setShowChatChoice] = useState(false);
+  const [pendingUpload, setPendingUpload] = useState<UploadResult | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const API_BASE_URL =
@@ -57,39 +59,37 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
 
   // Handle upload completion
   const handleUploadComplete = (result: UploadResult) => {
-    setCurrentNote(result);
-    setShowResults(true);
+    // Check if there's already a current note
+    if (currentNote) {
+      // Ask user what to do with the new upload
+      setPendingUpload(result);
+      setShowChatChoice(true);
+    } else {
+      // No current note, set it directly
+      setCurrentNote(result);
+      setShowResults(true);
+    }
+  };
 
-    // Add initial AI message about the uploaded content
-    const aiMessage: Message = {
-      id: Date.now().toString(),
-      text: `I've processed your ${
-        result.fileName
-      } file. Here's what I found:\n\n**Transcription:** ${result.transcription.substring(
-        0,
-        200
-      )}...\n\n**Generated Notes:** ${result.notes.soapNote.substring(
-        0,
-        200
-      )}...\n\nYou can now ask me questions about this content or request improvements to the notes.`,
-      sender: "ai",
-      timestamp: new Date(),
-      noteContext: result,
-    };
-
-    setMessages((prev) => [...prev, aiMessage]);
-    setActiveSection("chat");
+  const handleChatChoice = (choice: "new" | "continue") => {
+    if (choice === "new") {
+      // Create new chat - clear current messages and set new note
+      setMessages([]);
+      setCurrentNote(pendingUpload);
+      setShowResults(true);
+    } else {
+      // Continue with current chat - just show results
+      setShowResults(true);
+    }
+    
+    // Reset the choice dialog
+    setShowChatChoice(false);
+    setPendingUpload(null);
   };
 
   const handleUploadError = (error: string) => {
-    const errorMessage: Message = {
-      id: Date.now().toString(),
-      text: `Upload failed: ${error}`,
-      sender: "ai",
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, errorMessage]);
-    setActiveSection("chat");
+    console.error("Upload error:", error);
+    // You can add a toast notification here if needed
   };
 
   // Send chat message
@@ -372,6 +372,48 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
           result={currentNote}
           onClose={() => setShowResults(false)}
         />
+      )}
+
+      {/* Chat Choice Dialog */}
+      {showChatChoice && pendingUpload && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              New File Uploaded
+            </h3>
+            <p className="text-gray-600 mb-6">
+              You've uploaded a new file: <strong>{pendingUpload.fileName}</strong>
+            </p>
+            <p className="text-gray-600 mb-6">
+              What would you like to do?
+            </p>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={() => handleChatChoice("new")}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+              >
+                Create New Chat
+              </button>
+              <button
+                onClick={() => handleChatChoice("continue")}
+                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+              >
+                Continue Current Chat
+              </button>
+            </div>
+            
+            <button
+              onClick={() => {
+                setShowChatChoice(false);
+                setPendingUpload(null);
+              }}
+              className="mt-3 w-full px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

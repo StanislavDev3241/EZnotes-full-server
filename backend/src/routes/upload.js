@@ -14,7 +14,8 @@ const finalizeParser = multer().none();
 const { pool } = require("../config/database");
 const { fileProcessingQueue } = require("../config/queue");
 const path = require("path");
-const fs = require("fs").promises; // Use native fs promises
+const fs = require("fs"); // Regular fs for createReadStream
+const fsPromises = require("fs").promises; // Promises for async operations
 const openaiService = require("../services/openaiService");
 
 const router = express.Router();
@@ -42,7 +43,7 @@ const processFileWithOpenAI = async (
     } else if (fileInfo.fileType === "text/plain") {
       // Text file - read content directly
       console.log(`📄 Text file detected, reading content directly`);
-      transcription = await fs.readFile(fileInfo.filePath, "utf8");
+      transcription = await fsPromises.readFile(fileInfo.filePath, "utf8");
     } else {
       throw new Error(`Unsupported file type: ${fileInfo.fileType}`);
     }
@@ -299,8 +300,8 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
     if (tempFilePath) {
       try {
         // Use fs.access to check if file exists (fs.promises compatible)
-        await fs.access(tempFilePath);
-        await fs.unlink(tempFilePath);
+        await fsPromises.access(tempFilePath);
+        await fsPromises.unlink(tempFilePath);
         console.log("🧹 Temp file cleaned up");
       } catch (error) {
         if (error.code === "ENOENT") {
