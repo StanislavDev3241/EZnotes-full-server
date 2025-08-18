@@ -36,7 +36,9 @@ interface MainDashboardProps {
 }
 
 const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
-  const [activeSection, setActiveSection] = useState<"chat" | "upload" | "recording">("chat");
+  const [activeSection, setActiveSection] = useState<
+    "chat" | "upload" | "recording"
+  >("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -44,7 +46,8 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
   const [showResults, setShowResults] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
+  const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
 
   // Auto-scroll to bottom of chat
   useEffect(() => {
@@ -55,17 +58,25 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
   const handleUploadComplete = (result: UploadResult) => {
     setCurrentNote(result);
     setShowResults(true);
-    
+
     // Add initial AI message about the uploaded content
     const aiMessage: Message = {
       id: Date.now().toString(),
-      text: `I've processed your ${result.fileName} file. Here's what I found:\n\n**Transcription:** ${result.transcription.substring(0, 200)}...\n\n**Generated Notes:** ${result.notes.soapNote.substring(0, 200)}...\n\nYou can now ask me questions about this content or request improvements to the notes.`,
+      text: `I've processed your ${
+        result.fileName
+      } file. Here's what I found:\n\n**Transcription:** ${result.transcription.substring(
+        0,
+        200
+      )}...\n\n**Generated Notes:** ${result.notes.soapNote.substring(
+        0,
+        200
+      )}...\n\nYou can now ask me questions about this content or request improvements to the notes.`,
       sender: "ai",
       timestamp: new Date(),
-      noteContext: result
+      noteContext: result,
     };
-    
-    setMessages(prev => [...prev, aiMessage]);
+
+    setMessages((prev) => [...prev, aiMessage]);
     setActiveSection("chat");
   };
 
@@ -74,9 +85,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
       id: Date.now().toString(),
       text: `Upload failed: ${error}`,
       sender: "ai",
-      timestamp: new Date()
+      timestamp: new Date(),
     };
-    setMessages(prev => [...prev, errorMessage]);
+    setMessages((prev) => [...prev, errorMessage]);
     setActiveSection("chat");
   };
 
@@ -88,10 +99,10 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
       id: Date.now().toString(),
       text: inputMessage,
       sender: "user",
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInputMessage("");
     setIsLoading(true);
 
@@ -101,13 +112,13 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify({
           message: inputMessage,
           noteContext: currentNote,
-          conversationHistory: messages.slice(-10) // Send last 10 messages for context
-        })
+          conversationHistory: messages.slice(-10), // Send last 10 messages for context
+        }),
       });
 
       if (!response.ok) {
@@ -115,25 +126,25 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
       }
 
       const aiResponse = await response.json();
-      
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: aiResponse.response,
         sender: "ai",
         timestamp: new Date(),
-        noteContext: currentNote
+        noteContext: currentNote,
       };
 
-      setMessages(prev => [...prev, aiMessage]);
+      setMessages((prev) => [...prev, aiMessage]);
     } catch (error) {
       console.error("Chat error:", error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: "Sorry, I encountered an error. Please try again.",
         sender: "ai",
-        timestamp: new Date()
+        timestamp: new Date(),
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -152,7 +163,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
       <div className="bg-white shadow-sm border-b px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold text-gray-900">ClearlyAI Dashboard</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              ClearlyAI Dashboard
+            </h1>
             <span className="text-sm text-gray-500">Welcome, {user.name}</span>
           </div>
           <button
@@ -201,13 +214,19 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                 {messages.length === 0 ? (
                   <div className="text-center text-gray-500 mt-20">
                     <p className="text-lg">No messages yet</p>
-                    <p className="text-sm">Upload a file or start recording to begin chatting with AI</p>
+                    <p className="text-sm">
+                      Upload a file or start recording to begin chatting with AI
+                    </p>
                   </div>
                 ) : (
                   messages.map((message) => (
                     <div
                       key={message.id}
-                      className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
+                      className={`flex ${
+                        message.sender === "user"
+                          ? "justify-end"
+                          : "justify-start"
+                      }`}
                     >
                       <div
                         className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
@@ -258,30 +277,38 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
 
             {/* Notes Display - Right Side */}
             <div className="w-96 bg-gray-50 border-l p-6 overflow-y-auto">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Notes</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Current Notes
+              </h3>
               {currentNote ? (
                 <div className="space-y-4">
                   <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h4 className="font-medium text-gray-900 mb-2">File: {currentNote.fileName}</h4>
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      File: {currentNote.fileName}
+                    </h4>
                     <p className="text-sm text-gray-600 mb-2">
                       <strong>Custom Prompt:</strong> {currentNote.customPrompt}
                     </p>
                   </div>
-                  
+
                   <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h4 className="font-medium text-gray-900 mb-2">SOAP Note</h4>
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      SOAP Note
+                    </h4>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap">
                       {currentNote.notes.soapNote.substring(0, 300)}...
                     </p>
                   </div>
-                  
+
                   <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h4 className="font-medium text-gray-900 mb-2">Patient Summary</h4>
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      Patient Summary
+                    </h4>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap">
                       {currentNote.notes.patientSummary.substring(0, 200)}...
                     </p>
                   </div>
-                  
+
                   <button
                     onClick={() => setShowResults(true)}
                     className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
@@ -302,7 +329,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
         {activeSection === "upload" && (
           <div className="p-6">
             <div className="max-w-4xl mx-auto">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Upload & Record</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                Upload & Record
+              </h2>
               <EnhancedUpload
                 onUploadComplete={handleUploadComplete}
                 onError={handleUploadError}

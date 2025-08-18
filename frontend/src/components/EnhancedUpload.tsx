@@ -1,5 +1,14 @@
 import React, { useState, useRef, useCallback } from "react";
-import { Upload, FileText, Mic, X, CheckCircle, AlertCircle, Loader2, Settings } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  Mic,
+  X,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  Settings,
+} from "lucide-react";
 
 interface EnhancedUploadProps {
   onUploadComplete: (data: any) => void;
@@ -7,19 +16,22 @@ interface EnhancedUploadProps {
 }
 
 interface UploadProgress {
-  stage: 'uploading' | 'transcribing' | 'generating' | 'complete';
+  stage: "uploading" | "transcribing" | "generating" | "complete";
   message: string;
   percentage: number;
 }
 
-const EnhancedUpload: React.FC<EnhancedUploadProps> = ({ onUploadComplete, onError }) => {
+const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
+  onUploadComplete,
+  onError,
+}) => {
   const [file, setFile] = useState<File | null>(null);
   const [customPrompt, setCustomPrompt] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({
-    stage: 'uploading',
-    message: '',
-    percentage: 0
+    stage: "uploading",
+    message: "",
+    percentage: 0,
   });
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -29,7 +41,8 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({ onUploadComplete, onErr
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<number>();
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
+  const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
 
   // File handling
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,9 +82,9 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({ onUploadComplete, onErr
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/wav' });
+        const blob = new Blob(chunks, { type: "audio/wav" });
         setAudioBlob(blob);
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
       };
 
       mediaRecorder.start();
@@ -81,10 +94,12 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({ onUploadComplete, onErr
 
       // Start timer
       recordingIntervalRef.current = window.setInterval(() => {
-        setRecordingTime(prev => prev + 1);
+        setRecordingTime((prev) => prev + 1);
       }, 1000);
     } catch (error) {
-      onError("Failed to start recording. Please check microphone permissions.");
+      onError(
+        "Failed to start recording. Please check microphone permissions."
+      );
     }
   };
 
@@ -107,9 +122,9 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({ onUploadComplete, onErr
 
     setIsUploading(true);
     setUploadProgress({
-      stage: 'uploading',
-      message: 'Uploading file...',
-      percentage: 0
+      stage: "uploading",
+      message: "Uploading file...",
+      percentage: 0,
     });
 
     try {
@@ -118,13 +133,15 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({ onUploadComplete, onErr
 
       if (audioBlob) {
         // Convert audio blob to file
-        const audioFile = new File([audioBlob], `recording_${Date.now()}.wav`, { type: 'audio/wav' });
+        const audioFile = new File([audioBlob], `recording_${Date.now()}.wav`, {
+          type: "audio/wav",
+        });
         uploadData = new FormData();
-        uploadData.append('file', audioFile);
+        uploadData.append("file", audioFile);
         fileName = audioFile.name;
       } else if (file) {
         uploadData = new FormData();
-        uploadData.append('file', file);
+        uploadData.append("file", file);
         fileName = file.name;
       } else {
         throw new Error("No file to upload");
@@ -132,45 +149,45 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({ onUploadComplete, onErr
 
       // Add custom prompt if provided
       if (customPrompt.trim()) {
-        uploadData.append('customPrompt', customPrompt.trim());
+        uploadData.append("customPrompt", customPrompt.trim());
       }
 
       setUploadProgress({
-        stage: 'transcribing',
-        message: 'Transcribing audio...',
-        percentage: 50
+        stage: "transcribing",
+        message: "Transcribing audio...",
+        percentage: 50,
       });
 
       // Upload and process with OpenAI
       const response = await fetch(`${API_BASE_URL}/api/upload`, {
-        method: 'POST',
+        method: "POST",
         body: uploadData,
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Upload failed');
+        throw new Error(errorData.message || "Upload failed");
       }
 
       setUploadProgress({
-        stage: 'generating',
-        message: 'Generating notes...',
-        percentage: 75
+        stage: "generating",
+        message: "Generating notes...",
+        percentage: 75,
       });
 
       const result = await response.json();
 
       setUploadProgress({
-        stage: 'complete',
-        message: 'Upload complete!',
-        percentage: 100
+        stage: "complete",
+        message: "Upload complete!",
+        percentage: 100,
       });
 
       // Call the callback with the result
       onUploadComplete({
         ...result,
         fileName,
-        customPrompt: customPrompt.trim() || 'Default prompt'
+        customPrompt: customPrompt.trim() || "Default prompt",
       });
 
       // Reset form
@@ -179,18 +196,17 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({ onUploadComplete, onErr
       setCustomPrompt("");
       setRecordingTime(0);
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
-
     } catch (error) {
-      console.error('Upload error:', error);
-      onError(error instanceof Error ? error.message : 'Upload failed');
+      console.error("Upload error:", error);
+      onError(error instanceof Error ? error.message : "Upload failed");
     } finally {
       setIsUploading(false);
       setUploadProgress({
-        stage: 'uploading',
-        message: '',
-        percentage: 0
+        stage: "uploading",
+        message: "",
+        percentage: 0,
       });
     }
   };
@@ -198,7 +214,9 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({ onUploadComplete, onErr
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
   };
 
   const removeFile = () => {
@@ -206,7 +224,7 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({ onUploadComplete, onErr
     setAudioBlob(null);
     setRecordingTime(0);
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
@@ -252,8 +270,8 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({ onUploadComplete, onErr
           onDragOver={handleDragOver}
           className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
             file || audioBlob
-              ? 'border-green-300 bg-green-50'
-              : 'border-gray-300 hover:border-gray-400'
+              ? "border-green-300 bg-green-50"
+              : "border-gray-300 hover:border-gray-400"
           }`}
         >
           {file || audioBlob ? (
@@ -290,8 +308,8 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({ onUploadComplete, onErr
             onClick={isRecording ? stopRecording : startRecording}
             className={`flex items-center space-x-2 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 ${
               isRecording
-                ? 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
-                : 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500'
+                ? "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500"
+                : "bg-green-600 text-white hover:bg-green-700 focus:ring-green-500"
             }`}
           >
             {isRecording ? (
@@ -320,8 +338,8 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({ onUploadComplete, onErr
         disabled={isUploading || (!file && !audioBlob)}
         className={`w-full py-3 px-4 rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 ${
           isUploading || (!file && !audioBlob)
-            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            : 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
+            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+            : "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500"
         }`}
       >
         {isUploading ? (
@@ -330,7 +348,7 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({ onUploadComplete, onErr
             <span>{uploadProgress.message}</span>
           </div>
         ) : (
-          'Process with AI'
+          "Process with AI"
         )}
       </button>
 

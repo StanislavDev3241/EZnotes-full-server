@@ -90,31 +90,47 @@ class OpenAIService {
         `💬 Processing chat message: ${userMessage.length} characters`
       );
 
+      // Build system message with note context
+      let systemContent = `You are a medical AI assistant helping to improve medical notes. 
+
+Your role:
+- Provide helpful suggestions for note improvement
+- Clarify medical terminology and concepts
+- Suggest additions for missing information
+- Ensure HIPAA compliance and accuracy
+- Answer questions about the medical content
+- Help refine and enhance SOAP notes`;
+
+      // Add note context if available
+      if (noteContext && Object.keys(noteContext).length > 0) {
+        systemContent += `\n\nCurrent note context:
+- File: ${noteContext.fileName || 'Unknown'}
+- Custom Instructions: ${noteContext.customPrompt || 'Default'}
+- Transcription: ${noteContext.transcription ? noteContext.transcription.substring(0, 500) + '...' : 'Not available'}
+- SOAP Note: ${noteContext.soapNote ? noteContext.soapNote.substring(0, 500) + '...' : 'Not available'}
+- Patient Summary: ${noteContext.patientSummary ? noteContext.patientSummary.substring(0, 300) + '...' : 'Not available'}`;
+      }
+
       const messages = [
         {
           role: "system",
-          content: `You are a medical AI assistant helping to improve medical notes. 
-          
-          Your role:
-          - Provide helpful suggestions for note improvement
-          - Clarify medical terminology and concepts
-          - Suggest additions for missing information
-          - Ensure HIPAA compliance and accuracy
-          
-          Current note context: ${JSON.stringify(noteContext)}`,
-        },
-        ...conversationHistory.map((msg) => ({
-          role: msg.sender_type === "user" ? "user" : "assistant",
-          content: msg.message_text,
-        })),
-        { role: "user", content: userMessage },
+          content: systemContent,
+        }
       ];
 
+      // Add conversation history if available
+      if (conversationHistory && conversationHistory.length > 0) {
+        messages.push(...conversationHistory);
+      }
+
+      // Add current user message
+      messages.push({ role: "user", content: userMessage });
+
       const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o",
+        model: process.env.OPENAI_MODEL || "gpt-4o",
         messages: messages,
-        max_tokens: 1000,
-        temperature: 0.3,
+        max_tokens: parseInt(process.env.CHAT_MAX_TOKENS) || 1000,
+        temperature: parseFloat(process.env.CHAT_TEMPERATURE) || 0.3,
       });
 
       const response = completion.choices[0].message.content;
