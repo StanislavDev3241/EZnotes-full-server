@@ -81,7 +81,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
       // Continue with current chat - just show results
       setShowResults(true);
     }
-    
+
     // Reset the choice dialog
     setShowChatChoice(false);
     setPendingUpload(null);
@@ -382,12 +382,11 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
               New File Uploaded
             </h3>
             <p className="text-gray-600 mb-6">
-              You've uploaded a new file: <strong>{pendingUpload.fileName}</strong>
+              You've uploaded a new file:{" "}
+              <strong>{pendingUpload.fileName}</strong>
             </p>
-            <p className="text-gray-600 mb-6">
-              What would you like to do?
-            </p>
-            
+            <p className="text-gray-600 mb-6">What would you like to do?</p>
+
             <div className="flex space-x-3">
               <button
                 onClick={() => handleChatChoice("new")}
@@ -402,7 +401,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                 Continue Current Chat
               </button>
             </div>
-            
+
             <button
               onClick={() => {
                 setShowChatChoice(false);
