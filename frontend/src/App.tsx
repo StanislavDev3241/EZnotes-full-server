@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
 import LoginPage from "./components/LoginPage";
 import MainDashboard from "./components/MainDashboard";
 import LandingPage from "./components/LandingPage";
@@ -16,6 +21,7 @@ function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showLanding, setShowLanding] = useState(true);
+  const [isUnregisteredUser, setIsUnregisteredUser] = useState(false);
 
   const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
@@ -42,6 +48,7 @@ function App() {
         const userData = await response.json();
         setUser(userData.user);
         setShowLanding(false); // Skip landing page if user is logged in
+        setIsUnregisteredUser(false);
       } else {
         localStorage.removeItem("userToken");
       }
@@ -57,16 +64,25 @@ function App() {
     setUser(userData);
     localStorage.setItem("userToken", token);
     setShowLanding(false); // Hide landing page after login
+    setIsUnregisteredUser(false);
   };
 
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem("userToken");
     setShowLanding(true); // Show landing page after logout
+    setIsUnregisteredUser(false);
   };
 
   const handleGetStarted = () => {
     setShowLanding(false); // Hide landing page when user clicks "Get Started"
+    setIsUnregisteredUser(true); // Mark as unregistered user
+  };
+
+  const handleBackToLanding = () => {
+    setShowLanding(true);
+    setIsUnregisteredUser(false);
+    setUser(null);
   };
 
   if (isLoading) {
@@ -86,25 +102,30 @@ function App() {
   }
 
   // Show login page if not logged in and landing is hidden
-  if (!user) {
-    return <LoginPage onLogin={handleLogin} />;
+  if (!user && !isUnregisteredUser) {
+    return <LoginPage onLogin={handleLogin} onBackToLanding={handleBackToLanding} />;
   }
 
-  // Show main application if user is logged in
+  // Show main application if user is logged in OR if unregistered user wants to use the app
   return (
     <Router>
       <Routes>
         <Route
           path="/"
           element={
-            user.role === "admin" ? (
-              <AdminPage 
+            user?.role === "admin" ? (
+              <AdminPage
                 API_BASE_URL={API_BASE_URL}
                 onBackToMain={() => {}} // Admin doesn't need to go back to main
                 onLogout={handleLogout}
               />
             ) : (
-              <MainDashboard user={user} onLogout={handleLogout} />
+              <MainDashboard 
+                user={user} 
+                onLogout={handleLogout}
+                isUnregisteredUser={isUnregisteredUser}
+                onBackToLanding={handleBackToLanding}
+              />
             )
           }
         />

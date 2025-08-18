@@ -37,11 +37,18 @@ interface UploadResult {
 }
 
 interface MainDashboardProps {
-  user: User;
+  user: User | null;
   onLogout: () => void;
+  isUnregisteredUser?: boolean;
+  onBackToLanding?: () => void;
 }
 
-const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
+const MainDashboard: React.FC<MainDashboardProps> = ({
+  user,
+  onLogout,
+  isUnregisteredUser = false,
+  onBackToLanding,
+}) => {
   const [activeSection, setActiveSection] = useState<
     "chat" | "upload" | "management"
   >("chat");
@@ -339,7 +346,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
       }
 
       const conversationData = await response.json();
-      
+
       // Set current conversation ID
       setCurrentConversationId(conversationId);
 
@@ -373,18 +380,15 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
   // Load note context for a conversation
   const loadNoteContext = async (noteId: number) => {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/notes/${noteId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("userToken")}`,
-          },
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/api/notes/${noteId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+        },
+      });
 
       if (response.ok) {
         const noteData = await response.json();
-        
+
         // Create a note context object that matches our UploadResult interface
         const noteContext = {
           fileId: noteData.file_id?.toString() || "",
@@ -418,7 +422,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
           name,
           messages,
           conversationId: currentConversationId,
-          userId: user.id,
+          userId: user?.id,
         }),
       });
 
@@ -485,20 +489,35 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
       <div className="bg-white shadow-sm border-b px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-semibold text-gray-900">
-              ClearlyAI
-            </h1>
-            <span className="text-sm text-gray-500">
-              Welcome, {user.name} ({user.role})
-            </span>
+            <h1 className="text-xl font-semibold text-gray-900">ClearlyAI</h1>
+            {user ? (
+              <span className="text-sm text-gray-500">
+                Welcome, {user.name} ({user.role})
+              </span>
+            ) : (
+              <span className="text-sm text-gray-500">
+                Guest User - Try ClearlyAI
+              </span>
+            )}
           </div>
-          <button
-            onClick={onLogout}
-            className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Logout</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            {isUnregisteredUser && onBackToLanding && (
+              <button
+                onClick={onBackToLanding}
+                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                ← Back to Home
+              </button>
+            )}
+            {user && (
+              <button
+                onClick={onLogout}
+                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                Logout
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -547,7 +566,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
               {/* Chat History Manager */}
               <div className="p-3 border-b border-gray-200">
                 <ChatHistoryManager
-                  userId={user.id}
+                  userId={user?.id || 0}
                   onContinueFromHistory={handleContinueFromHistory}
                   onSaveHistoryPoint={handleSaveHistoryPoint}
                   onDeleteHistoryPoint={handleDeleteHistoryPoint}
@@ -799,12 +818,12 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                   ← Back to Chat
                 </button>
               </div>
-              
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Left Column - Note Management */}
                 <div className="bg-white rounded-lg shadow-sm p-6">
                   <NoteManagement
-                    userId={user.id}
+                    userId={user?.id || 0}
                     onSelectNote={(note) => {
                       // Handle note selection
                       console.log("Selected note:", note);
@@ -815,11 +834,11 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                     }}
                   />
                 </div>
-                
+
                 {/* Right Column - File Management */}
                 <div className="bg-white rounded-lg shadow-sm p-6">
                   <FileManagement
-                    userId={user.id}
+                    userId={user?.id || 0}
                     onSelectFile={(file) => {
                       // Handle file selection
                       console.log("Selected file:", file);

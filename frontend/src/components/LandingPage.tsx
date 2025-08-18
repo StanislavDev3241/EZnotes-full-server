@@ -38,8 +38,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             <span className="block text-blue-600">Documentation</span>
           </h1>
           <p className="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
-            AI-powered SOAP notes, patient summaries, and intelligent chat assistance. 
-            Streamline your medical documentation workflow with ClearlyAI.
+            AI-powered SOAP notes, patient summaries, and intelligent chat
+            assistance. Streamline your medical documentation workflow with
+            ClearlyAI.
           </p>
           <div className="mt-5 max-w-md mx-auto sm:flex sm:justify-center md:mt-8">
             <div className="rounded-md shadow">
@@ -62,7 +63,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               Everything you need for medical documentation
             </h2>
             <p className="mt-4 max-w-2xl mx-auto text-xl text-gray-500">
-              From audio transcription to AI-generated notes, ClearlyAI has you covered.
+              From audio transcription to AI-generated notes, ClearlyAI has you
+              covered.
             </p>
           </div>
 
@@ -77,7 +79,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   AI-Generated SOAP Notes
                 </h3>
                 <p className="mt-2 text-base text-gray-500">
-                  Automatically generate comprehensive SOAP notes from your transcriptions with advanced AI.
+                  Automatically generate comprehensive SOAP notes from your
+                  transcriptions with advanced AI.
                 </p>
               </div>
 
@@ -90,7 +93,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   Intelligent Chat Assistant
                 </h3>
                 <p className="mt-2 text-base text-gray-500">
-                  Chat with AI to refine notes, ask questions, and get instant medical documentation help.
+                  Chat with AI to refine notes, ask questions, and get instant
+                  medical documentation help.
                 </p>
               </div>
 
@@ -103,7 +107,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   HIPAA Compliant
                 </h3>
                 <p className="mt-2 text-base text-gray-500">
-                  Enterprise-grade security with end-to-end encryption and full HIPAA compliance.
+                  Enterprise-grade security with end-to-end encryption and full
+                  HIPAA compliance.
                 </p>
               </div>
 
@@ -116,7 +121,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   Fast & Accurate
                 </h3>
                 <p className="mt-2 text-base text-gray-500">
-                  Process audio files and generate notes in seconds with industry-leading accuracy.
+                  Process audio files and generate notes in seconds with
+                  industry-leading accuracy.
                 </p>
               </div>
 
@@ -129,7 +135,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   Custom Prompts
                 </h3>
                 <p className="mt-2 text-base text-gray-500">
-                  Tailor AI responses to your specialty and documentation requirements.
+                  Tailor AI responses to your specialty and documentation
+                  requirements.
                 </p>
               </div>
 
@@ -142,7 +149,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   Conversation History
                 </h3>
                 <p className="mt-2 text-base text-gray-500">
-                  Save and continue conversations, with full audit trails and version control.
+                  Save and continue conversations, with full audit trails and
+                  version control.
                 </p>
               </div>
             </div>
@@ -189,4 +197,4 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   );
 };
 
-export default LandingPage; 
+export default LandingPage;

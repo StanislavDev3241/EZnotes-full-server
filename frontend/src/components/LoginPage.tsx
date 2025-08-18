@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 
 interface LoginPageProps {
   onLogin: (token: string, user: any) => void;
+  onBackToLanding: () => void;
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,6 +56,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
         <div className="text-center mb-8">
+          <button
+            onClick={onBackToLanding}
+            className="absolute top-4 left-4 text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            ← Back to Home
+          </button>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             {isLogin ? "Welcome Back" : "Create Account"}
           </h1>
