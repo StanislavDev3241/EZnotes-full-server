@@ -242,8 +242,8 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
     // Convert history messages to our Message format
     const convertedMessages = historyMessages.map((msg) => ({
       id: msg.id.toString(),
-      text: msg.sender_type === "user" ? msg.message_text : msg.ai_response,
-      sender: msg.sender_type === "user" ? "user" : ("ai" as "user" | "ai"),
+      text: msg.sender_type === "user" ? msg.message_text : (msg.ai_response || msg.message_text),
+      sender: msg.sender_type === "user" ? "user" : "ai" as "user" | "ai",
       timestamp: new Date(msg.created_at),
       noteContext: currentNote,
     }));

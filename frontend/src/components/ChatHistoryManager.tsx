@@ -84,8 +84,9 @@ const ChatHistoryManager: React.FC<ChatHistoryManagerProps> = ({
 
   const handleContinueFromHistory = async (point: ChatHistoryPoint) => {
     try {
+      // Load conversation messages using the conversation ID, not note ID
       const response = await fetch(
-        `${API_BASE_URL}/api/chat/note/${point.conversationId}`,
+        `${API_BASE_URL}/api/chat/conversation/${point.conversationId}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("userToken")}`,
@@ -97,6 +98,8 @@ const ChatHistoryManager: React.FC<ChatHistoryManagerProps> = ({
         const data = await response.json();
         onContinueFromHistory(point.conversationId, data.messages || []);
         setIsExpanded(false);
+      } else {
+        console.error("Failed to load conversation:", response.statusText);
       }
     } catch (error) {
       console.error("Failed to load conversation:", error);
