@@ -52,6 +52,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
   const [currentConversationId, setCurrentConversationId] = useState<
     string | null
   >(null);
+  const [showSaveNotesDialog, setShowSaveNotesDialog] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const API_BASE_URL =
@@ -167,11 +168,61 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
   const handleEditMessage = async (messageId: string, newText: string) => {
     try {
       // Update message in local state
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === messageId ? { ...msg, text: newText } : msg
-        )
-      );
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? { ...msg, text: newText } : msg
+      ));
+
+      // Find the edited message and get conversation context
+      const editedMessageIndex = messages.findIndex(msg => msg.id === messageId);
+      if (editedMessageIndex !== -1) {
+        // Get conversation history up to the edited message
+        const conversationHistory = messages.slice(0, editedMessageIndex + 1);
+        
+        // Send the edited message to get a new AI response
+        setIsLoading(true);
+        
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/chat`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+            },
+            body: JSON.stringify({
+              message: newText,
+              noteContext: currentNote,
+              conversationHistory: conversationHistory.slice(-10), // Send last 10 messages for context
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to get AI response");
+          }
+
+          const aiResponse = await response.json();
+
+          // Add the new AI response after the edited message
+          const aiMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            text: aiResponse.response,
+            sender: "ai",
+            timestamp: new Date(),
+            noteContext: currentNote,
+          };
+
+          // Insert AI response after the edited message
+          setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages.splice(editedMessageIndex + 1, 0, aiMessage);
+            return newMessages;
+          });
+
+        } catch (error) {
+          console.error("Failed to get AI response for edited message:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
 
       // TODO: Send update to backend for persistence
       console.log(`Message ${messageId} edited to: ${newText}`);
@@ -465,6 +516,14 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                         </button>
                       </>
                     )}
+                    {/* New Save Notes Button */}
+                    <button
+                      onClick={() => setShowSaveNotesDialog(true)}
+                      className="flex items-center px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                    >
+                      <Save className="w-4 h-4 mr-1" />
+                      Save Notes
+                    </button>
                   </div>
                   <div className="text-xs text-gray-500">
                     {messages.length} messages
@@ -627,6 +686,52 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Save Notes Dialog */}
+      {showSaveNotesDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Save Notes
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Please enter a name for the notes you want to save.
+            </p>
+            <input
+              type="text"
+              id="notesNameInput"
+              placeholder="Notes name (e.g., 'SOAP Note', 'Patient Summary')"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  const notesName = (document.getElementById('notesNameInput') as HTMLInputElement)?.value;
+                  if (notesName && notesName.trim()) {
+                    const allContent = messages
+                      .filter(msg => msg.sender === "ai")
+                      .map(msg => msg.text)
+                      .join("\n\n---\n\n");
+                    handleSaveNote(allContent, notesName.trim());
+                    setShowSaveNotesDialog(false);
+                  } else {
+                    alert("Please enter a name for the notes.");
+                  }
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+              >
+                Save Notes
+              </button>
+              <button
+                onClick={() => setShowSaveNotesDialog(false)}
+                className="flex-1 px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

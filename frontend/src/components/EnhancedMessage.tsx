@@ -61,9 +61,23 @@ const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
     try {
       await navigator.clipboard.writeText(message.text);
       setCopied(true);
+      // Show checkmark for 2 seconds
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy text: ", err);
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = message.text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (fallbackErr) {
+        console.error("Fallback copy failed:", fallbackErr);
+      }
+      document.body.removeChild(textArea);
     }
   };
 
