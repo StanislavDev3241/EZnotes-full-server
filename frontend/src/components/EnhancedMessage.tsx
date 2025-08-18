@@ -23,7 +23,7 @@ interface EnhancedMessageProps {
   isOwnMessage: boolean;
   onEditMessage: (messageId: string, newText: string) => void;
   onDeleteMessage: (messageId: string) => void;
-  onSaveNote: (content: string, noteType: string) => void;
+  onSaveNote: (content: string, noteType: string, noteName?: string) => void;
   onDownloadNote: (content: string, filename: string) => void;
 }
 
@@ -84,7 +84,8 @@ const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
   const handleSaveNote = () => {
     const noteType = message.noteContext ? "custom_note" : "chat_response";
     const content = message.text;
-    onSaveNote(content, noteType);
+    const noteName = `Chat Response - ${new Date().toLocaleDateString()}`;
+    onSaveNote(content, noteType, noteName);
   };
 
   const handleDownloadNote = () => {

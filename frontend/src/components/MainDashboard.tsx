@@ -248,7 +248,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
     }
   };
 
-  const handleSaveNote = async (content: string, noteType: string) => {
+  const handleSaveNote = async (content: string, noteType: string, noteName?: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/notes/save`, {
         method: "POST",
@@ -259,16 +259,18 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
         body: JSON.stringify({
           content,
           noteType,
-          userId: user.id,
+          noteName: noteName || noteType, // Use provided name or fallback to type
+          fileId: currentNote?.fileId,
           conversationId: currentConversationId,
         }),
       });
 
-      if (response.ok) {
-        alert("Note saved successfully!");
-      } else {
+      if (!response.ok) {
         throw new Error("Failed to save note");
       }
+
+      const result = await response.json();
+      alert(result.message || "Note saved successfully!");
     } catch (error) {
       console.error("Failed to save note:", error);
       alert("Failed to save note. Please try again.");
@@ -442,7 +444,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <FileText className="w-4 h-4 text-blue-600" />
-                        <span className="font-medium text-blue-900">Current Note Context:</span>
+                        <span className="font-medium text-blue-900">
+                          Current Note Context:
+                        </span>
                       </div>
                       <button
                         onClick={() => setCurrentNote(null)}
@@ -452,10 +456,18 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                       </button>
                     </div>
                     <div className="mt-2 text-sm text-blue-800">
-                      <p><strong>File:</strong> {currentNote.fileName}</p>
-                      <p><strong>Type:</strong> {currentNote.fileName.split('.').pop() || 'Unknown'}</p>
+                      <p>
+                        <strong>File:</strong> {currentNote.fileName}
+                      </p>
+                      <p>
+                        <strong>Type:</strong>{" "}
+                        {currentNote.fileName.split(".").pop() || "Unknown"}
+                      </p>
                       {currentNote.transcription && (
-                        <p><strong>Transcription:</strong> {currentNote.transcription.substring(0, 100)}...</p>
+                        <p>
+                          <strong>Transcription:</strong>{" "}
+                          {currentNote.transcription.substring(0, 100)}...
+                        </p>
                       )}
                     </div>
                   </div>
@@ -467,7 +479,8 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                     <div className="text-center text-gray-500 mt-20">
                       <p className="text-lg">No messages yet</p>
                       <p className="text-sm">
-                        Upload a file or start recording to begin chatting with AI
+                        Upload a file or start recording to begin chatting with
+                        AI
                       </p>
                     </div>
                   ) : (
@@ -522,7 +535,11 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                                 .filter((msg) => msg.sender === "ai")
                                 .map((msg) => msg.text)
                                 .join("\n\n---\n\n");
-                              handleSaveNote(allContent, "complete_conversation");
+                              handleSaveNote(
+                                allContent,
+                                "complete_conversation",
+                                `Complete Conversation - ${new Date().toLocaleDateString()}`
+                              );
                             }}
                             className="flex items-center px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
                           >
@@ -593,7 +610,8 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                         File: {currentNote.fileName}
                       </h4>
                       <p className="text-sm text-gray-600 mb-2">
-                        <strong>Custom Prompt:</strong> {currentNote.customPrompt}
+                        <strong>Custom Prompt:</strong>{" "}
+                        {currentNote.customPrompt}
                       </p>
                     </div>
 
@@ -725,47 +743,135 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
       {/* Save Notes Dialog */}
       {showSaveNotesDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Save Notes
             </h3>
             <p className="text-gray-600 mb-6">
-              Please enter a name for the notes you want to save.
+              Edit your notes content and provide a name. You can create a new note or update an existing one.
             </p>
-            <input
-              type="text"
-              id="notesNameInput"
-              placeholder="Notes name (e.g., 'SOAP Note', 'Patient Summary')"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <div className="flex space-x-3">
-              <button
-                onClick={() => {
-                  const notesName = (
-                    document.getElementById(
-                      "notesNameInput"
-                    ) as HTMLInputElement
-                  )?.value;
-                  if (notesName && notesName.trim()) {
-                    const allContent = messages
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Side - Note Details */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Note Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="notesNameInput"
+                    placeholder="Enter a descriptive name (e.g., 'SOAP Note - Patient X')"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Note Type *
+                  </label>
+                  <select
+                    id="noteTypeSelect"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="soap_note">SOAP Note</option>
+                    <option value="patient_summary">Patient Summary</option>
+                    <option value="complete_conversation">Complete Conversation</option>
+                    <option value="custom_note">Custom Note</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Action
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="saveAction"
+                        value="create"
+                        defaultChecked
+                        className="mr-2"
+                      />
+                      <span className="text-sm">Create New Note</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="saveAction"
+                        value="update"
+                        className="mr-2"
+                      />
+                      <span className="text-sm">Update Existing Note (if name exists)</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Right Side - Note Content Editor */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Note Content *
+                </label>
+                <textarea
+                  id="noteContentInput"
+                  rows={12}
+                  placeholder="Edit your note content here..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  defaultValue={(() => {
+                    // Pre-fill with AI messages content
+                    return messages
                       .filter((msg) => msg.sender === "ai")
                       .map((msg) => msg.text)
                       .join("\n\n---\n\n");
-                    handleSaveNote(allContent, notesName.trim());
-                    setShowSaveNotesDialog(false);
-                  } else {
-                    alert("Please enter a name for the notes.");
-                  }
-                }}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-              >
-                Save Notes
-              </button>
+                  })()}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  You can edit this content before saving. All AI responses from the current conversation are included.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
               <button
                 onClick={() => setShowSaveNotesDialog(false)}
-                className="flex-1 px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
               >
                 Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const notesName = (
+                    document.getElementById("notesNameInput") as HTMLInputElement
+                  )?.value;
+                  const noteType = (
+                    document.getElementById("noteTypeSelect") as HTMLSelectElement
+                  )?.value;
+                  const noteContent = (
+                    document.getElementById("noteContentInput") as HTMLTextAreaElement
+                  )?.value;
+                  const saveAction = (
+                    document.querySelector('input[name="saveAction"]:checked') as HTMLInputElement
+                  )?.value;
+                  
+                  if (notesName && notesName.trim() && noteContent && noteContent.trim()) {
+                    // Handle create vs update logic
+                    if (saveAction === "update") {
+                      // Try to update existing note, fallback to create if not found
+                      handleSaveNote(noteContent.trim(), notesName.trim(), noteType);
+                    } else {
+                      // Always create new note
+                      handleSaveNote(noteContent.trim(), notesName.trim(), noteType);
+                    }
+                    setShowSaveNotesDialog(false);
+                  } else {
+                    alert("Please fill in all required fields (Note Name and Note Content).");
+                  }
+                }}
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+              >
+                Save Notes
               </button>
             </div>
           </div>

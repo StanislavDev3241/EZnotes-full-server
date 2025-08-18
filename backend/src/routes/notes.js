@@ -380,7 +380,10 @@ router.post("/save", authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      message: existingNote.rows.length > 0 ? "Note updated successfully" : "Note saved successfully",
+      message:
+        existingNote.rows.length > 0
+          ? "Note updated successfully"
+          : "Note saved successfully",
       note: {
         id: result.rows[0].id,
         noteName: result.rows[0].note_name,
