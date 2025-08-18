@@ -18,12 +18,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
+    null
+  );
   const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
   const [showUpload, setShowUpload] = useState(false);
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
+  const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -168,7 +171,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
           <div className="flex items-center space-x-3">
             <MessageSquare className="h-8 w-8 text-blue-600" />
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">ClearlyAI Chat</h1>
+              <h1 className="text-xl font-semibold text-gray-900">
+                ClearlyAI Chat
+              </h1>
               <p className="text-sm text-gray-500">Welcome, {user.name}</p>
             </div>
           </div>
@@ -196,13 +201,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
           <div className="text-center text-gray-500 mt-20">
             <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
             <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
-            <p className="text-sm">Ask me anything about medical notes or upload files for analysis</p>
+            <p className="text-sm">
+              Ask me anything about medical notes or upload files for analysis
+            </p>
           </div>
         ) : (
           messages.map((message) => (
             <div
               key={message.id}
-              className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex ${
+                message.role === "user" ? "justify-end" : "justify-start"
+              }`}
             >
               <div
                 className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
@@ -212,9 +221,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
                 }`}
               >
                 <p className="text-sm">{message.content}</p>
-                <p className={`text-xs mt-1 ${
-                  message.role === "user" ? "text-blue-100" : "text-gray-500"
-                }`}>
+                <p
+                  className={`text-xs mt-1 ${
+                    message.role === "user" ? "text-blue-100" : "text-gray-500"
+                  }`}
+                >
                   {message.timestamp.toLocaleTimeString()}
                 </p>
               </div>
@@ -226,8 +237,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
             <div className="bg-white text-gray-900 border border-gray-200 px-4 py-2 rounded-lg">
               <div className="flex space-x-1">
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                <div
+                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "0.1s" }}
+                ></div>
+                <div
+                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                  style={{ animationDelay: "0.2s" }}
+                ></div>
               </div>
             </div>
           </div>
@@ -256,7 +273,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
                   : "bg-gray-600 text-white hover:bg-gray-700"
               }`}
             >
-              {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              {isRecording ? (
+                <MicOff className="h-4 w-4" />
+              ) : (
+                <Mic className="h-4 w-4" />
+              )}
             </button>
           </div>
           <button
@@ -272,4 +293,4 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
   );
 };
 
-export default ChatInterface; 
+export default ChatInterface;

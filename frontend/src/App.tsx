@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+} from "react-router-dom";
 import LoginPage from "./components/LoginPage";
 import ChatInterface from "./components/ChatInterface";
 import RecordingPage from "./components/RecordingPage";
@@ -27,12 +33,13 @@ interface UploadResult {
 
 function App() {
   // API Configuration
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
-  
+  const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
+
   // Authentication state
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Upload state
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const [showResults, setShowResults] = useState(false);
@@ -41,7 +48,7 @@ function App() {
   useEffect(() => {
     const token = localStorage.getItem("userToken");
     const adminToken = localStorage.getItem("adminToken");
-    
+
     if (token) {
       // Verify user token
       verifyUserToken(token);
@@ -60,7 +67,7 @@ function App() {
           Authorization: `Bearer ${token}`,
         },
       });
-      
+
       if (response.ok) {
         const userData = await response.json();
         setUser(userData.user);
@@ -82,7 +89,7 @@ function App() {
           Authorization: `Bearer ${token}`,
         },
       });
-      
+
       if (response.ok) {
         const adminData = await response.json();
         setUser({ ...adminData.user, role: "admin" });
@@ -120,7 +127,13 @@ function App() {
   };
 
   // Protected Route component
-  const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.ReactNode; requireAdmin?: boolean }) => {
+  const ProtectedRoute = ({
+    children,
+    requireAdmin = false,
+  }: {
+    children: React.ReactNode;
+    requireAdmin?: boolean;
+  }) => {
     if (isLoading) {
       return (
         <div className="min-h-screen flex items-center justify-center">
@@ -159,34 +172,38 @@ function App() {
       <div className="App">
         <Routes>
           {/* Public Routes */}
-          <Route 
-            path="/login" 
+          <Route
+            path="/login"
             element={
-              user ? <Navigate to="/chat" replace /> : <LoginPage onLogin={handleLogin} />
-            } 
+              user ? (
+                <Navigate to="/chat" replace />
+              ) : (
+                <LoginPage onLogin={handleLogin} />
+              )
+            }
           />
 
           {/* Protected User Routes */}
-          <Route 
-            path="/chat" 
+          <Route
+            path="/chat"
             element={
               <ProtectedRoute>
                 <ChatInterface user={user!} onLogout={handleLogout} />
               </ProtectedRoute>
-            } 
+            }
           />
 
-          <Route 
-            path="/recording" 
+          <Route
+            path="/recording"
             element={
               <ProtectedRoute>
                 <RecordingPage user={user!} />
               </ProtectedRoute>
-            } 
+            }
           />
 
-          <Route 
-            path="/upload" 
+          <Route
+            path="/upload"
             element={
               <ProtectedRoute>
                 <div className="min-h-screen bg-gray-50 p-6">
@@ -194,39 +211,41 @@ function App() {
                     <h1 className="text-3xl font-bold text-gray-900 mb-8 text-center">
                       Upload Medical Files
                     </h1>
-                    <EnhancedUpload 
+                    <EnhancedUpload
                       onUploadComplete={handleUploadComplete}
-                      onError={(error: string) => console.error("Upload error:", error)}
+                      onError={(error: string) =>
+                        console.error("Upload error:", error)
+                      }
                     />
                   </div>
                 </div>
               </ProtectedRoute>
-            } 
+            }
           />
 
           {/* Admin Routes */}
-          <Route 
-            path="/admin" 
+          <Route
+            path="/admin"
             element={
               <ProtectedRoute requireAdmin>
-                <AdminPageWrapper 
+                <AdminPageWrapper
                   API_BASE_URL={API_BASE_URL}
                   onLogout={handleLogout}
                 />
               </ProtectedRoute>
-            } 
+            }
           />
 
           {/* Default Route */}
-          <Route 
-            path="/" 
-            element={<Navigate to={user ? "/chat" : "/login"} replace />} 
+          <Route
+            path="/"
+            element={<Navigate to={user ? "/chat" : "/login"} replace />}
           />
 
           {/* Catch all route */}
-          <Route 
-            path="*" 
-            element={<Navigate to={user ? "/chat" : "/login"} replace />} 
+          <Route
+            path="*"
+            element={<Navigate to={user ? "/chat" : "/login"} replace />}
           />
         </Routes>
 
@@ -240,11 +259,17 @@ function App() {
 }
 
 // Wrapper component to use useNavigate hook
-function AdminPageWrapper({ API_BASE_URL, onLogout }: { API_BASE_URL: string; onLogout: () => void }) {
+function AdminPageWrapper({
+  API_BASE_URL,
+  onLogout,
+}: {
+  API_BASE_URL: string;
+  onLogout: () => void;
+}) {
   const navigate = useNavigate();
-  
+
   return (
-    <AdminPage 
+    <AdminPage
       API_BASE_URL={API_BASE_URL}
       onBackToMain={() => navigate("/chat")}
       onLogout={onLogout}

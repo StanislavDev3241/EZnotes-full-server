@@ -1,5 +1,13 @@
 import { useState, useRef, useEffect } from "react";
-import { Mic, Play, Pause, Square, Download, Upload, ArrowLeft } from "lucide-react";
+import {
+  Mic,
+  Play,
+  Pause,
+  Square,
+  Download,
+  Upload,
+  ArrowLeft,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface RecordingPageProps {
@@ -16,7 +24,7 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
   const [fileName, setFileName] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  
+
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
   const audioContext = useRef<AudioContext | null>(null);
@@ -24,9 +32,10 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
   const microphone = useRef<MediaStreamAudioSourceNode | null>(null);
   const animationFrame = useRef<number>();
   const recordingInterval = useRef<number>();
-  
+
   const navigate = useNavigate();
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
+  const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
 
   useEffect(() => {
     // Initialize audio context and analyzer for level monitoring
@@ -36,14 +45,15 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
         .then((stream) => {
           audioContext.current = new AudioContext();
           analyser.current = audioContext.current.createAnalyser();
-          microphone.current = audioContext.current.createMediaStreamSource(stream);
-          
+          microphone.current =
+            audioContext.current.createMediaStreamSource(stream);
+
           analyser.current.fftSize = 256;
           const bufferLength = analyser.current.frequencyBinCount;
           const dataArray = new Uint8Array(bufferLength);
-          
+
           microphone.current.connect(analyser.current);
-          
+
           const updateAudioLevel = () => {
             if (analyser.current) {
               analyser.current.getByteFrequencyData(dataArray);
@@ -52,7 +62,7 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
             }
             animationFrame.current = requestAnimationFrame(updateAudioLevel);
           };
-          
+
           updateAudioLevel();
         })
         .catch((err) => {
@@ -78,22 +88,27 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
           const recorder = new MediaRecorder(stream);
           mediaRecorder.current = recorder;
           audioChunks.current = [];
-          
+
           recorder.ondataavailable = (event) => {
             audioChunks.current.push(event.data);
           };
-          
+
           recorder.onstop = () => {
             const blob = new Blob(audioChunks.current, { type: "audio/wav" });
             setAudioBlob(blob);
             setAudioUrl(URL.createObjectURL(blob));
-            setFileName(`recording_${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.wav`);
+            setFileName(
+              `recording_${new Date()
+                .toISOString()
+                .slice(0, 19)
+                .replace(/:/g, "-")}.wav`
+            );
           };
-          
+
           recorder.start();
           setIsRecording(true);
           setRecordingTime(0);
-          
+
           // Start timer
           recordingInterval.current = setInterval(() => {
             setRecordingTime((prev) => prev + 1);
@@ -109,13 +124,13 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
     if (mediaRecorder.current && mediaRecorder.current.state === "recording") {
       mediaRecorder.current.stop();
       setIsRecording(false);
-      
+
       if (recordingInterval.current) {
         clearInterval(recordingInterval.current);
       }
-      
+
       // Stop all tracks
-      mediaRecorder.current.stream.getTracks().forEach(track => track.stop());
+      mediaRecorder.current.stream.getTracks().forEach((track) => track.stop());
     }
   };
 
@@ -148,14 +163,14 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
 
   const uploadRecording = async () => {
     if (!audioBlob) return;
-    
+
     setIsUploading(true);
     setUploadProgress(0);
-    
+
     const formData = new FormData();
     formData.append("file", audioBlob, fileName);
     formData.append("userId", user.id);
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/upload`, {
         method: "POST",
@@ -164,7 +179,7 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
         },
         body: formData,
       });
-      
+
       if (response.ok) {
         const result = await response.json();
         alert("Recording uploaded successfully! File ID: " + result.fileId);
@@ -185,7 +200,9 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
   };
 
   return (
@@ -210,7 +227,7 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">
               {isRecording ? "Recording..." : "Ready to Record"}
             </h2>
-            
+
             {/* Audio Level Visualization */}
             <div className="w-32 h-32 mx-auto mb-6 relative">
               <div className="w-full h-full rounded-full border-4 border-gray-200 flex items-center justify-center">
@@ -228,7 +245,7 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
                   )}
                 </div>
               </div>
-              
+
               {/* Recording indicator */}
               {isRecording && (
                 <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full animate-pulse"></div>
@@ -266,8 +283,10 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
         {/* Playback and Actions */}
         {audioBlob && (
           <div className="bg-white rounded-lg shadow-lg p-8">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Recording Actions</h3>
-            
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Recording Actions
+            </h3>
+
             <div className="grid md:grid-cols-2 gap-6">
               {/* Playback Controls */}
               <div className="space-y-4">
@@ -313,7 +332,7 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
                     {isUploading ? "Uploading..." : "Upload to AI"}
                   </button>
                 </div>
-                
+
                 {/* Upload Progress */}
                 {isUploading && (
                   <div className="w-full bg-gray-200 rounded-full h-2">
@@ -332,4 +351,4 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
   );
 };
 
-export default RecordingPage; 
+export default RecordingPage;
