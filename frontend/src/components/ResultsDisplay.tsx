@@ -25,10 +25,10 @@ interface ResultsDisplayProps {
   onNextToChat?: () => void; // Add callback for chat navigation
 }
 
-const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ 
-  result, 
-  onClose, 
-  onNextToChat 
+const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
+  result,
+  onClose,
+  onNextToChat,
 }) => {
   const [activeTab, setActiveTab] = useState<
     "soap" | "summary" | "transcription"

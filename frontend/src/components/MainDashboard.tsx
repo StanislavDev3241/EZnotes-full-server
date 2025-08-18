@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { LogOut } from "lucide-react";
+import { LogOut, Trash2, Save, Download } from "lucide-react";
 import EnhancedUpload from "./EnhancedUpload";
 import ResultsDisplay from "./ResultsDisplay";
 import ManagementPage from "./ManagementPage";
+import EnhancedMessage from "./EnhancedMessage";
+import ChatHistoryManager from "./ChatHistoryManager";
 
 interface User {
   id: number;
@@ -47,6 +49,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
   const [showResults, setShowResults] = useState(false);
   const [showChatChoice, setShowChatChoice] = useState(false);
   const [pendingUpload, setPendingUpload] = useState<UploadResult | null>(null);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const API_BASE_URL =
@@ -158,6 +161,136 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
     }
   };
 
+  // Enhanced message handling functions
+  const handleEditMessage = async (messageId: string, newText: string) => {
+    try {
+      // Update message in local state
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? { ...msg, text: newText } : msg
+      ));
+
+      // TODO: Send update to backend for persistence
+      console.log(`Message ${messageId} edited to: ${newText}`);
+    } catch (error) {
+      console.error("Failed to edit message:", error);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (window.confirm("Are you sure you want to delete this message?")) {
+      try {
+        // Remove message from local state
+        setMessages(prev => prev.filter(msg => msg.id !== messageId));
+        
+        // TODO: Send delete request to backend
+        console.log(`Message ${messageId} deleted`);
+      } catch (error) {
+        console.error("Failed to delete message:", error);
+      }
+    }
+  };
+
+  const handleSaveNote = async (content: string, noteType: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/notes/save`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+        },
+        body: JSON.stringify({
+          content,
+          noteType,
+          userId: user.id,
+          conversationId: currentConversationId,
+        }),
+      });
+
+      if (response.ok) {
+        alert("Note saved successfully!");
+      } else {
+        throw new Error("Failed to save note");
+      }
+    } catch (error) {
+      console.error("Failed to save note:", error);
+      alert("Failed to save note. Please try again.");
+    }
+  };
+
+  const handleDownloadNote = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleContinueFromHistory = (conversationId: string, historyMessages: any[]) => {
+    setCurrentConversationId(conversationId);
+    
+    // Convert history messages to our Message format
+    const convertedMessages = historyMessages.map(msg => ({
+      id: msg.id.toString(),
+      text: msg.sender_type === "user" ? msg.message_text : msg.ai_response,
+      sender: msg.sender_type === "user" ? "user" : "ai" as "user" | "ai",
+      timestamp: new Date(msg.created_at),
+      noteContext: currentNote,
+    }));
+
+    setMessages(convertedMessages);
+  };
+
+  const handleSaveHistoryPoint = async (name: string, messages: any[]) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/chat/checkpoint`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+        },
+        body: JSON.stringify({
+          name,
+          messages,
+          conversationId: currentConversationId,
+          userId: user.id,
+        }),
+      });
+
+      if (response.ok) {
+        alert("Chat point saved successfully!");
+      } else {
+        throw new Error("Failed to save chat point");
+      }
+    } catch (error) {
+      console.error("Failed to save chat point:", error);
+      alert("Failed to save chat point. Please try again.");
+    }
+  };
+
+  const handleDeleteHistoryPoint = async (pointId: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/chat/checkpoint/${pointId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+        },
+      });
+
+      if (response.ok) {
+        console.log(`Chat point ${pointId} deleted`);
+      } else {
+        throw new Error("Failed to delete chat point");
+      }
+    } catch (error) {
+      console.error("Failed to delete chat point:", error);
+      alert("Failed to delete chat point. Please try again.");
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
@@ -223,6 +356,17 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
           <div className="flex flex-col lg:flex-row h-full">
             {/* Chat Interface - Left Side */}
             <div className="flex-1 flex flex-col bg-white mx-2 rounded-lg shadow-sm">
+              {/* Chat History Manager */}
+              <div className="p-3 border-b border-gray-200">
+                <ChatHistoryManager
+                  userId={user.id}
+                  onContinueFromHistory={handleContinueFromHistory}
+                  onSaveHistoryPoint={handleSaveHistoryPoint}
+                  onDeleteHistoryPoint={handleDeleteHistoryPoint}
+                  currentConversationId={currentConversationId || undefined}
+                />
+              </div>
+
               <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4">
                 {messages.length === 0 ? (
                   <div className="text-center text-gray-500 mt-20">
@@ -233,29 +377,15 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                   </div>
                 ) : (
                   messages.map((message) => (
-                    <div
+                    <EnhancedMessage
                       key={message.id}
-                      className={`flex ${
-                        message.sender === "user"
-                          ? "justify-end"
-                          : "justify-start"
-                      }`}
-                    >
-                      <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                          message.sender === "user"
-                            ? "bg-blue-600 text-white"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap text-sm lg:text-base">
-                          {message.text}
-                        </p>
-                        <p className="text-xs opacity-70 mt-1">
-                          {message.timestamp.toLocaleTimeString()}
-                        </p>
-                      </div>
-                    </div>
+                      message={message}
+                      isOwnMessage={message.sender === "user"}
+                      onEditMessage={handleEditMessage}
+                      onDeleteMessage={handleDeleteMessage}
+                      onSaveNote={handleSaveNote}
+                      onDownloadNote={handleDownloadNote}
+                    />
                   ))
                 )}
                 {isLoading && (
@@ -270,6 +400,57 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
 
               {/* Chat Input */}
               <div className="border-t bg-white p-4">
+                {/* Chat Controls */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => {
+                        if (window.confirm("Are you sure you want to clear the chat?")) {
+                          setMessages([]);
+                          setCurrentConversationId(null);
+                        }
+                      }}
+                      className="flex items-center px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Clear Chat
+                    </button>
+                    {currentNote && (
+                      <>
+                        <button
+                          onClick={() => {
+                            const allContent = messages
+                              .filter(msg => msg.sender === "ai")
+                              .map(msg => msg.text)
+                              .join("\n\n---\n\n");
+                            handleSaveNote(allContent, "complete_conversation");
+                          }}
+                          className="flex items-center px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                        >
+                          <Save className="w-4 h-4 mr-1" />
+                          Save All
+                        </button>
+                        <button
+                          onClick={() => {
+                            const allContent = messages
+                              .filter(msg => msg.sender === "ai")
+                              .map(msg => msg.text)
+                              .join("\n\n---\n\n");
+                            handleDownloadNote(allContent, `chat_${Date.now()}.txt`);
+                          }}
+                          className="flex items-center px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors"
+                        >
+                          <Download className="w-4 h-4 mr-1" />
+                          Download All
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {messages.length} messages
+                  </div>
+                </div>
+
                 <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
                   <textarea
                     value={inputMessage}
