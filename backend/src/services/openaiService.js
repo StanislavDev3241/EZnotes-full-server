@@ -22,6 +22,8 @@ class OpenAIService {
         file: fs.createReadStream(audioFilePath),
         model: "whisper-1",
         response_format: "text",
+        language: "en", // Force English language
+        prompt: "This is a dental/medical consultation in English. Please transcribe in English only."
       });
 
       console.log(
