@@ -51,7 +51,15 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
 }) => {
   const [activeSection, setActiveSection] = useState<
     "chat" | "upload" | "management"
-  >("chat");
+  >("upload"); // Default to upload for unregistered users
+
+  // For unregistered users, only show upload section
+  useEffect(() => {
+    if (isUnregisteredUser) {
+      setActiveSection("upload");
+    }
+  }, [isUnregisteredUser]);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -521,40 +529,44 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="bg-white border-b px-4">
-        <div className="flex space-x-8">
-          <button
-            onClick={() => setActiveSection("chat")}
-            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-              activeSection === "chat"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
-          >
-            Chat & Notes
-          </button>
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="-mb-px flex space-x-8">
+          {!isUnregisteredUser && (
+            <button
+              onClick={() => setActiveSection("chat")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeSection === "chat"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              Chat & Notes
+            </button>
+          )}
           <button
             onClick={() => setActiveSection("upload")}
-            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeSection === "upload"
                 ? "border-blue-500 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
             }`}
           >
-            Upload & Record
+            {isUnregisteredUser ? "Upload & Generate Notes" : "Upload & Record"}
           </button>
-          <button
-            onClick={() => setActiveSection("management")}
-            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-              activeSection === "management"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
-          >
-            Management
-          </button>
-        </div>
+          {!isUnregisteredUser && (
+            <button
+              onClick={() => setActiveSection("management")}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeSection === "management"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              Management
+            </button>
+          )}
+        </nav>
       </div>
 
       {/* Main Content - Account for header height */}
@@ -790,17 +802,41 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
           </div>
         )}
 
+        {/* Upload Section */}
         {activeSection === "upload" && (
-          <div className="p-4 lg:p-6 mx-2">
-            <div className="max-w-4xl mx-auto">
-              <h2 className="text-xl lg:text-2xl font-bold text-gray-900 mb-6">
-                Upload & Record
-              </h2>
-              <EnhancedUpload
-                onUploadComplete={handleUploadComplete}
-                onError={handleUploadError}
-              />
-            </div>
+          <div className="space-y-6">
+            {isUnregisteredUser && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-blue-800">
+                      Try ClearlyAI for Free
+                    </h3>
+                    <div className="mt-2 text-sm text-blue-700">
+                      <p>
+                        Upload your transcription or audio files to generate AI-powered SOAP notes and patient summaries. 
+                        <button
+                          onClick={() => setActiveSection("chat")}
+                          className="ml-1 font-medium underline hover:text-blue-600"
+                        >
+                          Sign up
+                        </button>{" "}
+                        to unlock chat functionality, save notes, and access your full history.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <EnhancedUpload 
+              onUploadComplete={handleUploadComplete} 
+              onError={(error) => console.error("Upload error:", error)}
+            />
           </div>
         )}
 

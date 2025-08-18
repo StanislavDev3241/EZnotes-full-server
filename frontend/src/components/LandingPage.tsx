@@ -1,5 +1,5 @@
 import React from "react";
-import { FileText, MessageSquare, Shield, Zap, ArrowRight } from "lucide-react";
+import { Upload, FileText, Monitor, ArrowRight, Menu } from "lucide-react";
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -7,23 +7,19 @@ interface LandingPageProps {
 
 const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-white">
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <h1 className="text-2xl font-bold text-blue-600">ClearlyAI</h1>
+                <h1 className="text-2xl font-bold text-blue-900">Clearly AI</h1>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <button
-                onClick={onGetStarted}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-              >
-                Get Started
-                <ArrowRight className="ml-2 h-4 w-4" />
+              <button className="p-2 text-gray-600 hover:text-gray-800">
+                <Menu className="h-6 w-6" />
               </button>
             </div>
           </div>
@@ -31,168 +27,129 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </header>
 
       {/* Hero Section */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center">
-          <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
-            <span className="block">Transform Your Medical</span>
-            <span className="block text-blue-600">Documentation</span>
+          <h1 className="text-4xl tracking-tight font-extrabold text-blue-900 sm:text-5xl md:text-6xl">
+            Generate SOAP notes & patient scripts with AI
           </h1>
           <p className="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
-            AI-powered SOAP notes, patient summaries, and intelligent chat
-            assistance. Streamline your medical documentation workflow with
-            ClearlyAI.
+            Upload your transcription and receive easy-to-read in seconds
           </p>
-          <div className="mt-5 max-w-md mx-auto sm:flex sm:justify-center md:mt-8">
-            <div className="rounded-md shadow">
-              <button
-                onClick={onGetStarted}
-                className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 md:py-4 md:text-lg md:px-10 transition-colors"
-              >
-                Start Free Trial
-              </button>
-            </div>
+          <div className="mt-8">
+            <button
+              onClick={onGetStarted}
+              className="inline-flex items-center px-8 py-4 border border-gray-300 text-lg font-medium rounded-lg text-gray-700 bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            >
+              <Upload className="mr-2 h-5 w-5" />
+              Upload transcript (.txt or .mp3)
+            </button>
           </div>
         </div>
       </main>
 
+      {/* How It Works Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h2 className="text-3xl font-extrabold text-blue-900 sm:text-4xl">
+              How It Works
+            </h2>
+          </div>
+
+          <div className="mt-16">
+            <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
+              {/* Step 1 */}
+              <div className="text-center">
+                <div className="flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 text-blue-600 mx-auto mb-4">
+                  <Upload className="h-8 w-8" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Upload audio or text transcript at the end of the patient visit
+                </h3>
+              </div>
+
+              {/* Arrow 1 */}
+              <div className="hidden sm:flex items-center justify-center">
+                <ArrowRight className="h-8 w-8 text-blue-600" />
+              </div>
+
+              {/* Step 2 */}
+              <div className="text-center">
+                <div className="flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 text-blue-600 mx-auto mb-4">
+                  <FileText className="h-8 w-8" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Get a complete SOAP note or patient-friendly summary
+                </h3>
+              </div>
+
+              {/* Arrow 2 */}
+              <div className="hidden sm:flex items-center justify-center">
+                <ArrowRight className="h-8 w-8 text-blue-600" />
+              </div>
+
+              {/* Step 3 */}
+              <div className="text-center">
+                <div className="flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 text-blue-600 mx-auto mb-4">
+                  <Monitor className="h-8 w-8" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Review or save the note in your EHR to complete the chart
+                </h3>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-              Everything you need for medical documentation
-            </h2>
-            <p className="mt-4 max-w-2xl mx-auto text-xl text-gray-500">
-              From audio transcription to AI-generated notes, ClearlyAI has you
-              covered.
-            </p>
-          </div>
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
+            {/* Feature 1 */}
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-blue-900 mb-3">
+                Speed up charting
+              </h3>
+              <p className="text-gray-600">
+                Stop spending hours crafting notes after a long clinic day -- just upload and go
+              </p>
+            </div>
 
-          <div className="mt-20">
-            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              {/* Feature 1 */}
-              <div className="text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white mx-auto">
-                  <FileText className="h-6 w-6" />
-                </div>
-                <h3 className="mt-6 text-lg font-medium text-gray-900">
-                  AI-Generated SOAP Notes
-                </h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Automatically generate comprehensive SOAP notes from your
-                  transcriptions with advanced AI.
-                </p>
-              </div>
+            {/* Feature 2 */}
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-blue-900 mb-3">
+                Minimize errors
+              </h3>
+              <p className="text-gray-600">
+                Ensure your notes are complete, formatted correctly, and free of mistakes
+              </p>
+            </div>
 
-              {/* Feature 2 */}
-              <div className="text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white mx-auto">
-                  <MessageSquare className="h-6 w-6" />
-                </div>
-                <h3 className="mt-6 text-lg font-medium text-gray-900">
-                  Intelligent Chat Assistant
-                </h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Chat with AI to refine notes, ask questions, and get instant
-                  medical documentation help.
-                </p>
-              </div>
-
-              {/* Feature 3 */}
-              <div className="text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white mx-auto">
-                  <Shield className="h-6 w-6" />
-                </div>
-                <h3 className="mt-6 text-lg font-medium text-gray-900">
-                  HIPAA Compliant
-                </h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Enterprise-grade security with end-to-end encryption and full
-                  HIPAA compliance.
-                </p>
-              </div>
-
-              {/* Feature 4 */}
-              <div className="text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white mx-auto">
-                  <Zap className="h-6 w-6" />
-                </div>
-                <h3 className="mt-6 text-lg font-medium text-gray-900">
-                  Fast & Accurate
-                </h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Process audio files and generate notes in seconds with
-                  industry-leading accuracy.
-                </p>
-              </div>
-
-              {/* Feature 5 */}
-              <div className="text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white mx-auto">
-                  <FileText className="h-6 w-6" />
-                </div>
-                <h3 className="mt-6 text-lg font-medium text-gray-900">
-                  Custom Prompts
-                </h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Tailor AI responses to your specialty and documentation
-                  requirements.
-                </p>
-              </div>
-
-              {/* Feature 6 */}
-              <div className="text-center">
-                <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-500 text-white mx-auto">
-                  <MessageSquare className="h-6 w-6" />
-                </div>
-                <h3 className="mt-6 text-lg font-medium text-gray-900">
-                  Conversation History
-                </h3>
-                <p className="mt-2 text-base text-gray-500">
-                  Save and continue conversations, with full audit trails and
-                  version control.
-                </p>
-              </div>
+            {/* Feature 3 */}
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-blue-900 mb-3">
+                Improve patient communications
+              </h3>
+              <p className="text-gray-600">
+                Receive a plain-language summary script you can share with the patient
+              </p>
             </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="bg-blue-600">
-        <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:py-16 lg:px-8 lg:flex lg:items-center lg:justify-between">
-          <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-            <span className="block">Ready to get started?</span>
-            <span className="block text-blue-200">Join ClearlyAI today.</span>
-          </h2>
-          <div className="mt-8 flex lg:mt-0 lg:flex-shrink-0">
-            <div className="inline-flex rounded-md shadow">
-              <button
-                onClick={onGetStarted}
-                className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50 transition-colors"
-              >
-                Get Started
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </button>
-            </div>
-          </div>
+      <section className="py-16 bg-blue-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:py-16 lg:px-8 text-center">
+          <button
+            onClick={onGetStarted}
+            className="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+          >
+            Get started
+          </button>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-800">
-        <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h3 className="text-2xl font-bold text-white">ClearlyAI</h3>
-            <p className="mt-2 text-gray-400">
-              Transforming medical documentation with AI
-            </p>
-            <p className="mt-4 text-sm text-gray-500">
-              © 2024 ClearlyAI. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };

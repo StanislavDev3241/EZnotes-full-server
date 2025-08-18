@@ -76,7 +76,7 @@ function App() {
 
   const handleGetStarted = () => {
     setShowLanding(false); // Hide landing page when user clicks "Get Started"
-    setIsUnregisteredUser(true); // Mark as unregistered user
+    setIsUnregisteredUser(true); // Mark as unregistered user - they can only upload and get notes
   };
 
   const handleBackToLanding = () => {
@@ -103,7 +103,9 @@ function App() {
 
   // Show login page if not logged in and landing is hidden
   if (!user && !isUnregisteredUser) {
-    return <LoginPage onLogin={handleLogin} onBackToLanding={handleBackToLanding} />;
+    return (
+      <LoginPage onLogin={handleLogin} onBackToLanding={handleBackToLanding} />
+    );
   }
 
   // Show main application if user is logged in OR if unregistered user wants to use the app
@@ -120,8 +122,8 @@ function App() {
                 onLogout={handleLogout}
               />
             ) : (
-              <MainDashboard 
-                user={user} 
+              <MainDashboard
+                user={user}
                 onLogout={handleLogout}
                 isUnregisteredUser={isUnregisteredUser}
                 onBackToLanding={handleBackToLanding}
