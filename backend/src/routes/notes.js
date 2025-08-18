@@ -21,7 +21,10 @@ const authenticateToken = async (req, res, next) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "your-secret-key"
+    );
 
     // Get user from database to ensure they still exist and are active
     const userResult = await pool.query(
@@ -153,10 +156,9 @@ router.put("/:noteId", authenticateToken, async (req, res) => {
     const { content, status, note_type } = req.body;
 
     // Get current note to check permissions and for audit
-    const currentNote = await pool.query(
-      "SELECT * FROM notes WHERE id = $1",
-      [noteId]
-    );
+    const currentNote = await pool.query("SELECT * FROM notes WHERE id = $1", [
+      noteId,
+    ]);
 
     if (currentNote.rows.length === 0) {
       return res.status(404).json({
@@ -166,7 +168,10 @@ router.put("/:noteId", authenticateToken, async (req, res) => {
     }
 
     // Verify user can modify this note
-    if (req.user.role !== "admin" && req.user.userId !== currentNote.rows[0].user_id) {
+    if (
+      req.user.role !== "admin" &&
+      req.user.userId !== currentNote.rows[0].user_id
+    ) {
       return res.status(403).json({
         success: false,
         message: "Access denied",
@@ -215,10 +220,9 @@ router.delete("/:noteId", authenticateToken, async (req, res) => {
     const { noteId } = req.params;
 
     // Get current note to check permissions
-    const currentNote = await pool.query(
-      "SELECT * FROM notes WHERE id = $1",
-      [noteId]
-    );
+    const currentNote = await pool.query("SELECT * FROM notes WHERE id = $1", [
+      noteId,
+    ]);
 
     if (currentNote.rows.length === 0) {
       return res.status(404).json({
@@ -228,7 +232,10 @@ router.delete("/:noteId", authenticateToken, async (req, res) => {
     }
 
     // Verify user can delete this note
-    if (req.user.role !== "admin" && req.user.userId !== currentNote.rows[0].user_id) {
+    if (
+      req.user.role !== "admin" &&
+      req.user.userId !== currentNote.rows[0].user_id
+    ) {
       return res.status(403).json({
         success: false,
         message: "Access denied",
@@ -363,7 +370,12 @@ router.get("/saved/:userId", authenticateToken, async (req, res) => {
     );
 
     // Log data access
-    await auditService.logDataAccess(req.user.userId, "encrypted_saved_notes", null, "api");
+    await auditService.logDataAccess(
+      req.user.userId,
+      "encrypted_saved_notes",
+      null,
+      "api"
+    );
 
     res.json({
       success: true,
@@ -398,7 +410,10 @@ router.get("/saved/content/:noteId", authenticateToken, async (req, res) => {
     }
 
     // Verify user can access this note
-    if (req.user.role !== "admin" && req.user.userId !== savedNote.rows[0].user_id) {
+    if (
+      req.user.role !== "admin" &&
+      req.user.userId !== savedNote.rows[0].user_id
+    ) {
       return res.status(403).json({
         success: false,
         message: "Access denied",
@@ -413,7 +428,12 @@ router.get("/saved/content/:noteId", authenticateToken, async (req, res) => {
     );
 
     // Log data access
-    await auditService.logDataAccess(req.user.userId, "encrypted_saved_notes", noteId, "api");
+    await auditService.logDataAccess(
+      req.user.userId,
+      "encrypted_saved_notes",
+      noteId,
+      "api"
+    );
 
     res.json({
       success: true,

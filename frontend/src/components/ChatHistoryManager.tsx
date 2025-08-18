@@ -4,7 +4,6 @@ import {
   Play,
   Trash2,
   Save,
-  Download,
   Clock,
   MessageSquare,
   FileText,
@@ -41,9 +40,6 @@ const ChatHistoryManager: React.FC<ChatHistoryManagerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [savePointName, setSavePointName] = useState("");
-  const [selectedPoint, setSelectedPoint] = useState<ChatHistoryPoint | null>(
-    null
-  );
 
   const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";

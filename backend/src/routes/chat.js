@@ -21,7 +21,10 @@ const authenticateToken = async (req, res, next) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "your-secret-key"
+    );
 
     // Get user from database to ensure they still exist and are active
     const userResult = await pool.query(
@@ -217,7 +220,12 @@ router.get("/history/:userId", authenticateToken, async (req, res) => {
     );
 
     // Log data access
-    await auditService.logDataAccess(req.user.userId, "chat_conversations", null, "api");
+    await auditService.logDataAccess(
+      req.user.userId,
+      "chat_conversations",
+      null,
+      "api"
+    );
 
     res.json({
       success: true,
@@ -258,7 +266,12 @@ router.get("/note/:noteId", authenticateToken, async (req, res) => {
     );
 
     // Log data access
-    await auditService.logDataAccess(req.user.userId, "chat_conversations", noteId, "api");
+    await auditService.logDataAccess(
+      req.user.userId,
+      "chat_conversations",
+      noteId,
+      "api"
+    );
 
     res.json({
       success: true,
@@ -376,7 +389,12 @@ router.get("/checkpoints/:userId", authenticateToken, async (req, res) => {
     );
 
     // Log data access
-    await auditService.logDataAccess(req.user.userId, "chat_history_checkpoints", null, "api");
+    await auditService.logDataAccess(
+      req.user.userId,
+      "chat_history_checkpoints",
+      null,
+      "api"
+    );
 
     res.json({
       success: true,
@@ -411,7 +429,10 @@ router.get("/checkpoint/:checkpointId", authenticateToken, async (req, res) => {
     }
 
     // Verify user can access this checkpoint
-    if (req.user.role !== "admin" && req.user.userId !== checkpoint.rows[0].user_id) {
+    if (
+      req.user.role !== "admin" &&
+      req.user.userId !== checkpoint.rows[0].user_id
+    ) {
       return res.status(403).json({
         success: false,
         message: "Access denied",
@@ -428,7 +449,12 @@ router.get("/checkpoint/:checkpointId", authenticateToken, async (req, res) => {
     const messages = JSON.parse(decryptedMessages);
 
     // Log data access
-    await auditService.logDataAccess(req.user.userId, "chat_history_checkpoints", checkpointId, "api");
+    await auditService.logDataAccess(
+      req.user.userId,
+      "chat_history_checkpoints",
+      checkpointId,
+      "api"
+    );
 
     res.json({
       success: true,
@@ -450,59 +476,66 @@ router.get("/checkpoint/:checkpointId", authenticateToken, async (req, res) => {
 });
 
 // Delete chat checkpoint
-router.delete("/checkpoint/:checkpointId", authenticateToken, async (req, res) => {
-  try {
-    const { checkpointId } = req.params;
+router.delete(
+  "/checkpoint/:checkpointId",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { checkpointId } = req.params;
 
-    // Get current checkpoint to check permissions
-    const currentCheckpoint = await pool.query(
-      "SELECT * FROM chat_history_checkpoints WHERE id = $1",
-      [checkpointId]
-    );
+      // Get current checkpoint to check permissions
+      const currentCheckpoint = await pool.query(
+        "SELECT * FROM chat_history_checkpoints WHERE id = $1",
+        [checkpointId]
+      );
 
-    if (currentCheckpoint.rows.length === 0) {
-      return res.status(404).json({
+      if (currentCheckpoint.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Chat checkpoint not found",
+        });
+      }
+
+      // Verify user can delete this checkpoint
+      if (
+        req.user.role !== "admin" &&
+        req.user.userId !== currentCheckpoint.rows[0].user_id
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied",
+        });
+      }
+
+      const deletedCheckpoint = await pool.query(
+        "DELETE FROM chat_history_checkpoints WHERE id = $1 RETURNING *",
+        [checkpointId]
+      );
+
+      // Log data modification
+      await auditService.logDataModify(
+        req.user.userId,
+        "chat_history_checkpoints",
+        checkpointId,
+        "delete",
+        `Checkpoint: ${currentCheckpoint.rows[0].checkpoint_name}`,
+        null
+      );
+
+      res.json({
+        success: true,
+        message: "Chat checkpoint deleted successfully",
+      });
+    } catch (error) {
+      console.error("Delete chat checkpoint error:", error);
+      res.status(500).json({
         success: false,
-        message: "Chat checkpoint not found",
+        message: "Failed to delete chat checkpoint",
+        error: error.message,
       });
     }
-
-    // Verify user can delete this checkpoint
-    if (req.user.role !== "admin" && req.user.userId !== currentCheckpoint.rows[0].user_id) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied",
-      });
-    }
-
-    const deletedCheckpoint = await pool.query(
-      "DELETE FROM chat_history_checkpoints WHERE id = $1 RETURNING *",
-      [checkpointId]
-    );
-
-    // Log data modification
-    await auditService.logDataModify(
-      req.user.userId,
-      "chat_history_checkpoints",
-      checkpointId,
-      "delete",
-      `Checkpoint: ${currentCheckpoint.rows[0].checkpoint_name}`,
-      null
-    );
-
-    res.json({
-      success: true,
-      message: "Chat checkpoint deleted successfully",
-    });
-  } catch (error) {
-    console.error("Delete chat checkpoint error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to delete chat checkpoint",
-      error: error.message,
-    });
   }
-});
+);
 
 // Edit chat message (new endpoint)
 router.put("/message/:messageId", authenticateToken, async (req, res) => {
@@ -534,7 +567,10 @@ router.put("/message/:messageId", authenticateToken, async (req, res) => {
     }
 
     // Verify user can modify this message
-    if (req.user.role !== "admin" && req.user.userId !== currentMessage.rows[0].user_id) {
+    if (
+      req.user.role !== "admin" &&
+      req.user.userId !== currentMessage.rows[0].user_id
+    ) {
       return res.status(403).json({
         success: false,
         message: "Access denied",
@@ -625,7 +661,10 @@ router.delete("/message/:messageId", authenticateToken, async (req, res) => {
     }
 
     // Verify user can delete this message
-    if (req.user.role !== "admin" && req.user.userId !== currentMessage.rows[0].user_id) {
+    if (
+      req.user.role !== "admin" &&
+      req.user.userId !== currentMessage.rows[0].user_id
+    ) {
       return res.status(403).json({
         success: false,
         message: "Access denied",

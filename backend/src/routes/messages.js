@@ -20,7 +20,10 @@ const authenticateToken = async (req, res, next) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "your-secret-key"
+    );
 
     // Get user from database to ensure they still exist and are active
     const userResult = await pool.query(
@@ -82,7 +85,10 @@ router.put("/:messageId", authenticateToken, async (req, res) => {
     }
 
     // Verify user can modify this message
-    if (req.user.role !== "admin" && req.user.userId !== currentMessage.rows[0].user_id) {
+    if (
+      req.user.role !== "admin" &&
+      req.user.userId !== currentMessage.rows[0].user_id
+    ) {
       return res.status(403).json({
         success: false,
         message: "Access denied",
@@ -173,7 +179,10 @@ router.delete("/:messageId", authenticateToken, async (req, res) => {
     }
 
     // Verify user can delete this message
-    if (req.user.role !== "admin" && req.user.userId !== currentMessage.rows[0].user_id) {
+    if (
+      req.user.role !== "admin" &&
+      req.user.userId !== currentMessage.rows[0].user_id
+    ) {
       return res.status(403).json({
         success: false,
         message: "Access denied",
@@ -239,7 +248,10 @@ router.get("/:messageId/edits", authenticateToken, async (req, res) => {
     }
 
     // Verify user can access this message
-    if (req.user.role !== "admin" && req.user.userId !== currentMessage.rows[0].user_id) {
+    if (
+      req.user.role !== "admin" &&
+      req.user.userId !== currentMessage.rows[0].user_id
+    ) {
       return res.status(403).json({
         success: false,
         message: "Access denied",
@@ -256,7 +268,12 @@ router.get("/:messageId/edits", authenticateToken, async (req, res) => {
     );
 
     // Log data access
-    await auditService.logDataAccess(req.user.userId, "message_edits", messageId, "api");
+    await auditService.logDataAccess(
+      req.user.userId,
+      "message_edits",
+      messageId,
+      "api"
+    );
 
     res.json({
       success: true,
@@ -316,7 +333,12 @@ router.get("/edit/:editId/content", authenticateToken, async (req, res) => {
     );
 
     // Log data access
-    await auditService.logDataAccess(req.user.userId, "message_edits", editId, "api");
+    await auditService.logDataAccess(
+      req.user.userId,
+      "message_edits",
+      editId,
+      "api"
+    );
 
     res.json({
       success: true,
@@ -338,4 +360,4 @@ router.get("/edit/:editId/content", authenticateToken, async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

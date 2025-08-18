@@ -20,7 +20,10 @@ const authenticateAdmin = async (req, res, next) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "your-secret-key"
+    );
 
     // Get user from database to ensure they exist and are admin
     const userResult = await pool.query(
@@ -71,7 +74,12 @@ router.get("/users", authenticateAdmin, async (req, res) => {
     );
 
     // Log admin action
-    await auditService.logDataAccess(req.user.userId, "users", null, "admin_api");
+    await auditService.logDataAccess(
+      req.user.userId,
+      "users",
+      null,
+      "admin_api"
+    );
 
     res.json({
       success: true,
@@ -110,7 +118,12 @@ router.get("/users/:userId", authenticateAdmin, async (req, res) => {
     }
 
     // Log admin action
-    await auditService.logDataAccess(req.user.userId, "users", userId, "admin_api");
+    await auditService.logDataAccess(
+      req.user.userId,
+      "users",
+      userId,
+      "admin_api"
+    );
 
     res.json({
       success: true,
@@ -133,10 +146,9 @@ router.put("/users/:userId", authenticateAdmin, async (req, res) => {
     const { first_name, last_name, role, is_active } = req.body;
 
     // Get current user for audit
-    const currentUser = await pool.query(
-      "SELECT * FROM users WHERE id = $1",
-      [userId]
-    );
+    const currentUser = await pool.query("SELECT * FROM users WHERE id = $1", [
+      userId,
+    ]);
 
     if (currentUser.rows.length === 0) {
       return res.status(404).json({
@@ -185,7 +197,14 @@ router.put("/users/:userId", authenticateAdmin, async (req, res) => {
 // Get all audit logs (admin only)
 router.get("/audit-logs", authenticateAdmin, async (req, res) => {
   try {
-    const { limit = 100, offset = 0, actionType, userId, dateFrom, dateTo } = req.query;
+    const {
+      limit = 100,
+      offset = 0,
+      actionType,
+      userId,
+      dateFrom,
+      dateTo,
+    } = req.query;
 
     const filters = {};
     if (actionType) filters.actionType = actionType;
@@ -200,7 +219,12 @@ router.get("/audit-logs", authenticateAdmin, async (req, res) => {
     );
 
     // Log admin action
-    await auditService.logDataAccess(req.user.userId, "audit_logs", null, "admin_api");
+    await auditService.logDataAccess(
+      req.user.userId,
+      "audit_logs",
+      null,
+      "admin_api"
+    );
 
     res.json({
       success: true,
@@ -230,7 +254,12 @@ router.get("/audit-logs/user/:userId", authenticateAdmin, async (req, res) => {
     );
 
     // Log admin action
-    await auditService.logDataAccess(req.user.userId, "audit_logs", userId, "admin_api");
+    await auditService.logDataAccess(
+      req.user.userId,
+      "audit_logs",
+      userId,
+      "admin_api"
+    );
 
     res.json({
       success: true,
@@ -336,7 +365,12 @@ router.get("/stats", authenticateAdmin, async (req, res) => {
     `);
 
     // Log admin action
-    await auditService.logDataAccess(req.user.userId, "system_stats", null, "admin_api");
+    await auditService.logDataAccess(
+      req.user.userId,
+      "system_stats",
+      null,
+      "admin_api"
+    );
 
     res.json({
       success: true,
@@ -401,8 +435,12 @@ router.get("/encryption-status", authenticateAdmin, async (req, res) => {
     }
 
     // Log admin action
-    await auditService.logDataAccess(req.user.userId, "encryption_status", null, "admin_api");
-
+    await auditService.logDataAccess(
+      req.user.userId,
+      "encryption_status",
+      null,
+      "admin_api"
+    );
   } catch (error) {
     console.error("Get encryption status error:", error);
     res.status(500).json({
