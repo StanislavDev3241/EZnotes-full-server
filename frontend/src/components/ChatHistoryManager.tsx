@@ -41,9 +41,12 @@ const ChatHistoryManager: React.FC<ChatHistoryManagerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [savePointName, setSavePointName] = useState("");
-  const [selectedPoint, setSelectedPoint] = useState<ChatHistoryPoint | null>(null);
+  const [selectedPoint, setSelectedPoint] = useState<ChatHistoryPoint | null>(
+    null
+  );
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
+  const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
 
   // Load chat history points
   useEffect(() => {
@@ -55,11 +58,14 @@ const ChatHistoryManager: React.FC<ChatHistoryManagerProps> = ({
   const loadHistoryPoints = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/history/${userId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("userToken")}`,
-        },
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/chat/history/${userId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+          },
+        }
+      );
 
       if (response.ok) {
         const data = await response.json();
@@ -82,11 +88,14 @@ const ChatHistoryManager: React.FC<ChatHistoryManagerProps> = ({
 
   const handleContinueFromHistory = async (point: ChatHistoryPoint) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/note/${point.conversationId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("userToken")}`,
-        },
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/chat/note/${point.conversationId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+          },
+        }
+      );
 
       if (response.ok) {
         const data = await response.json();
@@ -111,7 +120,7 @@ const ChatHistoryManager: React.FC<ChatHistoryManagerProps> = ({
   const handleDeletePoint = async (pointId: string) => {
     if (window.confirm("Are you sure you want to delete this history point?")) {
       onDeleteHistoryPoint(pointId);
-      setHistoryPoints(prev => prev.filter(p => p.id !== pointId));
+      setHistoryPoints((prev) => prev.filter((p) => p.id !== pointId));
     }
   };
 
@@ -269,4 +278,4 @@ const ChatHistoryManager: React.FC<ChatHistoryManagerProps> = ({
   );
 };
 
-export default ChatHistoryManager; 
+export default ChatHistoryManager;

@@ -1,418 +1,415 @@
 const express = require("express");
-const { authenticateToken, requireAdmin } = require("../middleware/auth");
 const { pool } = require("../config/database");
-const fs = require("fs-extra");
-const path = require("path");
+const jwt = require("jsonwebtoken");
+const auditService = require("../services/auditService");
+const encryptionUtils = require("../../encryption-utils");
 
 const router = express.Router();
 
-// All admin routes require authentication and admin role
-router.use(authenticateToken, requireAdmin);
-
-// Get all files and notes (admin dashboard)
-router.get("/dashboard", async (req, res) => {
+// Middleware to verify admin JWT token
+const authenticateAdmin = async (req, res, next) => {
   try {
-    const {
-      page = 1,
-      limit = 20,
-      status,
-      noteType,
-      dateFrom,
-      dateTo,
-    } = req.query;
-    const offset = (page - 1) * limit;
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
 
-    let whereClause = "WHERE 1=1";
-    let params = [];
-    let paramIndex = 1;
-
-    if (status) {
-      whereClause += ` AND f.status = $${paramIndex}`;
-      params.push(status);
-      paramIndex++;
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Access token required",
+      });
     }
 
-    if (noteType) {
-      whereClause += ` AND n.note_type = $${paramIndex}`;
-      params.push(noteType);
-      paramIndex++;
-    }
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
 
-    if (dateFrom) {
-      whereClause += ` AND f.created_at >= $${paramIndex}`;
-      params.push(dateFrom);
-      paramIndex++;
-    }
-
-    if (dateTo) {
-      whereClause += ` AND f.created_at <= $${paramIndex}`;
-      params.push(dateTo);
-      paramIndex++;
-    }
-
-    // Get total count
-    const countResult = await pool.query(
-      `
-      SELECT COUNT(DISTINCT f.id) as total
-      FROM files f
-      LEFT JOIN notes n ON f.id = n.file_id
-      ${whereClause}
-    `,
-      params
+    // Get user from database to ensure they exist and are admin
+    const userResult = await pool.query(
+      "SELECT id, email, role, is_active FROM users WHERE id = $1",
+      [decoded.userId]
     );
 
-    const total = parseInt(countResult.rows[0].total);
+    if (userResult.rows.length === 0 || !userResult.rows[0].is_active) {
+      return res.status(401).json({
+        success: false,
+        message: "User not found or inactive",
+      });
+    }
 
-    // Get files with notes and user info
-    const result = await pool.query(
-      `
-      SELECT f.*, 
-             u.email as user_email,
-             n.id as note_id, 
-             n.note_type, 
-             n.content, 
-             n.created_at as note_created_at,
-             t.status as task_status,
-             t.error_message
-      FROM files f
-      LEFT JOIN users u ON f.user_id = u.id
-      LEFT JOIN notes n ON f.id = n.file_id
-      LEFT JOIN tasks t ON f.id = t.file_id AND t.task_type = 'file_processing'
-      ${whereClause}
-      ORDER BY f.created_at DESC
-      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `,
-      [...params, limit, offset]
+    if (userResult.rows[0].role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Admin access required",
+      });
+    }
+
+    // Add user info to request
+    req.user = {
+      userId: userResult.rows[0].id,
+      email: userResult.rows[0].email,
+      role: userResult.rows[0].role,
+    };
+
+    next();
+  } catch (error) {
+    console.error("Admin authentication error:", error);
+    return res.status(403).json({
+      success: false,
+      message: "Invalid or expired token",
+    });
+  }
+};
+
+// Get all users (admin only)
+router.get("/users", authenticateAdmin, async (req, res) => {
+  try {
+    const users = await pool.query(
+      `SELECT 
+        id, email, first_name, last_name, role, is_active, 
+        created_at, updated_at
+      FROM users
+      ORDER BY created_at DESC`
     );
 
-    const files = result.rows.map((row) => ({
-      id: row.id,
-      filename: row.filename,
-      originalName: row.original_name,
-      fileSize: row.file_size,
-      fileType: row.file_type,
-      status: row.status,
-      userEmail: row.user_email,
-      taskStatus: row.task_status,
-      errorMessage: row.error_message,
-      createdAt: row.created_at,
-      notes: row.note_id
-        ? [
-            {
-              id: row.note_id,
-              type: row.note_type,
-              content: JSON.parse(row.content),
-              createdAt: row.note_created_at,
-            },
-          ]
-        : [],
-    }));
+    // Log admin action
+    await auditService.logDataAccess(req.user.userId, "users", null, "admin_api");
 
-    // Get summary statistics
-    const statsResult = await pool.query(`
+    res.json({
+      success: true,
+      users: users.rows,
+      count: users.rows.length,
+    });
+  } catch (error) {
+    console.error("Get users error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get users",
+      error: error.message,
+    });
+  }
+});
+
+// Get user details (admin only)
+router.get("/users/:userId", authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await pool.query(
+      `SELECT 
+        id, email, first_name, last_name, role, is_active, 
+        created_at, updated_at
+      FROM users
+      WHERE id = $1`,
+      [userId]
+    );
+
+    if (user.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Log admin action
+    await auditService.logDataAccess(req.user.userId, "users", userId, "admin_api");
+
+    res.json({
+      success: true,
+      user: user.rows[0],
+    });
+  } catch (error) {
+    console.error("Get user error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get user",
+      error: error.message,
+    });
+  }
+});
+
+// Update user (admin only)
+router.put("/users/:userId", authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { first_name, last_name, role, is_active } = req.body;
+
+    // Get current user for audit
+    const currentUser = await pool.query(
+      "SELECT * FROM users WHERE id = $1",
+      [userId]
+    );
+
+    if (currentUser.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const updatedUser = await pool.query(
+      `UPDATE users
+       SET first_name = COALESCE($1, first_name),
+           last_name = COALESCE($2, last_name),
+           role = COALESCE($3, role),
+           is_active = COALESCE($4, is_active),
+           updated_at = NOW()
+       WHERE id = $5
+       RETURNING *`,
+      [first_name, last_name, role, is_active, userId]
+    );
+
+    // Log admin action
+    await auditService.logDataModify(
+      req.user.userId,
+      "users",
+      userId,
+      "admin_update",
+      JSON.stringify(currentUser.rows[0]),
+      JSON.stringify(updatedUser.rows[0])
+    );
+
+    res.json({
+      success: true,
+      user: updatedUser.rows[0],
+      message: "User updated successfully",
+    });
+  } catch (error) {
+    console.error("Update user error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update user",
+      error: error.message,
+    });
+  }
+});
+
+// Get all audit logs (admin only)
+router.get("/audit-logs", authenticateAdmin, async (req, res) => {
+  try {
+    const { limit = 100, offset = 0, actionType, userId, dateFrom, dateTo } = req.query;
+
+    const filters = {};
+    if (actionType) filters.actionType = actionType;
+    if (userId) filters.userId = parseInt(userId);
+    if (dateFrom) filters.dateFrom = dateFrom;
+    if (dateTo) filters.dateTo = dateTo;
+
+    const logs = await auditService.getAllAuditLogs(
+      parseInt(limit),
+      parseInt(offset),
+      filters
+    );
+
+    // Log admin action
+    await auditService.logDataAccess(req.user.userId, "audit_logs", null, "admin_api");
+
+    res.json({
+      success: true,
+      logs: logs,
+      count: logs.length,
+    });
+  } catch (error) {
+    console.error("Get audit logs error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get audit logs",
+      error: error.message,
+    });
+  }
+});
+
+// Get audit logs for a specific user (admin only)
+router.get("/audit-logs/user/:userId", authenticateAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { limit = 100, offset = 0 } = req.query;
+
+    const logs = await auditService.getUserAuditLogs(
+      parseInt(userId),
+      parseInt(limit),
+      parseInt(offset)
+    );
+
+    // Log admin action
+    await auditService.logDataAccess(req.user.userId, "audit_logs", userId, "admin_api");
+
+    res.json({
+      success: true,
+      logs: logs,
+      count: logs.length,
+    });
+  } catch (error) {
+    console.error("Get user audit logs error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get user audit logs",
+      error: error.message,
+    });
+  }
+});
+
+// Clean old audit logs (admin only)
+router.post("/audit-logs/clean", authenticateAdmin, async (req, res) => {
+  try {
+    const { daysToKeep = 2555 } = req.body; // Default 7 years for HIPAA
+
+    const cleanedCount = await auditService.cleanOldLogs(parseInt(daysToKeep));
+
+    // Log admin action
+    await auditService.logDataModify(
+      req.user.userId,
+      "audit_logs",
+      null,
+      "clean_old_logs",
+      null,
+      `Cleaned ${cleanedCount} old logs`
+    );
+
+    res.json({
+      success: true,
+      message: `Cleaned ${cleanedCount} old audit logs`,
+      cleanedCount: cleanedCount,
+    });
+  } catch (error) {
+    console.error("Clean audit logs error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to clean audit logs",
+      error: error.message,
+    });
+  }
+});
+
+// Get system statistics (admin only)
+router.get("/stats", authenticateAdmin, async (req, res) => {
+  try {
+    // Get user statistics
+    const userStats = await pool.query(`
       SELECT 
-        COUNT(*) as total_files,
-        COUNT(CASE WHEN status = 'processed' THEN 1 END) as processed_files,
-        COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_files,
-        COUNT(CASE WHEN status = 'uploaded' THEN 1 END) as pending_files
-      FROM files
+        COUNT(*) as total_users,
+        COUNT(CASE WHEN is_active = true THEN 1 END) as active_users,
+        COUNT(CASE WHEN role = 'admin' THEN 1 END) as admin_users,
+        COUNT(CASE WHEN created_at >= NOW() - INTERVAL '30 days' THEN 1 END) as new_users_30d
+      FROM users
     `);
 
-    const stats = statsResult.rows[0];
-
-    res.json({
-      files,
-      stats,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    });
-  } catch (error) {
-    console.error("Admin dashboard error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Get all notes for admin
-router.get("/notes", async (req, res) => {
-  try {
-    // Get all notes without pagination for admin dashboard
-    const result = await pool.query(
-      `
-      SELECT n.*, 
-             f.original_name,
-             f.file_size,
-             f.file_type,
-             f.created_at as file_created_at
-      FROM notes n
-      JOIN files f ON n.file_id = f.id
-      ORDER BY n.created_at DESC
-    `
-    );
-
-    const notes = result.rows.map((row) => ({
-      id: row.id,
-      content: JSON.parse(row.content),
-      status: row.status,
-      createdAt: row.created_at,
-      file: {
-        id: row.file_id,
-        originalName: row.original_name,
-        fileSize: row.file_size,
-        fileType: row.file_type,
-        createdAt: row.file_created_at,
-      },
-    }));
-
-    res.json({
-      notes,
-      total: notes.length,
-    });
-  } catch (error) {
-    console.error("Admin notes error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Delete a note (admin only)
-router.delete("/notes/:noteId", async (req, res) => {
-  try {
-    const { noteId } = req.params;
-
-    // First check if the note exists
-    const noteCheck = await pool.query(
-      "SELECT id, file_id FROM notes WHERE id = $1",
-      [noteId]
-    );
-
-    if (noteCheck.rows.length === 0) {
-      return res.status(404).json({ error: "Note not found" });
-    }
-
-    const note = noteCheck.rows[0];
-
-    // Delete the note
-    await pool.query("DELETE FROM notes WHERE id = $1", [noteId]);
-
-    // Check if this was the last note for the file
-    const remainingNotes = await pool.query(
-      "SELECT COUNT(*) as count FROM notes WHERE file_id = $1",
-      [note.file_id]
-    );
-
-    // If no more notes for this file, also delete the file and related data
-    if (parseInt(remainingNotes.rows[0].count) === 0) {
-      // Delete tasks first (due to foreign key constraint)
-      await pool.query("DELETE FROM tasks WHERE file_id = $1", [note.file_id]);
-      // Then delete the file
-      await pool.query("DELETE FROM files WHERE id = $1", [note.file_id]);
-    }
-
-    res.json({
-      message: "Note deleted successfully",
-      fileDeleted: parseInt(remainingNotes.rows[0].count) === 0,
-    });
-  } catch (error) {
-    console.error("Admin delete note error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Download all notes as ZIP (admin only)
-router.get("/download-all", async (req, res) => {
-  try {
-    const { noteType, dateFrom, dateTo } = req.query;
-
-    let whereClause = "WHERE 1=1";
-    let params = [];
-
-    if (noteType) {
-      whereClause += ` AND n.note_type = $1`;
-      params.push(noteType);
-    }
-
-    if (dateFrom) {
-      whereClause += ` AND n.created_at >= $${params.length + 1}`;
-      params.push(dateFrom);
-    }
-
-    if (dateTo) {
-      whereClause += ` AND n.created_at <= $${params.length + 1}`;
-      params.push(dateTo);
-    }
-
-    // Get notes
-    const result = await pool.query(
-      `
-      SELECT n.*, 
-             f.original_name,
-             u.email as user_email
-      FROM notes n
-      JOIN files f ON n.file_id = f.id
-      JOIN users u ON n.user_id = u.id
-      ${whereClause}
-      ORDER BY n.created_at DESC
-    `,
-      params
-    );
-
-    if (result.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ error: "No notes found for the specified criteria" });
-    }
-
-    // Create ZIP file (simplified - in production, use a proper ZIP library)
-    let zipContent = "";
-
-    result.rows.forEach((row, index) => {
-      const content = JSON.parse(row.content);
-      const timestamp = new Date(row.created_at).toISOString().split("T")[0];
-      const filename = `${timestamp}_${
-        row.note_type
-      }_${row.original_name.replace(/\.[^/.]+$/, "")}.txt`;
-
-      zipContent += `=== ${filename} ===\n`;
-      zipContent += `User: ${row.user_email}\n`;
-      zipContent += `Generated: ${new Date(row.created_at).toLocaleString()}\n`;
-      zipContent += `\n${"=".repeat(50)}\n\n`;
-
-      if (typeof content === "object") {
-        Object.entries(content).forEach(([key, value]) => {
-          zipContent += `${key.toUpperCase()}:\n${value}\n\n`;
-        });
-      } else {
-        zipContent += content;
-      }
-
-      zipContent += "\n\n";
-    });
-
-    const timestamp = new Date().toISOString().split("T")[0];
-    const zipFilename = `admin_notes_${timestamp}.txt`;
-
-    res.setHeader("Content-Type", "text/plain");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${zipFilename}"`
-    );
-    res.send(zipContent);
-  } catch (error) {
-    console.error("Admin download all error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Update note retention period
-router.put("/notes/:noteId/retention", async (req, res) => {
-  try {
-    const { noteId } = req.params;
-    const { retentionDays } = req.body;
-
-    if (!retentionDays || retentionDays < 1) {
-      return res.status(400).json({ error: "Valid retention days required" });
-    }
-
-    const result = await pool.query(
-      `
-      UPDATE notes 
-      SET retention_date = CURRENT_DATE + INTERVAL '${retentionDays} days',
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1
-      RETURNING id
-    `,
-      [noteId]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Note not found" });
-    }
-
-    res.json({ message: "Retention period updated successfully" });
-  } catch (error) {
-    console.error("Update retention error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Delete expired notes (cleanup)
-router.delete("/notes/expired", async (req, res) => {
-  try {
-    const result = await pool.query(`
-      DELETE FROM notes 
-      WHERE retention_date < CURRENT_DATE
-      RETURNING id
-    `);
-
-    const deletedCount = result.rows.length;
-    console.log(`🗑️ Deleted ${deletedCount} expired notes`);
-
-    res.json({
-      message: `Deleted ${deletedCount} expired notes`,
-      deletedCount,
-    });
-  } catch (error) {
-    console.error("Delete expired notes error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Get system statistics
-router.get("/stats", async (req, res) => {
-  try {
-    // File statistics
+    // Get file statistics
     const fileStats = await pool.query(`
       SELECT 
         COUNT(*) as total_files,
         COUNT(CASE WHEN status = 'processed' THEN 1 END) as processed_files,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_files,
         COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_files,
-        COUNT(CASE WHEN status = 'uploaded' THEN 1 END) as pending_files,
-        SUM(file_size) as total_size_bytes
+        SUM(file_size) as total_size
       FROM files
     `);
 
-    // Note statistics
+    // Get note statistics
     const noteStats = await pool.query(`
       SELECT 
         COUNT(*) as total_notes,
-        COUNT(CASE WHEN note_type = 'soap' THEN 1 END) as soap_notes,
-        COUNT(CASE WHEN note_type = 'summary' THEN 1 END) as summary_notes,
-        COUNT(CASE WHEN note_type = 'general' THEN 1 END) as general_notes
+        COUNT(CASE WHEN status = 'generated' THEN 1 END) as generated_notes,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_notes
       FROM notes
     `);
 
-    // User statistics
-    const userStats = await pool.query(`
+    // Get chat statistics
+    const chatStats = await pool.query(`
       SELECT 
-        COUNT(*) as total_users,
-        COUNT(CASE WHEN role = 'admin' THEN 1 END) as admin_users,
-        COUNT(CASE WHEN role = 'user' THEN 1 END) as regular_users
-      FROM users
+        COUNT(*) as total_conversations,
+        COUNT(DISTINCT user_id) as users_with_chats
+      FROM chat_conversations
     `);
 
-    // Task statistics
-    const taskStats = await pool.query(`
+    // Get encrypted data statistics
+    const encryptedStats = await pool.query(`
       SELECT 
-        COUNT(*) as total_tasks,
-        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_tasks,
-        COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_tasks,
-        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_tasks
-      FROM tasks
+        COUNT(*) as total_encrypted_notes,
+        COUNT(*) as total_chat_checkpoints,
+        COUNT(*) as total_message_edits
+      FROM (
+        SELECT 'notes' as type FROM encrypted_saved_notes
+        UNION ALL
+        SELECT 'checkpoints' as type FROM chat_history_checkpoints
+        UNION ALL
+        SELECT 'edits' as type FROM message_edits
+      ) t
     `);
+
+    // Log admin action
+    await auditService.logDataAccess(req.user.userId, "system_stats", null, "admin_api");
 
     res.json({
-      files: fileStats.rows[0],
-      notes: noteStats.rows[0],
-      users: userStats.rows[0],
-      tasks: taskStats.rows[0],
-      timestamp: new Date().toISOString(),
+      success: true,
+      stats: {
+        users: userStats.rows[0],
+        files: fileStats.rows[0],
+        notes: noteStats.rows[0],
+        chat: chatStats.rows[0],
+        encrypted: encryptedStats.rows[0],
+        timestamp: new Date().toISOString(),
+      },
     });
   } catch (error) {
-    console.error("Admin stats error:", error);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Get system stats error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get system statistics",
+      error: error.message,
+    });
+  }
+});
+
+// Get encryption status (admin only)
+router.get("/encryption-status", authenticateAdmin, async (req, res) => {
+  try {
+    // Check if encryption is working
+    const testData = "test_encryption_data";
+    const testUserId = 1;
+
+    try {
+      const encrypted = encryptionUtils.encryptData(testData, testUserId);
+      const decrypted = encryptionUtils.decryptData(
+        encrypted.encryptedData,
+        encrypted.iv,
+        testUserId
+      );
+
+      const encryptionWorking = decrypted === testData;
+
+      res.json({
+        success: true,
+        encryption: {
+          status: encryptionWorking ? "working" : "failed",
+          algorithm: "aes-256-cbc",
+          keyDerivation: "sha256 from user_id + master_key",
+          testResult: encryptionWorking ? "passed" : "failed",
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (encryptionError) {
+      res.json({
+        success: true,
+        encryption: {
+          status: "error",
+          algorithm: "aes-256-cbc",
+          keyDerivation: "sha256 from user_id + master_key",
+          testResult: "failed",
+          error: encryptionError.message,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Log admin action
+    await auditService.logDataAccess(req.user.userId, "encryption_status", null, "admin_api");
+
+  } catch (error) {
+    console.error("Get encryption status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get encryption status",
+      error: error.message,
+    });
   }
 });
 

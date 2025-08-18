@@ -75,12 +75,15 @@ const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
   };
 
   const handleDownloadNote = () => {
-    const filename = `note_${message.id}_${new Date().toISOString().split('T')[0]}.txt`;
+    const filename = `note_${message.id}_${
+      new Date().toISOString().split("T")[0]
+    }.txt`;
     onDownloadNote(message.text, filename);
   };
 
   const isAIMessage = message.sender === "ai";
-  const hasNoteContext = message.noteContext && Object.keys(message.noteContext).length > 0;
+  const hasNoteContext =
+    message.noteContext && Object.keys(message.noteContext).length > 0;
 
   if (isEditing) {
     return (
@@ -116,33 +119,38 @@ const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
 
   return (
     <div
-      className={`flex ${isOwnMessage ? "justify-end" : "justify-start"} mb-4 group`}
+      className={`flex ${
+        isOwnMessage ? "justify-end" : "justify-start"
+      } mb-4 group`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
       <div
         className={`relative max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-          isOwnMessage
-            ? "bg-blue-600 text-white"
-            : "bg-gray-100 text-gray-800"
+          isOwnMessage ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-800"
         }`}
       >
         {/* Message Content */}
-        <p className="whitespace-pre-wrap text-sm lg:text-base">{message.text}</p>
-        
+        <p className="whitespace-pre-wrap text-sm lg:text-base">
+          {message.text}
+        </p>
+
         {/* Timestamp */}
-        <p className={`text-xs mt-1 ${
-          isOwnMessage ? "opacity-70" : "text-gray-500"
-        }`}>
+        <p
+          className={`text-xs mt-1 ${
+            isOwnMessage ? "opacity-70" : "text-gray-500"
+          }`}
+        >
           {message.timestamp.toLocaleTimeString()}
         </p>
 
         {/* Action Buttons - Show on hover */}
         {showActions && (
-          <div className={`absolute top-0 ${
-            isOwnMessage ? "-left-20" : "-right-20"
-          } flex space-x-1 bg-white border border-gray-200 rounded-lg shadow-lg p-1`}>
-            
+          <div
+            className={`absolute top-0 ${
+              isOwnMessage ? "-left-20" : "-right-20"
+            } flex space-x-1 bg-white border border-gray-200 rounded-lg shadow-lg p-1`}
+          >
             {/* Copy Button - Available for all messages */}
             <button
               onClick={handleCopy}
@@ -204,11 +212,13 @@ const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
 
         {/* Note Context Indicator - Show if message has note context */}
         {hasNoteContext && (
-          <div className={`mt-2 p-2 rounded text-xs ${
-            isOwnMessage 
-              ? "bg-blue-500 text-white" 
-              : "bg-gray-200 text-gray-700"
-          }`}>
+          <div
+            className={`mt-2 p-2 rounded text-xs ${
+              isOwnMessage
+                ? "bg-blue-500 text-white"
+                : "bg-gray-200 text-gray-700"
+            }`}
+          >
             <div className="flex items-center">
               <FileText className="w-3 h-3 mr-1" />
               <span>Contains note context</span>
@@ -220,4 +230,4 @@ const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
   );
 };
 
-export default EnhancedMessage; 
+export default EnhancedMessage;

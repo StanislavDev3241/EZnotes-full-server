@@ -49,7 +49,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
   const [showResults, setShowResults] = useState(false);
   const [showChatChoice, setShowChatChoice] = useState(false);
   const [pendingUpload, setPendingUpload] = useState<UploadResult | null>(null);
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [currentConversationId, setCurrentConversationId] = useState<
+    string | null
+  >(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const API_BASE_URL =
@@ -165,9 +167,11 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
   const handleEditMessage = async (messageId: string, newText: string) => {
     try {
       // Update message in local state
-      setMessages(prev => prev.map(msg => 
-        msg.id === messageId ? { ...msg, text: newText } : msg
-      ));
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, text: newText } : msg
+        )
+      );
 
       // TODO: Send update to backend for persistence
       console.log(`Message ${messageId} edited to: ${newText}`);
@@ -180,8 +184,8 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
     if (window.confirm("Are you sure you want to delete this message?")) {
       try {
         // Remove message from local state
-        setMessages(prev => prev.filter(msg => msg.id !== messageId));
-        
+        setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+
         // TODO: Send delete request to backend
         console.log(`Message ${messageId} deleted`);
       } catch (error) {
@@ -229,14 +233,17 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
     URL.revokeObjectURL(url);
   };
 
-  const handleContinueFromHistory = (conversationId: string, historyMessages: any[]) => {
+  const handleContinueFromHistory = (
+    conversationId: string,
+    historyMessages: any[]
+  ) => {
     setCurrentConversationId(conversationId);
-    
+
     // Convert history messages to our Message format
-    const convertedMessages = historyMessages.map(msg => ({
+    const convertedMessages = historyMessages.map((msg) => ({
       id: msg.id.toString(),
       text: msg.sender_type === "user" ? msg.message_text : msg.ai_response,
-      sender: msg.sender_type === "user" ? "user" : "ai" as "user" | "ai",
+      sender: msg.sender_type === "user" ? "user" : ("ai" as "user" | "ai"),
       timestamp: new Date(msg.created_at),
       noteContext: currentNote,
     }));
@@ -273,12 +280,15 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
 
   const handleDeleteHistoryPoint = async (pointId: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat/checkpoint/${pointId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("userToken")}`,
-        },
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/chat/checkpoint/${pointId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+          },
+        }
+      );
 
       if (response.ok) {
         console.log(`Chat point ${pointId} deleted`);
@@ -405,7 +415,11 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                   <div className="flex space-x-2">
                     <button
                       onClick={() => {
-                        if (window.confirm("Are you sure you want to clear the chat?")) {
+                        if (
+                          window.confirm(
+                            "Are you sure you want to clear the chat?"
+                          )
+                        ) {
                           setMessages([]);
                           setCurrentConversationId(null);
                         }
@@ -420,8 +434,8 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                         <button
                           onClick={() => {
                             const allContent = messages
-                              .filter(msg => msg.sender === "ai")
-                              .map(msg => msg.text)
+                              .filter((msg) => msg.sender === "ai")
+                              .map((msg) => msg.text)
                               .join("\n\n---\n\n");
                             handleSaveNote(allContent, "complete_conversation");
                           }}
@@ -433,10 +447,13 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                         <button
                           onClick={() => {
                             const allContent = messages
-                              .filter(msg => msg.sender === "ai")
-                              .map(msg => msg.text)
+                              .filter((msg) => msg.sender === "ai")
+                              .map((msg) => msg.text)
                               .join("\n\n---\n\n");
-                            handleDownloadNote(allContent, `chat_${Date.now()}.txt`);
+                            handleDownloadNote(
+                              allContent,
+                              `chat_${Date.now()}.txt`
+                            );
                           }}
                           className="flex items-center px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors"
                         >
