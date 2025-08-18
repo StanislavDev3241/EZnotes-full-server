@@ -305,7 +305,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
                   </div>
 
                   <div className="bg-white p-4 rounded-lg shadow-sm">
-                    <h4 className="font-medium text-gray-900 mb-2">SOAP Note</h4>
+                    <h4 className="font-medium text-gray-900 mb-2">
+                      SOAP Note
+                    </h4>
                     <p className="text-sm text-gray-700 whitespace-pre-wrap">
                       {currentNote.notes.soapNote.substring(0, 300)}...
                     </p>
