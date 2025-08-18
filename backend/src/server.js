@@ -14,6 +14,10 @@ server.timeout = 0; // NO TIMEOUT - Unlimited time for your custom server
 server.keepAliveTimeout = 0; // NO KEEP-ALIVE TIMEOUT - Keep connections alive forever
 server.headersTimeout = 0; // NO HEADERS TIMEOUT - Unlimited headers processing time
 
+// Initialize WebSocket chat service
+const ChatService = require("./services/chatService");
+const chatService = new ChatService(server);
+
 // Middleware
 app.use(helmet());
 app.use(
