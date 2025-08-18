@@ -15,11 +15,11 @@ const authenticateToken = async (req, res, next) => {
     }
 
     const token = authHeader.substring(7);
-    
+
     // For now, we'll use a simple verification
     // In production, you should verify the JWT properly
     const decoded = { userId: "temp-user-id" }; // Placeholder
-    
+
     req.user = decoded;
     next();
   } catch (error) {
@@ -52,9 +52,8 @@ router.get("/user/:userId", authenticateToken, async (req, res) => {
     res.json({
       success: true,
       notes: notes.rows,
-      count: notes.rows.length
+      count: notes.rows.length,
     });
-
   } catch (error) {
     console.error("Get user notes error:", error);
     res.status(500).json({
@@ -88,9 +87,8 @@ router.get("/:noteId", authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      note: note.rows[0]
+      note: note.rows[0],
     });
-
   } catch (error) {
     console.error("Get note error:", error);
     res.status(500).json({
@@ -128,9 +126,8 @@ router.put("/:noteId", authenticateToken, async (req, res) => {
     res.json({
       success: true,
       note: updatedNote.rows[0],
-      message: "Note updated successfully"
+      message: "Note updated successfully",
     });
-
   } catch (error) {
     console.error("Update note error:", error);
     res.status(500).json({
@@ -160,9 +157,8 @@ router.delete("/:noteId", authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      message: "Note deleted successfully"
+      message: "Note deleted successfully",
     });
-
   } catch (error) {
     console.error("Delete note error:", error);
     res.status(500).json({

@@ -16,11 +16,11 @@ const authenticateToken = async (req, res, next) => {
     }
 
     const token = authHeader.substring(7);
-    
+
     // For now, we'll use a simple verification
     // In production, you should verify the JWT properly
     const decoded = { userId: "temp-user-id" }; // Placeholder
-    
+
     req.user = decoded;
     next();
   } catch (error) {
@@ -52,14 +52,14 @@ router.post("/", authenticateToken, async (req, res) => {
         soapNote: noteContext.notes?.soapNote,
         patientSummary: noteContext.notes?.patientSummary,
         customPrompt: noteContext.customPrompt,
-        fileName: noteContext.fileName
+        fileName: noteContext.fileName,
       };
     }
 
     // Format conversation history for AI
-    const formattedHistory = (conversationHistory || []).map(msg => ({
+    const formattedHistory = (conversationHistory || []).map((msg) => ({
       role: msg.sender === "user" ? "user" : "assistant",
-      content: msg.text
+      content: msg.text,
     }));
 
     // Get AI response with context
@@ -84,7 +84,11 @@ router.post("/", authenticateToken, async (req, res) => {
         } else {
           const newConversation = await pool.query(
             "INSERT INTO chat_conversations (user_id, note_id, title) VALUES ($1, $2, $3) RETURNING id",
-            [req.user.userId, noteContext.fileId, `Chat about ${noteContext.fileName}`]
+            [
+              req.user.userId,
+              noteContext.fileId,
+              `Chat about ${noteContext.fileName}`,
+            ]
           );
           conversationId = newConversation.rows[0].id;
         }
@@ -111,7 +115,6 @@ router.post("/", authenticateToken, async (req, res) => {
       response: response,
       timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     console.error("Chat error:", error);
     res.status(500).json({
@@ -147,10 +150,10 @@ router.get("/history/:userId", authenticateToken, async (req, res) => {
           "SELECT sender_type, message_text, ai_response, created_at FROM chat_messages WHERE conversation_id = $1 ORDER BY created_at ASC",
           [conv.id]
         );
-        
+
         return {
           ...conv,
-          messages: messages.rows
+          messages: messages.rows,
         };
       })
     );
@@ -160,7 +163,6 @@ router.get("/history/:userId", authenticateToken, async (req, res) => {
       conversations: conversationsWithMessages,
       timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     console.error("Chat history error:", error);
     res.status(500).json({
@@ -185,7 +187,7 @@ router.get("/note/:noteId", authenticateToken, async (req, res) => {
       return res.json({
         success: true,
         conversation: null,
-        messages: []
+        messages: [],
       });
     }
 
@@ -197,9 +199,8 @@ router.get("/note/:noteId", authenticateToken, async (req, res) => {
     res.json({
       success: true,
       conversation: conversation.rows[0],
-      messages: messages.rows
+      messages: messages.rows,
     });
-
   } catch (error) {
     console.error("Note chat history error:", error);
     res.status(500).json({
@@ -210,4 +211,4 @@ router.get("/note/:noteId", authenticateToken, async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

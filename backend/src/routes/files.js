@@ -15,11 +15,11 @@ const authenticateToken = async (req, res, next) => {
     }
 
     const token = authHeader.substring(7);
-    
+
     // For now, we'll use a simple verification
     // In production, you should verify the JWT properly
     const decoded = { userId: "temp-user-id" }; // Placeholder
-    
+
     req.user = decoded;
     next();
   } catch (error) {
@@ -53,9 +53,8 @@ router.get("/user/:userId", authenticateToken, async (req, res) => {
     res.json({
       success: true,
       files: files.rows,
-      count: files.rows.length
+      count: files.rows.length,
     });
-
   } catch (error) {
     console.error("Get user files error:", error);
     res.status(500).json({
@@ -92,9 +91,8 @@ router.get("/:fileId", authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      file: file.rows[0]
+      file: file.rows[0],
     });
-
   } catch (error) {
     console.error("Get file error:", error);
     res.status(500).json({
@@ -131,9 +129,8 @@ router.put("/:fileId", authenticateToken, async (req, res) => {
     res.json({
       success: true,
       file: updatedFile.rows[0],
-      message: "File updated successfully"
+      message: "File updated successfully",
     });
-
   } catch (error) {
     console.error("Update file error:", error);
     res.status(500).json({
@@ -151,7 +148,7 @@ router.delete("/:fileId", authenticateToken, async (req, res) => {
 
     // First delete associated notes
     await pool.query("DELETE FROM notes WHERE file_id = $1", [fileId]);
-    
+
     // Then delete the file
     const deletedFile = await pool.query(
       "DELETE FROM files WHERE id = $1 RETURNING *",
@@ -167,9 +164,8 @@ router.delete("/:fileId", authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      message: "File and associated notes deleted successfully"
+      message: "File and associated notes deleted successfully",
     });
-
   } catch (error) {
     console.error("Delete file error:", error);
     res.status(500).json({
@@ -214,10 +210,9 @@ router.get("/stats/:userId", authenticateToken, async (req, res) => {
       success: true,
       stats: {
         files: stats.rows[0],
-        notes: noteStats.rows[0]
-      }
+        notes: noteStats.rows[0],
+      },
     });
-
   } catch (error) {
     console.error("Get file stats error:", error);
     res.status(500).json({
@@ -228,4 +223,4 @@ router.get("/stats/:userId", authenticateToken, async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;
