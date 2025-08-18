@@ -1,33 +1,52 @@
 const express = require("express");
 const { pool } = require("../config/database");
 const openaiService = require("../services/openaiService");
+const jwt = require("jsonwebtoken");
 
 const router = express.Router();
 
 // Middleware to verify JWT token
 const authenticateToken = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+
+    if (!token) {
       return res.status(401).json({
         success: false,
-        message: "No token provided",
+        message: "Access token required",
       });
     }
 
-    const token = authHeader.substring(7);
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
+    
+    // Get user from database to ensure they still exist and are active
+    const userResult = await pool.query(
+      "SELECT id, email, role, is_active FROM users WHERE id = $1",
+      [decoded.userId]
+    );
 
-    // For now, we'll use a simple verification
-    // In production, you should verify the JWT properly
-    const decoded = { userId: "temp-user-id" }; // Placeholder
+    if (userResult.rows.length === 0 || !userResult.rows[0].is_active) {
+      return res.status(401).json({
+        success: false,
+        message: "User not found or inactive",
+      });
+    }
 
-    req.user = decoded;
+    // Add user info to request
+    req.user = {
+      userId: userResult.rows[0].id,
+      email: userResult.rows[0].email,
+      role: userResult.rows[0].role,
+    };
+
     next();
   } catch (error) {
-    console.error("Authentication error:", error);
-    res.status(401).json({
+    console.error("Token verification error:", error);
+    return res.status(403).json({
       success: false,
-      message: "Invalid token",
+      message: "Invalid or expired token",
     });
   }
 };
@@ -69,11 +88,12 @@ router.post("/", authenticateToken, async (req, res) => {
       context
     );
 
-    // Save chat message to database if we have note context
-    if (noteContext?.fileId) {
-      try {
-        // Create or get conversation
-        let conversationId;
+    // Always save chat message to database
+    try {
+      let conversationId;
+      
+      if (noteContext?.fileId) {
+        // File-specific conversation
         const existingConversation = await pool.query(
           "SELECT id FROM chat_conversations WHERE note_id = $1 AND user_id = $2",
           [noteContext.fileId, req.user.userId]
@@ -92,22 +112,40 @@ router.post("/", authenticateToken, async (req, res) => {
           );
           conversationId = newConversation.rows[0].id;
         }
-
-        // Save user message
-        await pool.query(
-          "INSERT INTO chat_messages (conversation_id, sender_type, message_text) VALUES ($1, $2, $3)",
-          [conversationId, "user", message]
+      } else {
+        // General chat conversation (not file-specific)
+        const existingConversation = await pool.query(
+          "SELECT id FROM chat_conversations WHERE user_id = $1 AND note_id IS NULL AND title = 'General Chat'",
+          [req.user.userId]
         );
 
-        // Save AI response
-        await pool.query(
-          "INSERT INTO chat_messages (conversation_id, sender_type, message_text, ai_response) VALUES ($1, $2, $3, $4)",
-          [conversationId, "ai", "", response]
-        );
-      } catch (dbError) {
-        console.error("Failed to save chat to database:", dbError);
-        // Don't fail the request if database save fails
+        if (existingConversation.rows.length > 0) {
+          conversationId = existingConversation.rows[0].id;
+        } else {
+          const newConversation = await pool.query(
+            "INSERT INTO chat_conversations (user_id, title) VALUES ($1, $2) RETURNING id",
+            [req.user.userId, "General Chat"]
+          );
+          conversationId = newConversation.rows[0].id;
+        }
       }
+
+      // Save user message
+      await pool.query(
+        "INSERT INTO chat_messages (conversation_id, sender_type, message_text) VALUES ($1, $2, $3)",
+        [conversationId, "user", message]
+      );
+
+      // Save AI response
+      await pool.query(
+        "INSERT INTO chat_messages (conversation_id, sender_type, message_text, ai_response) VALUES ($1, $2, $3, $4)",
+        [conversationId, "ai", "", response]
+      );
+
+      console.log(`💬 Chat saved to database: conversation ${conversationId}`);
+    } catch (dbError) {
+      console.error("Failed to save chat to database:", dbError);
+      // Don't fail the request if database save fails
     }
 
     res.json({

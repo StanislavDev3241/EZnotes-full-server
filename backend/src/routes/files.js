@@ -1,32 +1,51 @@
 const express = require("express");
 const { pool } = require("../config/database");
+const jwt = require("jsonwebtoken");
 
 const router = express.Router();
 
-// Middleware to verify JWT token (placeholder for now)
+// Middleware to verify JWT token
 const authenticateToken = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+
+    if (!token) {
       return res.status(401).json({
         success: false,
-        message: "No token provided",
+        message: "Access token required",
       });
     }
 
-    const token = authHeader.substring(7);
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
+    
+    // Get user from database to ensure they still exist and are active
+    const userResult = await pool.query(
+      "SELECT id, email, role, is_active FROM users WHERE id = $1",
+      [decoded.userId]
+    );
 
-    // For now, we'll use a simple verification
-    // In production, you should verify the JWT properly
-    const decoded = { userId: "temp-user-id" }; // Placeholder
+    if (userResult.rows.length === 0 || !userResult.rows[0].is_active) {
+      return res.status(401).json({
+        success: false,
+        message: "User not found or inactive",
+      });
+    }
 
-    req.user = decoded;
+    // Add user info to request
+    req.user = {
+      userId: userResult.rows[0].id,
+      email: userResult.rows[0].email,
+      role: userResult.rows[0].role,
+    };
+
     next();
   } catch (error) {
-    console.error("Authentication error:", error);
-    res.status(401).json({
+    console.error("Token verification error:", error);
+    return res.status(403).json({
       success: false,
-      message: "Invalid token",
+      message: "Invalid or expired token",
     });
   }
 };
