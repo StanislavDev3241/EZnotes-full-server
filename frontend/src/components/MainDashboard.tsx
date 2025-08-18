@@ -161,17 +161,19 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b px-6 py-4">
+      <div className="bg-white shadow-sm border-b px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-xl font-semibold text-gray-900">
               ClearlyAI Dashboard
             </h1>
-            <span className="text-sm text-gray-500">Welcome, {user.name}</span>
+            <span className="text-sm text-gray-500">
+              Welcome, {user.name} ({user.role})
+            </span>
           </div>
           <button
             onClick={onLogout}
-            className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
+            className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-md transition-colors"
           >
             <LogOut className="w-4 h-4" />
             <span>Logout</span>
@@ -180,11 +182,11 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="bg-white border-b px-6">
+      <div className="bg-white border-b px-4">
         <div className="flex space-x-8">
           <button
             onClick={() => setActiveSection("chat")}
-            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
               activeSection === "chat"
                 ? "border-blue-500 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -194,7 +196,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
           </button>
           <button
             onClick={() => setActiveSection("upload")}
-            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
               activeSection === "upload"
                 ? "border-blue-500 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -204,7 +206,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
           </button>
           <button
             onClick={() => setActiveSection("management")}
-            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
               activeSection === "management"
                 ? "border-blue-500 text-blue-600"
                 : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -215,12 +217,12 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
+      {/* Main Content - Account for header height */}
+      <div className="flex-1 overflow-hidden pt-2">
         {activeSection === "chat" && (
           <div className="flex flex-col lg:flex-row h-full">
             {/* Chat Interface - Left Side */}
-            <div className="flex-1 flex flex-col bg-white">
+            <div className="flex-1 flex flex-col bg-white mx-2 rounded-lg shadow-sm">
               <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4">
                 {messages.length === 0 ? (
                   <div className="text-center text-gray-500 mt-20">
@@ -289,7 +291,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
             </div>
 
             {/* Notes Display - Right Side */}
-            <div className="w-full lg:w-96 bg-gray-50 border-t lg:border-l lg:border-t-0 p-4 lg:p-6 overflow-y-auto">
+            <div className="w-full lg:w-96 bg-gray-50 border-t lg:border-l lg:border-t-0 p-4 lg:p-6 overflow-y-auto mx-2 rounded-lg">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Current Notes
               </h3>
@@ -340,7 +342,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
         )}
 
         {activeSection === "upload" && (
-          <div className="p-4 lg:p-6">
+          <div className="p-4 lg:p-6 mx-2">
             <div className="max-w-4xl mx-auto">
               <h2 className="text-xl lg:text-2xl font-bold text-gray-900 mb-6">
                 Upload & Record
@@ -354,11 +356,13 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
         )}
 
         {activeSection === "management" && (
-          <ManagementPage
-            user={user}
-            onBackToMain={() => setActiveSection("chat")}
-            onLogout={onLogout}
-          />
+          <div className="mx-2">
+            <ManagementPage
+              user={user}
+              onBackToMain={() => setActiveSection("chat")}
+              onLogout={onLogout}
+            />
+          </div>
         )}
       </div>
 

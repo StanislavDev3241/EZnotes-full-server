@@ -19,8 +19,11 @@ const authenticateToken = async (req, res, next) => {
     }
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
-    
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "your-secret-key"
+    );
+
     // Get user from database to ensure they still exist and are active
     const userResult = await pool.query(
       "SELECT id, email, role, is_active FROM users WHERE id = $1",
@@ -91,7 +94,7 @@ router.post("/", authenticateToken, async (req, res) => {
     // Always save chat message to database
     try {
       let conversationId;
-      
+
       if (noteContext?.fileId) {
         // File-specific conversation
         const existingConversation = await pool.query(

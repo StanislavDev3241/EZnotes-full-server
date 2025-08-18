@@ -1,5 +1,6 @@
 const OpenAI = require("openai");
-const fs = require("fs").promises;
+const fs = require("fs");
+const fsPromises = require("fs").promises;
 const path = require("path");
 
 class OpenAIService {
@@ -14,6 +15,9 @@ class OpenAIService {
     try {
       console.log(`🎵 Transcribing audio file: ${audioFilePath}`);
 
+      // Check if file exists
+      await fsPromises.access(audioFilePath);
+      
       const transcription = await this.openai.audio.transcriptions.create({
         file: fs.createReadStream(audioFilePath),
         model: "whisper-1",
