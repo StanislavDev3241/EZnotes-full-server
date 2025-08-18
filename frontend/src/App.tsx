@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+} from "react-router-dom";
 import LoginPage from "./components/LoginPage";
 import MainDashboard from "./components/MainDashboard";
 import AdminPage from "./components/AdminPage";
@@ -13,8 +19,9 @@ interface User {
 
 function App() {
   // API Configuration
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
-  
+  const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
+
   // Authentication state
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -23,7 +30,7 @@ function App() {
   useEffect(() => {
     const token = localStorage.getItem("userToken");
     const adminToken = localStorage.getItem("adminToken");
-    
+
     if (token) {
       // Verify user token
       verifyUserToken(token);
@@ -42,7 +49,7 @@ function App() {
           Authorization: `Bearer ${token}`,
         },
       });
-      
+
       if (response.ok) {
         const userData = await response.json();
         setUser(userData.user);
@@ -64,7 +71,7 @@ function App() {
           Authorization: `Bearer ${token}`,
         },
       });
-      
+
       if (response.ok) {
         const adminData = await response.json();
         setUser({ ...adminData.user, role: "admin" });
@@ -91,7 +98,13 @@ function App() {
   };
 
   // Protected Route component
-  const ProtectedRoute = ({ children, requireAdmin = false }: { children: React.ReactNode; requireAdmin?: boolean }) => {
+  const ProtectedRoute = ({
+    children,
+    requireAdmin = false,
+  }: {
+    children: React.ReactNode;
+    requireAdmin?: boolean;
+  }) => {
     if (isLoading) {
       return (
         <div className="min-h-screen flex items-center justify-center">
@@ -130,46 +143,50 @@ function App() {
       <div className="App">
         <Routes>
           {/* Public Routes */}
-          <Route 
-            path="/login" 
+          <Route
+            path="/login"
             element={
-              user ? <Navigate to="/dashboard" replace /> : <LoginPage onLogin={handleLogin} />
-            } 
+              user ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <LoginPage onLogin={handleLogin} />
+              )
+            }
           />
 
           {/* User Dashboard */}
-          <Route 
-            path="/dashboard" 
+          <Route
+            path="/dashboard"
             element={
               <ProtectedRoute>
                 <MainDashboard user={user!} onLogout={handleLogout} />
               </ProtectedRoute>
-            } 
+            }
           />
 
           {/* Admin Routes */}
-          <Route 
-            path="/admin" 
+          <Route
+            path="/admin"
             element={
               <ProtectedRoute requireAdmin>
-                <AdminPageWrapper 
+                <AdminPageWrapper
                   API_BASE_URL={API_BASE_URL}
                   onLogout={handleLogout}
                 />
               </ProtectedRoute>
-            } 
+            }
           />
 
           {/* Default Route */}
-          <Route 
-            path="/" 
-            element={<Navigate to={user ? "/dashboard" : "/login"} replace />} 
+          <Route
+            path="/"
+            element={<Navigate to={user ? "/dashboard" : "/login"} replace />}
           />
 
           {/* Catch all route */}
-          <Route 
-            path="*" 
-            element={<Navigate to={user ? "/dashboard" : "/login"} replace />} 
+          <Route
+            path="*"
+            element={<Navigate to={user ? "/dashboard" : "/login"} replace />}
           />
         </Routes>
       </div>
@@ -178,11 +195,17 @@ function App() {
 }
 
 // Wrapper component to use useNavigate hook
-function AdminPageWrapper({ API_BASE_URL, onLogout }: { API_BASE_URL: string; onLogout: () => void }) {
+function AdminPageWrapper({
+  API_BASE_URL,
+  onLogout,
+}: {
+  API_BASE_URL: string;
+  onLogout: () => void;
+}) {
   const navigate = useNavigate();
-  
+
   return (
-    <AdminPage 
+    <AdminPage
       API_BASE_URL={API_BASE_URL}
       onBackToMain={() => navigate("/dashboard")}
       onLogout={onLogout}

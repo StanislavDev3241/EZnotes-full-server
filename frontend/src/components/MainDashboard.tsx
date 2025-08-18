@@ -21,20 +21,23 @@ interface MainDashboardProps {
 }
 
 const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
-  const [activeSection, setActiveSection] = useState<"chat" | "upload" | "recording">("chat");
+  const [activeSection, setActiveSection] = useState<
+    "chat" | "upload" | "recording"
+  >("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [file, setFile] = useState<File | null>(null);
-  
+
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
   const recordingInterval = useRef<number>();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
+
+  const API_BASE_URL =
+    import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -119,7 +122,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
       mediaRecorder.current.start();
       setIsRecording(true);
       setRecordingTime(0);
-      
+
       recordingInterval.current = setInterval(() => {
         setRecordingTime((prev) => prev + 1);
       }, 1000);
@@ -130,12 +133,12 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
     if (mediaRecorder.current && mediaRecorder.current.state === "recording") {
       mediaRecorder.current.stop();
       setIsRecording(false);
-      
+
       if (recordingInterval.current) {
         clearInterval(recordingInterval.current);
       }
-      
-      mediaRecorder.current.stream.getTracks().forEach(track => track.stop());
+
+      mediaRecorder.current.stream.getTracks().forEach((track) => track.stop());
     }
   };
 
@@ -149,7 +152,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
   };
 
   return (
@@ -163,7 +168,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
               <p className="text-gray-600">Medical Notes Generator</p>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm font-medium text-gray-900">{user.name}</span>
+              <span className="text-sm font-medium text-gray-900">
+                {user.name}
+              </span>
               <button
                 onClick={onLogout}
                 className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
@@ -219,19 +226,25 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
         {/* Chat Section */}
         {activeSection === "chat" && (
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Chat with AI</h2>
-            
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              Chat with AI
+            </h2>
+
             <div className="h-96 overflow-y-auto mb-4 border border-gray-200 rounded-lg p-4">
               {messages.length === 0 ? (
                 <div className="text-center text-gray-500 mt-20">
-                  <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
+                  <h3 className="text-lg font-medium mb-2">
+                    Start a conversation
+                  </h3>
                   <p className="text-sm">Ask me anything about medical notes</p>
                 </div>
               ) : (
                 messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex ${message.role === "user" ? "justify-end" : "justify-start"} mb-4`}
+                    className={`flex ${
+                      message.role === "user" ? "justify-end" : "justify-start"
+                    } mb-4`}
                   >
                     <div
                       className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
@@ -282,8 +295,10 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
         {/* Upload Section */}
         {activeSection === "upload" && (
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Upload Medical Files</h2>
-            
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              Upload Medical Files
+            </h2>
+
             <div className="space-y-4">
               <input
                 type="file"
@@ -293,7 +308,8 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
               />
               {file && (
                 <p className="text-sm text-gray-600">
-                  Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                  Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)}{" "}
+                  MB)
                 </p>
               )}
               <button
@@ -309,8 +325,10 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
         {/* Recording Section */}
         {activeSection === "recording" && (
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Audio Recording</h2>
-            
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              Audio Recording
+            </h2>
+
             <div className="text-center space-y-6">
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -348,4 +366,4 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
   );
 };
 
-export default MainDashboard; 
+export default MainDashboard;
