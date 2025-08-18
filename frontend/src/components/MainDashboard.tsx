@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { LogOut } from "lucide-react";
 import EnhancedUpload from "./EnhancedUpload";
 import ResultsDisplay from "./ResultsDisplay";
+import ManagementPage from "./ManagementPage";
 
 interface User {
   id: number;
@@ -37,7 +38,7 @@ interface MainDashboardProps {
 
 const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
   const [activeSection, setActiveSection] = useState<
-    "chat" | "upload" | "recording"
+    "chat" | "upload" | "management"
   >("chat");
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
@@ -201,6 +202,16 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
           >
             Upload & Record
           </button>
+          <button
+            onClick={() => setActiveSection("management")}
+            className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeSection === "management"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            Management
+          </button>
         </div>
       </div>
 
@@ -338,6 +349,14 @@ const MainDashboard: React.FC<MainDashboardProps> = ({ user, onLogout }) => {
               />
             </div>
           </div>
+        )}
+
+        {activeSection === "management" && (
+          <ManagementPage
+            user={user}
+            onBackToMain={() => setActiveSection("chat")}
+            onLogout={onLogout}
+          />
         )}
       </div>
 
