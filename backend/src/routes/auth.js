@@ -35,12 +35,17 @@ router.post("/register", async (req, res) => {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+    // Split name into first and last name
+    const nameParts = name.trim().split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+
     // Create user
     const newUser = await pool.query(
-      `INSERT INTO users (name, email, password_hash, role, is_active, created_at) 
-       VALUES ($1, $2, $3, 'user', true, NOW()) 
-       RETURNING id, name, email, role, created_at`,
-      [name, email, hashedPassword]
+      `INSERT INTO users (first_name, last_name, email, password_hash, role, is_active, created_at) 
+       VALUES ($1, $2, $3, $4, 'user', true, NOW()) 
+       RETURNING id, first_name, last_name, email, role, created_at`,
+      [firstName, lastName, email, hashedPassword]
     );
 
     // Generate JWT token
@@ -60,7 +65,7 @@ router.post("/register", async (req, res) => {
       token,
       user: {
         id: newUser.rows[0].id,
-        name: newUser.rows[0].name,
+        name: `${newUser.rows[0].first_name} ${newUser.rows[0].last_name}`.trim(),
         email: newUser.rows[0].email,
         role: newUser.rows[0].role,
       },
@@ -89,7 +94,7 @@ router.post("/login", async (req, res) => {
 
     // Find user
     const user = await pool.query(
-      "SELECT id, name, email, password_hash, role, is_active FROM users WHERE email = $1",
+      "SELECT id, first_name, last_name, email, password_hash, role, is_active FROM users WHERE email = $1",
       [email]
     );
 
@@ -139,7 +144,7 @@ router.post("/login", async (req, res) => {
       token,
       user: {
         id: userData.id,
-        name: userData.name,
+        name: `${userData.first_name} ${userData.last_name}`.trim(),
         email: userData.email,
         role: userData.role,
       },
@@ -168,7 +173,7 @@ router.post("/admin/login", async (req, res) => {
 
     // Find admin user
     const admin = await pool.query(
-      "SELECT id, name, email, password_hash, role, is_active FROM users WHERE email = $1 AND role = $2",
+      "SELECT id, first_name, last_name, email, password_hash, role, is_active FROM users WHERE email = $1 AND role = $2",
       [email, "admin"]
     );
 
@@ -218,7 +223,7 @@ router.post("/admin/login", async (req, res) => {
       token,
       user: {
         id: adminData.id,
-        name: adminData.name,
+        name: `${adminData.first_name} ${adminData.last_name}`.trim(),
         email: adminData.email,
         role: adminData.role,
       },
@@ -253,7 +258,7 @@ router.get("/verify", async (req, res) => {
 
     // Get user data
     const user = await pool.query(
-      "SELECT id, name, email, role, is_active FROM users WHERE id = $1",
+      "SELECT id, first_name, last_name, email, role, is_active FROM users WHERE id = $1",
       [decoded.userId]
     );
 
@@ -277,7 +282,7 @@ router.get("/verify", async (req, res) => {
       success: true,
       user: {
         id: userData.id,
-        name: userData.name,
+        name: `${userData.first_name} ${userData.last_name}`.trim(),
         email: userData.email,
         role: userData.role,
       },
@@ -319,7 +324,7 @@ router.get("/admin/verify", async (req, res) => {
 
     // Get admin data
     const admin = await pool.query(
-      "SELECT id, name, email, role, is_active FROM users WHERE id = $1 AND role = $2",
+      "SELECT id, first_name, last_name, email, role, is_active FROM users WHERE id = $1 AND role = $2",
       [decoded.userId, "admin"]
     );
 
@@ -343,7 +348,7 @@ router.get("/admin/verify", async (req, res) => {
       success: true,
       user: {
         id: adminData.id,
-        name: adminData.name,
+        name: `${adminData.first_name} ${adminData.last_name}`.trim(),
         email: adminData.email,
         role: adminData.role,
       },
