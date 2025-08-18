@@ -289,56 +289,60 @@ router.get("/note/:noteId", authenticateToken, async (req, res) => {
 });
 
 // Get conversation messages by conversation ID (new endpoint)
-router.get("/conversation/:conversationId", authenticateToken, async (req, res) => {
-  try {
-    const { conversationId } = req.params;
+router.get(
+  "/conversation/:conversationId",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { conversationId } = req.params;
 
-    // First verify the conversation exists and user has access
-    const conversation = await pool.query(
-      "SELECT * FROM chat_conversations WHERE id = $1 AND user_id = $2",
-      [conversationId, req.user.userId]
-    );
+      // First verify the conversation exists and user has access
+      const conversation = await pool.query(
+        "SELECT * FROM chat_conversations WHERE id = $1 AND user_id = $2",
+        [conversationId, req.user.userId]
+      );
 
-    if (conversation.rows.length === 0) {
-      return res.status(404).json({
+      if (conversation.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Conversation not found or access denied",
+        });
+      }
+
+      // Get all messages for this conversation
+      const messages = await pool.query(
+        `SELECT 
+          id, conversation_id, sender_type, message_text, ai_response, 
+          created_at
+        FROM chat_messages 
+        WHERE conversation_id = $1 
+        ORDER BY created_at ASC`,
+        [conversationId]
+      );
+
+      // Log data access
+      await auditService.logDataAccess(
+        req.user.userId,
+        "chat_conversations",
+        conversationId,
+        "api"
+      );
+
+      res.json({
+        success: true,
+        conversation: conversation.rows[0],
+        messages: messages.rows,
+      });
+    } catch (error) {
+      console.error("Conversation messages error:", error);
+      res.status(500).json({
         success: false,
-        message: "Conversation not found or access denied",
+        message: "Failed to get conversation messages",
+        error: error.message,
       });
     }
-
-    // Get all messages for this conversation
-    const messages = await pool.query(
-      `SELECT 
-        id, conversation_id, sender_type, message_text, ai_response, 
-        created_at, updated_at
-      FROM chat_messages 
-      WHERE conversation_id = $1 
-      ORDER BY created_at ASC`,
-      [conversationId]
-    );
-
-    // Log data access
-    await auditService.logDataAccess(
-      req.user.userId,
-      "chat_conversations",
-      conversationId,
-      "api"
-    );
-
-    res.json({
-      success: true,
-      conversation: conversation.rows[0],
-      messages: messages.rows,
-    });
-  } catch (error) {
-    console.error("Conversation messages error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to get conversation messages",
-      error: error.message,
-    });
   }
-});
+);
 
 // Save chat checkpoint (new endpoint)
 router.post("/checkpoint", authenticateToken, async (req, res) => {
