@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Upload, FileText, Monitor, ArrowRight, Menu } from "lucide-react";
 
 interface LandingPageProps {
@@ -13,7 +13,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
   const [showMenu, setShowMenu] = useState(false);
 
   // Close menu when clicking outside
-  React.useEffect(() => {
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (showMenu && !(event.target as Element).closest(".menu-container")) {
         setShowMenu(false);
