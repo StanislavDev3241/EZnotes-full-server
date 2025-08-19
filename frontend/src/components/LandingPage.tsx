@@ -27,8 +27,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </header>
 
       {/* Hero Section */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="text-center">
+      <main className="w-full px-4 sm:px-6 lg:px-8 py-16">
+        <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-4xl tracking-tight font-extrabold text-blue-900 sm:text-5xl md:text-6xl">
             Generate SOAP notes & patient scripts with AI
           </h1>
@@ -48,8 +48,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </main>
 
       {/* How It Works Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-16 bg-gray-50 w-full">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-3xl font-extrabold text-blue-900 sm:text-4xl">
               How It Works
@@ -104,9 +104,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </section>
 
       {/* Features Section */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
+      <section className="py-16 bg-white w-full">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 max-w-7xl mx-auto">
             {/* Feature 1 */}
             <div className="text-center">
               <h3 className="text-xl font-bold text-blue-900 mb-3">
@@ -144,8 +144,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:py-16 lg:px-8 text-center">
+      <section className="py-16 bg-gray-900 w-full">
+        <div className="w-full px-4 sm:px-6 lg:px-8 text-center">
           <button
             onClick={onGetStarted}
             className="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-lg text-white bg-blue-800 hover:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
