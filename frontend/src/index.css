@@ -5,6 +5,17 @@
 @layer base {
   html {
     font-family: "Inter", system-ui, sans-serif;
+    height: 100%;
+  }
+
+  body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  #root {
+    height: 100%;
   }
 
   :root {

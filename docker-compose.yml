@@ -34,7 +34,7 @@ services:
       REDIS_PORT: 6379
       JWT_SECRET: clearlyai_super_secret_jwt_key_2024_production
       JWT_EXPIRES_IN: 24h
-      MAX_FILE_SIZE: 100
+      MAX_FILE_SIZE: 200
       UPLOAD_PATH: ./uploads
       TEMP_PATH: ./temp
       MAKE_WEBHOOK_URL: https://hook.us2.make.com/xw5ld4jn0by5jn7hg1bups02srki06f8

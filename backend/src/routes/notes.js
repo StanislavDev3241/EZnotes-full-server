@@ -510,4 +510,43 @@ router.get("/saved/content/:noteId", authenticateToken, async (req, res) => {
   }
 });
 
+// Get notes for a specific file (new endpoint)
+router.get("/file/:fileId", authenticateToken, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const userId = req.user.userId;
+
+    // Get notes for this file
+    const notesResult = await pool.query(
+      `SELECT 
+        n.id, n.file_id, n.user_id, n.note_type, n.content, n.status,
+        n.version, n.parent_note_id, n.prompt_used, n.ai_model,
+        n.created_at, n.updated_at,
+        f.original_name as filename,
+        f.transcription
+      FROM notes n
+      LEFT JOIN files f ON n.file_id = f.id
+      WHERE n.file_id = $1 AND n.user_id = $2
+      ORDER BY n.created_at DESC`,
+      [fileId, userId]
+    );
+
+    // Log data access
+    await auditService.logDataAccess(userId, "notes", fileId, "api");
+
+    res.json({
+      success: true,
+      notes: notesResult.rows,
+      count: notesResult.rows.length,
+    });
+  } catch (error) {
+    console.error("Get file notes error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get file notes",
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;

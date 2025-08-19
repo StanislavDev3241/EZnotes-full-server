@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Upload, FileText, Monitor, ArrowRight, Menu } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  Monitor,
+  ArrowRight,
+  Menu,
+  CheckCircle,
+} from "lucide-react";
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -25,9 +32,9 @@ const LandingPage: React.FC<LandingPageProps> = ({
   }, [showMenu]);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="h-screen bg-white overflow-y-auto">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-white shadow-sm sticky top-0 z-40">
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
@@ -48,13 +55,9 @@ const LandingPage: React.FC<LandingPageProps> = ({
                 <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
                   <button
                     onClick={() => {
-                      console.log("Sign In clicked");
                       setShowMenu(false);
                       if (onShowLogin) {
-                        console.log("Calling onShowLogin");
                         onShowLogin();
-                      } else {
-                        console.log("onShowLogin is undefined");
                       }
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -63,13 +66,9 @@ const LandingPage: React.FC<LandingPageProps> = ({
                   </button>
                   <button
                     onClick={() => {
-                      console.log("Sign Up clicked");
                       setShowMenu(false);
                       if (onShowLogin) {
-                        console.log("Calling onShowLogin for Sign Up");
                         onShowLogin();
-                      } else {
-                        console.log("onShowLogin is undefined for Sign Up");
                       }
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -94,7 +93,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
       </header>
 
       {/* Hero Section */}
-      <main className="w-full px-4 sm:px-6 lg:px-8 py-16">
+      <main className="w-full px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-4xl tracking-tight font-extrabold text-blue-900 sm:text-5xl md:text-6xl">
             Generate SOAP notes & patient scripts with AI
@@ -115,7 +114,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
       </main>
 
       {/* How It Works Section */}
-      <section className="py-16 bg-gray-50 w-full">
+      <section className="py-12 bg-gray-50 w-full">
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-3xl font-extrabold text-blue-900 sm:text-4xl">
@@ -171,47 +170,63 @@ const LandingPage: React.FC<LandingPageProps> = ({
       </section>
 
       {/* Features Section */}
-      <section className="py-16 bg-white w-full">
+      <section className="py-12 bg-white w-full">
         <div className="w-full px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 max-w-7xl mx-auto">
-            {/* Feature 1 */}
-            <div className="text-center">
-              <h3 className="text-xl font-bold text-blue-900 mb-3">
-                Speed up charting
-              </h3>
-              <p className="text-gray-600">
-                Stop spending hours crafting notes after a long clinic day
-                --just upload and go
-              </p>
-            </div>
+          <div className="text-center">
+            <h2 className="text-3xl font-extrabold text-blue-900 sm:text-4xl">
+              Features
+            </h2>
+          </div>
 
-            {/* Feature 2 */}
-            <div className="text-center">
-              <h3 className="text-xl font-bold text-blue-900 mb-3">
-                Minimize errors
-              </h3>
-              <p className="text-gray-600">
-                Ensure your notes are complete, formatted correctly, and free of
-                mistakes
-              </p>
-            </div>
+          <div className="mt-12">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {/* Feature 1 */}
+              <div className="text-center">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-md bg-blue-600 text-white">
+                  <Upload className="h-6 w-6" />
+                </div>
+                <h3 className="mt-4 text-lg font-medium text-gray-900">
+                  Easy Upload
+                </h3>
+                <p className="mt-2 text-base text-gray-500">
+                  Upload your transcription files or record audio directly in
+                  the app
+                </p>
+              </div>
 
-            {/* Feature 3 */}
-            <div className="text-center">
-              <h3 className="text-xl font-bold text-blue-900 mb-3">
-                Improve patient communications
-              </h3>
-              <p className="text-gray-600">
-                Receive a plain-language summary script you can share with the
-                patient
-              </p>
+              {/* Feature 2 */}
+              <div className="text-center">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-md bg-blue-600 text-white">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <h3 className="mt-4 text-lg font-medium text-gray-900">
+                  AI-Powered Notes
+                </h3>
+                <p className="mt-2 text-base text-gray-500">
+                  Generate professional SOAP notes and patient summaries with
+                  advanced AI
+                </p>
+              </div>
+
+              {/* Feature 3 */}
+              <div className="text-center">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-md bg-blue-600 text-white">
+                  <CheckCircle className="h-6 w-6" />
+                </div>
+                <h3 className="mt-4 text-lg font-medium text-gray-900">
+                  HIPAA Compliant
+                </h3>
+                <p className="mt-2 text-base text-gray-500">
+                  Secure and compliant with healthcare privacy standards
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-white w-full">
+      <section className="py-12 bg-white w-full">
         <div className="w-full px-4 sm:px-6 lg:px-8 text-center">
           <button
             onClick={onGetStarted}

@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
+  useNavigate,
+  useLocation,
 } from "react-router-dom";
 import LoginPage from "./components/LoginPage";
 import MainDashboard from "./components/MainDashboard";
@@ -17,33 +19,79 @@ interface User {
   role: string;
 }
 
-function App() {
+// Protected Route component
+function ProtectedRoute({
+  children,
+  user,
+  isUnregisteredUser,
+  redirectTo = "/",
+}: {
+  children: React.ReactNode;
+  user: User | null;
+  isUnregisteredUser: boolean;
+  redirectTo?: string;
+}) {
+  // Allow access if user is logged in OR if it's an unregistered user
+  if (user || isUnregisteredUser) {
+    return <>{children}</>;
+  }
+
+  // Redirect to specified route if not authorized
+  return <Navigate to={redirectTo} replace />;
+}
+
+// Wrapper component to handle auth state and navigation
+function AppContent() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [showLanding, setShowLanding] = useState(true);
   const [isUnregisteredUser, setIsUnregisteredUser] = useState(false);
-  const [showLoginPage, setShowLoginPage] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
 
-  useEffect(() => {
-    // Check if user is already logged in first
-    const userToken = localStorage.getItem("userToken");
-    const adminToken = localStorage.getItem("adminToken");
+  // Memoize navigation functions to prevent unnecessary re-renders
+  const navigateTo = useCallback(
+    (path: string) => {
+      if (location.pathname !== path) {
+        navigate(path);
+      }
+    },
+    [navigate, location.pathname]
+  );
 
-    if (userToken) {
-      verifyUserToken(userToken);
-    } else if (adminToken) {
-      // Handle admin token verification if needed
-      // For now, just clear it and show landing page
-      localStorage.removeItem("adminToken");
-      setIsLoading(false);
-    } else {
-      // No tokens found, show landing page
-      setIsLoading(false);
-    }
-  }, []);
+  useEffect(() => {
+    // Only run initialization once
+    if (isInitialized) return;
+
+    const initializeApp = async () => {
+      try {
+        const userToken = localStorage.getItem("userToken");
+        const adminToken = localStorage.getItem("adminToken");
+
+        if (userToken) {
+          await verifyUserToken(userToken);
+        } else if (adminToken) {
+          // Handle admin token verification if needed
+          // For now, just clear it and show landing page
+          localStorage.removeItem("adminToken");
+          // Don't redirect here - let the user stay where they are
+        } else {
+          // No tokens found, user can stay on current page
+          // Only redirect if they're trying to access protected routes
+        }
+      } catch (error) {
+        console.error("Initialization failed:", error);
+      } finally {
+        setIsLoading(false);
+        setIsInitialized(true);
+      }
+    };
+
+    initializeApp();
+  }, [isInitialized]);
 
   const verifyUserToken = async (token: string) => {
     try {
@@ -56,55 +104,60 @@ function App() {
       if (response.ok) {
         const userData = await response.json();
         setUser(userData.user);
-        setShowLanding(false); // Skip landing page if user is logged in
         setIsUnregisteredUser(false);
+
+        // Only redirect if user is on landing/login page and should be in app
+        if (location.pathname === "/" || location.pathname === "/login") {
+          navigateTo("/app");
+        }
       } else {
+        // Token is invalid, clear it
         localStorage.removeItem("userToken");
+        setUser(null);
+
+        // Only redirect if user is on protected routes
+        if (location.pathname === "/app" || location.pathname === "/admin") {
+          navigateTo("/");
+        }
       }
     } catch (error) {
       console.error("Token verification failed:", error);
       localStorage.removeItem("userToken");
-    } finally {
-      setIsLoading(false);
+      setUser(null);
+
+      // Only redirect if user is on protected routes
+      if (location.pathname === "/app" || location.pathname === "/admin") {
+        navigateTo("/");
+      }
     }
   };
 
   const handleLogin = (token: string, userData: any) => {
     setUser(userData);
     localStorage.setItem("userToken", token);
-    setShowLanding(false); // Hide landing page after login
-    setShowLoginPage(false); // Hide login page after login
     setIsUnregisteredUser(false);
+    navigateTo("/app");
   };
 
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem("userToken");
-    setShowLanding(true); // Show landing page after logout
-    setShowLoginPage(false); // Hide login page after logout
     setIsUnregisteredUser(false);
+    navigateTo("/");
   };
 
   const handleGetStarted = () => {
-    setShowLanding(false); // Hide landing page when user clicks "Get Started"
-    setShowLoginPage(false); // Hide login page when user clicks "Get Started"
-    setIsUnregisteredUser(true); // Mark as unregistered user - they can only upload and get notes
+    setIsUnregisteredUser(true);
+    navigateTo("/app");
   };
 
   const handleBackToLanding = () => {
-    setShowLanding(true);
-    setShowLoginPage(false);
     setIsUnregisteredUser(false);
-    // Don't clear user data here - let the landing page handle it if needed
+    navigateTo("/");
   };
 
   const handleShowLogin = () => {
-    console.log(
-      "handleShowLogin called - setting showLanding to false, showLoginPage to true"
-    );
-    setShowLanding(false);
-    setShowLoginPage(true);
-    setIsUnregisteredUser(false);
+    navigateTo("/login");
   };
 
   if (isLoading) {
@@ -118,44 +171,34 @@ function App() {
     );
   }
 
-  console.log("Routing debug:", {
-    showLanding,
-    showLoginPage,
-    user: !!user,
-    isUnregisteredUser,
-  });
-
-  // Show landing page if landing should be shown
-  if (showLanding) {
-    console.log("Showing LandingPage");
-    return (
-      <LandingPage
-        onGetStarted={handleGetStarted}
-        onShowLogin={handleShowLogin}
-      />
-    );
-  }
-
-  // Show login page if login page should be shown
-  if (showLoginPage) {
-    console.log("Showing LoginPage");
-    return (
-      <LoginPage onLogin={handleLogin} onBackToLanding={handleBackToLanding} />
-    );
-  }
-
-  // Show main application if user is logged in OR if unregistered user wants to use the app
-  console.log("Showing MainDashboard/AdminPage");
   return (
-    <Router>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            user?.role === "admin" ? (
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <LandingPage
+            onGetStarted={handleGetStarted}
+            onShowLogin={handleShowLogin}
+          />
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          <LoginPage
+            onLogin={handleLogin}
+            onBackToLanding={handleBackToLanding}
+          />
+        }
+      />
+      <Route
+        path="/app"
+        element={
+          <ProtectedRoute user={user} isUnregisteredUser={isUnregisteredUser}>
+            {user?.role === "admin" ? (
               <AdminPage
                 API_BASE_URL={API_BASE_URL}
-                onBackToMain={() => {}} // Admin doesn't need to go back to main
+                onBackToMain={() => navigateTo("/app")}
                 onLogout={handleLogout}
               />
             ) : (
@@ -164,13 +207,24 @@ function App() {
                 onLogout={handleLogout}
                 isUnregisteredUser={isUnregisteredUser}
                 onBackToLanding={handleBackToLanding}
+                onShowLogin={handleShowLogin}
               />
-            )
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+            )}
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+function App() {
+  return (
+    <div className="min-h-screen">
+      <Router>
+        <AppContent />
+      </Router>
+    </div>
   );
 }
 

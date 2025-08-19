@@ -2,33 +2,49 @@ import React, { useState, useRef, useCallback } from "react";
 import {
   Upload,
   Mic,
-  X,
+  MicOff,
+  AlertCircle,
+  FileAudio,
   CheckCircle,
   Loader2,
-  AlertCircle,
 } from "lucide-react";
 
 interface EnhancedUploadProps {
-  onUploadComplete: (data: any) => void;
-  onError: (error: string) => void;
+  onUploadComplete: (result: any) => void;
+  onError?: (error: string) => void;
+  API_BASE_URL: string;
   isUnregisteredUser?: boolean;
   onShowSignup?: () => void;
 }
 
-interface UploadProgress {
-  stage: "uploading" | "transcribing" | "generating" | "complete";
-  message: string;
-  percentage: number;
+// Chunk upload configuration
+const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+const LARGE_FILE_THRESHOLD = 10 * 1024 * 1024; // 10MB threshold for chunking
+
+interface ChunkUploadState {
+  isChunked: boolean;
+  totalChunks: number;
+  uploadedChunks: number;
+  fileId: string;
+  filename: string;
+  fileType: string;
+  fileSize: number;
 }
 
 const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
   onUploadComplete,
   onError,
-  isUnregisteredUser,
+  API_BASE_URL,
+  isUnregisteredUser = false,
   onShowSignup,
 }) => {
   const [file, setFile] = useState<File | null>(null);
-  const [customPrompt, setCustomPrompt] = useState(
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [customPrompt, setCustomPrompt] = useState<string>(
     `SOAP note generator update; SYSTEM PROMPT — Dental SOAP Note Generator (Compact, <8k)
 
 ROLE
@@ -49,65 +65,311 @@ If proceeding, output these two blocks in order:
 A) META JSON block delimited by:
 <<META_JSON>>
 { … see schema in Knowledge: "Mini Extraction Schema v1" … }
-<<END_META_JSON>>
-B) HUMAN SOAP NOTE in this exact order and with these headings:
-1. Subjective
-2. Objective
-3. Assessment
-4. Plan
-- Completed Today
-- Instructions Given
-- Next Steps / Return Visit
-Then append:
-—
-Provider Initials: ________ (Review required before charting)
+<<META_JSON>>
 
-CLARIFICATION PROMPTS (USE VERBATIM WHEN NEEDED)
-• Anesthesia required but incomplete →
-"Before I generate the SOAP note, please provide the anesthetic type, concentration (e.g., 2% lidocaine with 1:100,000 epi), and number of carpules used for today's procedure."
-• Category unclear →
-"Can you confirm the appointment type (operative, check-up, implant, extraction, endodontic, emergency, other) before I proceed?"
-• Hygiene/check-up missing screenings (do not ask about anesthesia unless mentioned) →
-"Please confirm oral cancer screening findings and periodontal status/probing results."
+B) SOAP Note block delimited by:
+<<SOAP_NOTE>>
+[Standard SOAP format with category‑specific rules applied]
+<<SOAP_NOTE>>
 
-STYLE RULES
-• Formal clinical tone. No invented facts. No generic fillers (e.g., "tolerated well") unless stated.
-• Record procedural specifics exactly when stated (materials, devices/scanners, impression type, isolation, occlusal adjustment).
-• Only compute total anesthetic volume if carpules AND per‑carpule volume are explicitly provided (do not assume 1.7 mL).
-
-LINKED KNOWLEDGE (AUTHORITATIVE)
-Use Knowledge file "SOAP Reference v1" for:
-• Category keyword map and category‑specific required fields.
-• Fuzzy Anesthetic Recognition Module (normalization + fuzzy match).
-• Common anesthetics & typical concentrations table.
-• Early‑Stop algorithm details.
-• Mini Extraction Schema v1 (full JSON schema and field definitions).
-• Examples of good outputs and clarification cases.
-
-COMPLIANCE GUARDRAILS
-• Do not proceed if any mandatory data for the detected category is missing—issue one clarification request.
-• Do not include any content after Plan except the required signature line.
-• If transcript indicates no procedure requiring anesthesia (e.g., hygiene/check‑up), do not ask for anesthesia.
-
-END.`
+SIGNATURE PLACEHOLDER
+[Signature placeholder for dental professional]`
   );
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress>({
-    stage: "uploading",
+
+  // Chunk upload state
+  const [chunkUploadState, setChunkUploadState] =
+    useState<ChunkUploadState | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{
+    stage: string;
+    message: string;
+    percentage: number;
+  }>({
+    stage: "",
     message: "",
     percentage: 0,
   });
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [localError, setLocalError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordingIntervalRef = useRef<number>();
+  const recordingIntervalRef = useRef<number | null>(null);
 
-  const API_BASE_URL =
-    import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
+  // Generate unique file ID for chunked uploads
+  const generateFileId = () => {
+    return `file_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+  };
+
+  // Split file into chunks
+  const splitFileIntoChunks = (file: File): Blob[] => {
+    const chunks: Blob[] = [];
+    let start = 0;
+
+    while (start < file.size) {
+      const end = Math.min(start + CHUNK_SIZE, file.size);
+      chunks.push(file.slice(start, end));
+      start = end;
+    }
+
+    return chunks;
+  };
+
+  // Upload single chunk
+  const uploadChunk = async (
+    chunk: Blob,
+    chunkIndex: number,
+    totalChunks: number,
+    fileId: string,
+    filename: string
+  ): Promise<boolean> => {
+    try {
+      const formData = new FormData();
+      formData.append("chunk", chunk);
+      formData.append("chunkIndex", chunkIndex.toString());
+      formData.append("totalChunks", totalChunks.toString());
+      formData.append("fileId", fileId);
+      formData.append("filename", filename);
+
+      const response = await fetch(`${API_BASE_URL}/api/upload/chunk`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Chunk upload failed");
+      }
+
+      return true;
+    } catch (error) {
+      console.error(`Chunk ${chunkIndex} upload failed:`, error);
+      throw error;
+    }
+  };
+
+  // Finalize chunked upload
+  const finalizeChunkedUpload = async (
+    fileId: string,
+    filename: string,
+    fileType: string,
+    fileSize: number,
+    totalChunks: number,
+    customPrompt: string
+  ): Promise<any> => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/upload/finalize`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fileId,
+          filename,
+          fileType,
+          fileSize,
+          totalChunks,
+          customPrompt: customPrompt.trim() || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Finalization failed");
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Finalization failed:", error);
+      throw error;
+    }
+  };
+
+  // Handle chunked upload
+  const handleChunkedUpload = async (file: File, customPrompt: string) => {
+    const fileId = generateFileId();
+    const chunks = splitFileIntoChunks(file);
+    const totalChunks = chunks.length;
+
+    setChunkUploadState({
+      isChunked: true,
+      totalChunks,
+      uploadedChunks: 0,
+      fileId,
+      filename: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+    });
+
+    setUploadProgress({
+      stage: "uploading",
+      message: `Uploading chunks (0/${totalChunks})...`,
+      percentage: 0,
+    });
+
+    try {
+      // Upload chunks one by one
+      for (let i = 0; i < chunks.length; i++) {
+        await uploadChunk(chunks[i], i, totalChunks, fileId, file.name);
+
+        setChunkUploadState((prev) =>
+          prev
+            ? {
+                ...prev,
+                uploadedChunks: i + 1,
+              }
+            : null
+        );
+
+        setUploadProgress({
+          stage: "uploading",
+          message: `Uploading chunks (${i + 1}/${totalChunks})...`,
+          percentage: ((i + 1) / totalChunks) * 50, // First 50% for upload
+        });
+      }
+
+      // Finalize upload
+      setUploadProgress({
+        stage: "finalizing",
+        message: "Combining chunks and processing...",
+        percentage: 50,
+      });
+
+      const result = await finalizeChunkedUpload(
+        fileId,
+        file.name,
+        file.type,
+        file.size,
+        totalChunks,
+        customPrompt
+      );
+
+      setUploadProgress({
+        stage: "complete",
+        message: "Upload complete!",
+        percentage: 100,
+      });
+
+      return result;
+    } catch (error) {
+      console.error("Chunked upload failed:", error);
+      throw error;
+    }
+  };
+
+  // Handle regular upload (small files)
+  const handleRegularUpload = async (file: File, customPrompt: string) => {
+    const uploadData = new FormData();
+    uploadData.append("file", file);
+
+    if (customPrompt.trim()) {
+      uploadData.append("customPrompt", customPrompt.trim());
+    }
+
+    setUploadProgress({
+      stage: "uploading",
+      message: "Uploading file...",
+      percentage: 0,
+    });
+
+    const response = await fetch(`${API_BASE_URL}/api/upload`, {
+      method: "POST",
+      body: uploadData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Upload failed");
+    }
+
+    setUploadProgress({
+      stage: "transcribing",
+      message: "Transcribing audio...",
+      percentage: 50,
+    });
+
+    const result = await response.json();
+
+    setUploadProgress({
+      stage: "generating",
+      message: "Generating notes...",
+      percentage: 75,
+    });
+
+    setUploadProgress({
+      stage: "complete",
+      message: "Upload complete!",
+      percentage: 100,
+    });
+
+    return result;
+  };
+
+  // Main upload handler
+  const handleUpload = async () => {
+    if (!file && !audioBlob) {
+      setLocalError("Please select a file or record audio first");
+      return;
+    }
+
+    setIsUploading(true);
+    setLocalError(null);
+
+    try {
+      let result: any;
+      let fileName: string;
+
+      if (audioBlob) {
+        // Convert audio blob to file
+        const audioFile = new File([audioBlob], `recording_${Date.now()}.wav`, {
+          type: "audio/wav",
+        });
+
+        // Choose upload method based on file size
+        if (audioFile.size > LARGE_FILE_THRESHOLD) {
+          result = await handleChunkedUpload(audioFile, customPrompt);
+        } else {
+          result = await handleRegularUpload(audioFile, customPrompt);
+        }
+        fileName = audioFile.name;
+      } else if (file) {
+        // Choose upload method based on file size
+        if (file.size > LARGE_FILE_THRESHOLD) {
+          result = await handleChunkedUpload(file, customPrompt);
+        } else {
+          result = await handleRegularUpload(file, customPrompt);
+        }
+        fileName = file.name;
+      } else {
+        throw new Error("No file to upload");
+      }
+
+      // Call the callback with the result
+      onUploadComplete({
+        ...result,
+        fileName,
+        customPrompt: customPrompt.trim() || "Default prompt",
+      });
+
+      // Reset form
+      setFile(null);
+      setAudioBlob(null);
+      setChunkUploadState(null);
+      setRecordingTime(0);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      const errorMsg = error instanceof Error ? error.message : "Upload failed";
+      setLocalError(errorMsg);
+      onError && onError(errorMsg);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress({
+        stage: "",
+        message: "",
+        percentage: 0,
+      });
+    }
+  };
 
   // Clear local error when user starts new action
   const clearLocalError = () => {
@@ -173,7 +435,7 @@ END.`
       const errorMsg =
         "Failed to start recording. Please check microphone permissions.";
       setLocalError(errorMsg);
-      onError(errorMsg);
+      onError && onError(errorMsg);
     }
   };
 
@@ -184,108 +446,6 @@ END.`
       if (recordingIntervalRef.current) {
         clearInterval(recordingIntervalRef.current);
       }
-    }
-  };
-
-  // Upload processing
-  const processUpload = async () => {
-    if (!file && !audioBlob) {
-      const errorMsg = "Please select a file or record audio first.";
-      setLocalError(errorMsg);
-      return;
-    }
-
-    setIsUploading(true);
-    setLocalError(null);
-    setUploadProgress({
-      stage: "uploading",
-      message: "Uploading file...",
-      percentage: 0,
-    });
-
-    try {
-      let uploadData: FormData;
-      let fileName: string;
-
-      if (audioBlob) {
-        // Convert audio blob to file
-        const audioFile = new File([audioBlob], `recording_${Date.now()}.wav`, {
-          type: "audio/wav",
-        });
-        uploadData = new FormData();
-        uploadData.append("file", audioFile);
-        fileName = audioFile.name;
-      } else if (file) {
-        uploadData = new FormData();
-        uploadData.append("file", file);
-        fileName = file.name;
-      } else {
-        throw new Error("No file to upload");
-      }
-
-      // Add custom prompt if provided
-      if (customPrompt.trim()) {
-        uploadData.append("customPrompt", customPrompt.trim());
-      }
-
-      setUploadProgress({
-        stage: "transcribing",
-        message: "Transcribing audio...",
-        percentage: 50,
-      });
-
-      // Upload and process with OpenAI
-      const response = await fetch(`${API_BASE_URL}/api/upload`, {
-        method: "POST",
-        body: uploadData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Upload failed");
-      }
-
-      setUploadProgress({
-        stage: "generating",
-        message: "Generating notes...",
-        percentage: 75,
-      });
-
-      const result = await response.json();
-
-      setUploadProgress({
-        stage: "complete",
-        message: "Upload complete!",
-        percentage: 100,
-      });
-
-      // Call the callback with the result
-      onUploadComplete({
-        ...result,
-        fileName,
-        customPrompt: customPrompt.trim() || "Default prompt",
-      });
-
-      // Reset form
-      setFile(null);
-      setAudioBlob(null);
-      // Don't reset customPrompt - preserve user's custom prompt for future uploads
-      setRecordingTime(0);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    } catch (error) {
-      console.error("Upload error:", error);
-      const errorMsg = error instanceof Error ? error.message : "Upload failed";
-      setLocalError(errorMsg);
-      // Don't call onError here - keep error local to upload page
-    } finally {
-      setIsUploading(false);
-      setUploadProgress({
-        stage: "uploading",
-        message: "",
-        percentage: 0,
-      });
     }
   };
 
@@ -412,6 +572,54 @@ END.`
             </div>
           )}
         </div>
+
+        {/* File Info Display */}
+        {file && (
+          <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <FileAudio className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">
+                  {file.name}
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="text-sm text-gray-600">
+                  {Math.round(file.size / 1024 / 1024)}MB
+                </span>
+                {file.size > LARGE_FILE_THRESHOLD && (
+                  <div className="text-xs text-blue-600 font-medium">
+                    Will use chunked upload
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Audio Recording Info */}
+        {audioBlob && (
+          <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Mic className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">
+                  Audio Recording
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="text-sm text-gray-600">
+                  {Math.round(audioBlob.size / 1024 / 1024)}MB
+                </span>
+                {audioBlob.size > LARGE_FILE_THRESHOLD && (
+                  <div className="text-xs text-blue-600 font-medium">
+                    Will use chunked upload
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Audio Recording Section */}
@@ -427,7 +635,7 @@ END.`
           >
             {isRecording ? (
               <>
-                <X className="w-4 h-4" />
+                <MicOff className="w-4 h-4" />
                 <span>Stop Recording</span>
               </>
             ) : (
@@ -447,7 +655,7 @@ END.`
 
       {/* Upload Button */}
       <button
-        onClick={processUpload}
+        onClick={handleUpload}
         disabled={isUploading || (!file && !audioBlob)}
         className={`w-full py-3 px-4 rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
           isUploading || (!file && !audioBlob)
@@ -465,18 +673,60 @@ END.`
         )}
       </button>
 
-      {/* Progress Bar */}
-      {isUploading && (
-        <div className="space-y-2">
-          <div className="w-full bg-gray-200 rounded-full h-2">
+      {/* Progress Display */}
+      {uploadProgress.stage && (
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-blue-800">
+              {uploadProgress.stage === "uploading" && chunkUploadState
+                ? `Uploading ${chunkUploadState.uploadedChunks}/${chunkUploadState.totalChunks} chunks`
+                : uploadProgress.stage === "finalizing"
+                ? "Finalizing upload"
+                : uploadProgress.stage === "transcribing"
+                ? "Transcribing audio"
+                : uploadProgress.stage === "generating"
+                ? "Generating notes"
+                : "Complete"}
+            </span>
+            <span className="text-sm text-blue-600">
+              {Math.round(uploadProgress.percentage)}%
+            </span>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full bg-blue-200 rounded-full h-2">
             <div
               className="bg-blue-600 h-2 rounded-full transition-all duration-300"
               style={{ width: `${uploadProgress.percentage}%` }}
-            ></div>
+            />
           </div>
-          <p className="text-sm text-gray-600 text-center">
-            {uploadProgress.message} ({uploadProgress.percentage}%)
-          </p>
+
+          {/* Status Message */}
+          <p className="text-sm text-blue-700 mt-2">{uploadProgress.message}</p>
+
+          {/* Chunk Upload Details */}
+          {chunkUploadState && uploadProgress.stage === "uploading" && (
+            <div className="mt-3 p-3 bg-blue-100 rounded border border-blue-300">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-blue-800">
+                  Chunk {chunkUploadState.uploadedChunks} of{" "}
+                  {chunkUploadState.totalChunks}
+                </span>
+                <span className="text-blue-600 font-medium">
+                  {Math.round(
+                    (chunkUploadState.uploadedChunks /
+                      chunkUploadState.totalChunks) *
+                      100
+                  )}
+                  %
+                </span>
+              </div>
+              <div className="mt-2 text-xs text-blue-600">
+                File: {chunkUploadState.filename} (
+                {Math.round(chunkUploadState.fileSize / 1024 / 1024)}MB)
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

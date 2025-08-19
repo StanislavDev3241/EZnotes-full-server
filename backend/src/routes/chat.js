@@ -4,6 +4,9 @@ const openaiService = require("../services/openaiService");
 const jwt = require("jsonwebtoken");
 const encryptionUtils = require("../../encryption-utils");
 const auditService = require("../services/auditService");
+const fs = require("fs");
+const path = require("path");
+const multer = require("multer");
 
 const router = express.Router();
 
@@ -55,6 +58,29 @@ const authenticateToken = async (req, res, next) => {
     });
   }
 };
+
+// Multer middleware for file uploads
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, "temp/");
+    },
+    filename: (req, file, cb) => {
+      cb(null, `${Date.now()}-${file.originalname}`);
+    },
+  }),
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["audio/wav", "audio/mp3", "audio/m4a", "audio/aac"];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Only WAV, MP3, M4A, AAC are allowed."));
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+});
 
 // Send chat message
 router.post("/", authenticateToken, async (req, res) => {
@@ -748,5 +774,138 @@ router.delete("/message/:messageId", authenticateToken, async (req, res) => {
     });
   }
 });
+
+// Audio transcription endpoint (new endpoint)
+router.post(
+  "/transcribe",
+  authenticateToken,
+  upload.single("audio"),
+  async (req, res) => {
+    try {
+      // Check if audio file is provided
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "Audio file is required",
+        });
+      }
+
+      const audioFile = req.file;
+      const userId = req.user.userId;
+
+      // Validate file type
+      const allowedTypes = ["audio/wav", "audio/mp3", "audio/m4a", "audio/aac"];
+      if (!allowedTypes.includes(audioFile.mimetype)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid audio file type. Supported: WAV, MP3, M4A, AAC",
+        });
+      }
+
+      try {
+        // Transcribe audio using OpenAI
+        const transcription = await openaiService.transcribeAudio(
+          audioFile.path
+        );
+
+        // Clean up temp file
+        fs.unlinkSync(audioFile.path);
+
+        // Log data access
+        await auditService.logDataAccess(
+          userId,
+          "audio_transcription",
+          null,
+          "api"
+        );
+
+        res.json({
+          success: true,
+          transcription: transcription,
+          message: "Audio transcribed successfully",
+        });
+      } catch (transcriptionError) {
+        // Clean up temp file on error
+        if (fs.existsSync(audioFile.path)) {
+          fs.unlinkSync(audioFile.path);
+        }
+        throw transcriptionError;
+      }
+    } catch (error) {
+      console.error("Transcription error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to transcribe audio",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// Get conversation by ID (new endpoint)
+router.get(
+  "/conversation/:conversationId",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { conversationId } = req.params;
+      const userId = req.user.userId;
+
+      // Get conversation details
+      const conversationResult = await pool.query(
+        `SELECT * FROM chat_conversations WHERE id = $1`,
+        [conversationId]
+      );
+
+      if (conversationResult.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Conversation not found",
+        });
+      }
+
+      // Verify user can access this conversation
+      if (
+        req.user.role !== "admin" &&
+        conversationResult.rows[0].user_id !== userId
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied",
+        });
+      }
+
+      // Get messages for this conversation
+      const messagesResult = await pool.query(
+        `SELECT * FROM chat_messages 
+       WHERE conversation_id = $1 
+       ORDER BY created_at ASC`,
+        [conversationId]
+      );
+
+      // Log data access
+      await auditService.logDataAccess(
+        userId,
+        "chat_conversation",
+        conversationId,
+        "api"
+      );
+
+      res.json({
+        success: true,
+        conversation: conversationResult.rows[0],
+        messages: messagesResult.rows,
+        count: messagesResult.rows.length,
+      });
+    } catch (error) {
+      console.error("Get conversation error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get conversation",
+        error: error.message,
+      });
+    }
+  }
+);
 
 module.exports = router;

@@ -41,6 +41,7 @@ interface MainDashboardProps {
   onLogout: () => void;
   isUnregisteredUser?: boolean;
   onBackToLanding?: () => void;
+  onShowLogin?: () => void;
 }
 
 const MainDashboard: React.FC<MainDashboardProps> = ({
@@ -48,10 +49,28 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
   onLogout,
   isUnregisteredUser = false,
   onBackToLanding,
+  onShowLogin,
 }) => {
   const [activeSection, setActiveSection] = useState<
     "chat" | "upload" | "management"
   >("upload"); // Default to upload for unregistered users
+
+  // Guard function to prevent unregistered users from accessing restricted sections
+  const setActiveSectionWithGuard = (
+    section: "chat" | "upload" | "management"
+  ) => {
+    if (
+      isUnregisteredUser &&
+      (section === "chat" || section === "management")
+    ) {
+      // Show message that this feature requires registration
+      alert(
+        "This feature requires registration. Please sign up to access chat and management features."
+      );
+      return;
+    }
+    setActiveSection(section);
+  };
 
   // For unregistered users, only show upload section
   useEffect(() => {
@@ -373,7 +392,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
       }
 
       // Switch to chat section
-      setActiveSection("chat");
+      setActiveSectionWithGuard("chat");
     } catch (error) {
       console.error("Failed to continue from history:", error);
       alert("Failed to load conversation history. Please try again.");
@@ -529,7 +548,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
         <nav className="-mb-px flex space-x-8">
           {!isUnregisteredUser && (
             <button
-              onClick={() => setActiveSection("chat")}
+              onClick={() => setActiveSectionWithGuard("chat")}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeSection === "chat"
                   ? "border-blue-500 text-blue-600"
@@ -540,7 +559,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
             </button>
           )}
           <button
-            onClick={() => setActiveSection("upload")}
+            onClick={() => setActiveSectionWithGuard("upload")}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeSection === "upload"
                 ? "border-blue-500 text-blue-600"
@@ -551,7 +570,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
           </button>
           {!isUnregisteredUser && (
             <button
-              onClick={() => setActiveSection("management")}
+              onClick={() => setActiveSectionWithGuard("management")}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeSection === "management"
                   ? "border-blue-500 text-blue-600"
@@ -565,9 +584,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
       </div>
 
       {/* Main Content - Account for header height */}
-      <div className="flex-1 overflow-hidden pt-2">
+      <div className="flex-1 overflow-y-auto pt-2">
         {activeSection === "chat" && (
-          <div className="flex flex-col lg:flex-row h-full gap-2">
+          <div className="flex flex-col lg:flex-row h-full gap-2 px-4 pb-6">
             {/* Chat Interface - Left Side */}
             <div className="flex-1 flex flex-col bg-white rounded-lg shadow-sm min-h-0">
               {/* Chat History Manager */}
@@ -799,7 +818,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
 
         {/* Upload Section */}
         {activeSection === "upload" && (
-          <div className="space-y-6">
+          <div className="space-y-6 px-4 pb-6">
             {isUnregisteredUser && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex">
@@ -825,7 +844,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                         Upload your transcription or audio files to generate
                         AI-powered SOAP notes and patient summaries.
                         <button
-                          onClick={() => setActiveSection("chat")}
+                          onClick={() => onShowLogin && onShowLogin()}
                           className="ml-1 font-medium underline hover:text-blue-600"
                         >
                           Sign up
@@ -842,20 +861,21 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
               onUploadComplete={handleUploadComplete}
               onError={(error) => console.error("Upload error:", error)}
               isUnregisteredUser={isUnregisteredUser}
-              onShowSignup={() => onBackToLanding && onBackToLanding()}
+              onShowSignup={() => onShowLogin && onShowLogin()}
+              API_BASE_URL={API_BASE_URL}
             />
           </div>
         )}
 
         {activeSection === "management" && (
-          <div className="mx-2">
+          <div className="px-4 pb-6">
             <div className="max-w-6xl mx-auto">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl lg:text-2xl font-bold text-gray-900">
                   Management & History
                 </h2>
                 <button
-                  onClick={() => setActiveSection("chat")}
+                  onClick={() => setActiveSectionWithGuard("chat")}
                   className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
                 >
                   ← Back to Chat
@@ -905,7 +925,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
           onClose={() => setShowResults(false)}
           onNextToChat={() => {
             setShowResults(false);
-            setActiveSection("chat");
+            setActiveSectionWithGuard("chat");
             // Add the AI's clarification question as the first message
             if (currentNote.notes?.soapNote) {
               const aiMessage: Message = {

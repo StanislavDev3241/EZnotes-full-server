@@ -17,6 +17,7 @@ const path = require("path");
 const fs = require("fs"); // Regular fs for createReadStream
 const fsPromises = require("fs").promises; // Promises for async operations
 const openaiService = require("../services/openaiService");
+const fsSync = require("fs"); // For createWriteStream
 
 const router = express.Router();
 
@@ -380,6 +381,228 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
     res.status(500).json({
       error: "Upload failed",
       message: error.message || "An error occurred during file upload",
+    });
+  }
+});
+
+// Chunk upload endpoint for large files
+router.post(
+  "/chunk",
+  optionalAuth,
+  uploadChunk.single("chunk"),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No chunk uploaded" });
+      }
+
+      const { chunkIndex, totalChunks, fileId, filename } = req.body;
+
+      if (!chunkIndex || !totalChunks || !filename) {
+        return res.status(400).json({ error: "Missing chunk information" });
+      }
+
+      // Create temp directory for this file
+      const tempFileDir = path.join(
+        process.env.TEMP_PATH || "./temp",
+        `chunked_${fileId || Date.now()}`
+      );
+      await fsPromises.mkdir(tempFileDir, { recursive: true });
+
+      // Save chunk
+      const chunkPath = path.join(tempFileDir, `chunk_${chunkIndex}`);
+      await fsPromises.copyFile(req.file.path, chunkPath);
+      await fsPromises.unlink(req.file.path);
+
+      console.log(
+        `📁 Chunk ${chunkIndex}/${totalChunks} saved for ${filename}`
+      );
+
+      res.json({
+        success: true,
+        chunkIndex: parseInt(chunkIndex),
+        message: `Chunk ${chunkIndex} uploaded successfully`,
+      });
+    } catch (error) {
+      console.error("Chunk upload error:", error);
+      res.status(500).json({
+        error: "Chunk upload failed",
+        message: error.message,
+      });
+    }
+  }
+);
+
+// Finalize chunked upload
+router.post("/finalize", optionalAuth, async (req, res) => {
+  try {
+    const { fileId, filename, fileType, fileSize, totalChunks, customPrompt } =
+      req.body;
+
+    if (!fileId || !filename || !fileType || !fileSize || !totalChunks) {
+      return res.status(400).json({ error: "Missing file information" });
+    }
+
+    const tempFileDir = path.join(
+      process.env.TEMP_PATH || "./temp",
+      `chunked_${fileId}`
+    );
+    const finalFilePath = path.join(
+      process.env.UPLOAD_PATH || "./uploads",
+      filename
+    );
+
+    // Check if all chunks exist
+    for (let i = 0; i < totalChunks; i++) {
+      const chunkPath = path.join(tempFileDir, `chunk_${i}`);
+      try {
+        await fsPromises.access(chunkPath);
+      } catch (error) {
+        return res.status(400).json({
+          error: "Missing chunks",
+          message: `Chunk ${i} is missing. Please re-upload all chunks.`,
+        });
+      }
+    }
+
+    // Combine chunks into final file
+    const writeStream = fsSync.createWriteStream(finalFilePath);
+
+    for (let i = 0; i < totalChunks; i++) {
+      const chunkPath = path.join(tempFileDir, `chunk_${i}`);
+      const chunkData = await fsPromises.readFile(chunkPath);
+      writeStream.write(chunkData);
+    }
+
+    writeStream.end();
+
+    // Wait for write to complete
+    await new Promise((resolve, reject) => {
+      writeStream.on("finish", resolve);
+      writeStream.on("error", reject);
+    });
+
+    // Clean up temp chunks
+    for (let i = 0; i < totalChunks; i++) {
+      const chunkPath = path.join(tempFileDir, `chunk_${i}`);
+      try {
+        await fsPromises.unlink(chunkPath);
+      } catch (error) {
+        console.warn(`Warning: Could not delete chunk ${i}:`, error.message);
+      }
+    }
+
+    // Remove temp directory
+    try {
+      await fsPromises.rmdir(tempFileDir);
+    } catch (error) {
+      console.warn(`Warning: Could not remove temp directory:`, error.message);
+    }
+
+    // Get file stats and process with OpenAI
+    const stats = await fsPromises.stat(finalFilePath);
+
+    const fileInfo = {
+      filename: filename,
+      originalName: filename,
+      fileSize: stats.size,
+      fileType: fileType,
+      filePath: finalFilePath,
+      userId: req.user ? req.user.id : null,
+    };
+
+    // Save file info to database
+    let fileResult;
+    try {
+      fileResult = await pool.query(
+        `INSERT INTO files (filename, original_name, file_path, file_size, file_type, user_id, status)
+         VALUES ($1, $2, $3, $4, $5, $6, 'uploaded')
+         RETURNING id`,
+        [
+          fileInfo.filename,
+          fileInfo.originalName,
+          finalFilePath,
+          fileInfo.fileSize,
+          fileType,
+          fileInfo.userId,
+        ]
+      );
+    } catch (dbError) {
+      console.error("Database error saving file:", dbError);
+      throw new Error(`Failed to save file to database: ${dbError.message}`);
+    }
+
+    const finalFileId = fileResult.rows[0].id;
+
+    // Create task in database
+    try {
+      await pool.query(
+        `INSERT INTO tasks (file_id, user_id, task_type, status, priority)
+         VALUES ($1, $2, 'file_processing', 'pending', 1)`,
+        [finalFileId, fileInfo.userId]
+      );
+    } catch (dbError) {
+      console.error("Database error creating task:", dbError);
+      throw new Error(`Failed to create task: ${dbError.message}`);
+    }
+
+    // Process file with OpenAI
+    try {
+      const customPromptObj = customPrompt
+        ? { systemPrompt: customPrompt, userPrompt: "" }
+        : null;
+
+      const processingResult = await processFileWithOpenAI(
+        fileInfo,
+        finalFileId,
+        fileInfo.userId,
+        customPromptObj
+      );
+
+      // Update file and task status
+      await pool.query(`UPDATE files SET status = 'processed' WHERE id = $1`, [
+        finalFileId,
+      ]);
+      await pool.query(
+        `UPDATE tasks SET status = 'completed' WHERE file_id = $1`,
+        [finalFileId]
+      );
+
+      return res.json({
+        success: true,
+        file: { id: finalFileId, status: "processed" },
+        notes: processingResult.notes,
+        transcription: processingResult.transcription,
+        message: "Large file uploaded and processed successfully",
+      });
+    } catch (processingError) {
+      console.error("❌ OpenAI processing error:", processingError);
+
+      // Update task status to reflect the error
+      await pool.query(
+        `UPDATE tasks SET status = 'failed', error_message = $1 WHERE file_id = $2`,
+        [processingError.message, finalFileId]
+      );
+
+      // Update file status to reflect error state
+      await pool.query(`UPDATE files SET status = 'failed' WHERE id = $1`, [
+        finalFileId,
+      ]);
+
+      return res.json({
+        success: true,
+        file: { id: finalFileId, status: "failed" },
+        message:
+          "File uploaded but failed to process with AI. Please try again.",
+        taskStatus: "failed",
+        error: processingError.message,
+      });
+    }
+  } catch (error) {
+    console.error("Finalize chunked upload error:", error);
+    res.status(500).json({
+      error: "Finalization failed",
+      message: error.message || "An error occurred during file finalization",
     });
   }
 });

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 interface LoginPageProps {
   onLogin: (token: string, user: any) => void;
@@ -13,8 +12,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding }) => {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const navigate = useNavigate();
 
   const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
@@ -41,7 +38,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding }) => {
       if (response.ok) {
         const data = await response.json();
         onLogin(data.token, data.user);
-        navigate("/chat");
+        // Navigation is now handled by the parent component
       } else {
         const errorData = await response.json();
         setError(errorData.message || "Authentication failed");

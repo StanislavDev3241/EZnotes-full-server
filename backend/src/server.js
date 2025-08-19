@@ -3,6 +3,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const path = require("path");
+const multer = require("multer");
 require("dotenv").config();
 
 const app = express();
@@ -42,6 +43,22 @@ app.use(morgan("combined"));
 // Increase body parser limits for large files
 app.use(express.json({ limit: "200mb" }));
 app.use(express.urlencoded({ extended: true, limit: "200mb" }));
+
+// Configure multer for file uploads
+const upload = multer({
+  dest: "temp/",
+  limits: {
+    fileSize: parseInt(process.env.MAX_FILE_SIZE || "200") * 1024 * 1024, // Use same limit as upload middleware
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow audio files
+    if (file.mimetype.startsWith("audio/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only audio files are allowed"));
+    }
+  },
+});
 
 // AGGRESSIVE TIMEOUT BYPASS - Your custom server needs unlimited time!
 app.use((req, res, next) => {
