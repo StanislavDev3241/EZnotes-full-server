@@ -31,7 +31,7 @@ function App() {
     // Check if user is already logged in first
     const userToken = localStorage.getItem("userToken");
     const adminToken = localStorage.getItem("adminToken");
-    
+
     if (userToken) {
       verifyUserToken(userToken);
     } else if (adminToken) {
