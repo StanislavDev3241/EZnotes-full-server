@@ -841,6 +841,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
             <EnhancedUpload
               onUploadComplete={handleUploadComplete}
               onError={(error) => console.error("Upload error:", error)}
+              isUnregisteredUser={isUnregisteredUser}
             />
           </div>
         )}

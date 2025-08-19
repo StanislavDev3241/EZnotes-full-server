@@ -11,6 +11,7 @@ import {
 interface EnhancedUploadProps {
   onUploadComplete: (data: any) => void;
   onError: (error: string) => void;
+  isUnregisteredUser?: boolean;
 }
 
 interface UploadProgress {
@@ -22,6 +23,7 @@ interface UploadProgress {
 const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
   onUploadComplete,
   onError,
+  isUnregisteredUser,
 }) => {
   const [file, setFile] = useState<File | null>(null);
   const [customPrompt, setCustomPrompt] = useState(
@@ -385,17 +387,34 @@ END.`
         <label className="block text-sm font-medium text-gray-700">
           Custom Instructions
         </label>
-        <textarea
-          value={customPrompt}
-          onChange={(e) => setCustomPrompt(e.target.value)}
-          placeholder="Enter custom instructions for note generation..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          rows={4}
-        />
-        <p className="text-xs text-gray-500">
-          These instructions will guide the AI in generating your dental SOAP
-          notes.
-        </p>
+        {isUnregisteredUser ? (
+          <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+            <p className="text-sm text-gray-600">
+              Custom prompt editing is available for registered users. 
+              <button 
+                onClick={() => window.location.href = '/login'} 
+                className="ml-1 text-blue-600 hover:text-blue-800 underline"
+              >
+                Sign up
+              </button>{" "}
+              to customize your AI instructions.
+            </p>
+          </div>
+        ) : (
+          <>
+            <textarea
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder="Enter custom instructions for note generation..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              rows={4}
+            />
+            <p className="text-xs text-gray-500">
+              These instructions will guide the AI in generating your dental SOAP
+              notes.
+            </p>
+          </>
+        )}
       </div>
 
       {/* File Upload Section */}
