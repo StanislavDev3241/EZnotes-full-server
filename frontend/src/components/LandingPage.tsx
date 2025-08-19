@@ -57,7 +57,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           </div>
 
           <div className="mt-16">
-            <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
+            <div className="flex flex-col sm:flex-row items-center justify-center space-y-8 sm:space-y-0 sm:space-x-8">
               {/* Step 1 */}
               <div className="text-center">
                 <div className="flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 text-blue-600 mx-auto mb-4">
@@ -144,7 +144,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-blue-800">
+      <section className="py-16 bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:py-16 lg:px-8 text-center">
           <button
             onClick={onGetStarted}
