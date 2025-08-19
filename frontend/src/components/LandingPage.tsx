@@ -71,7 +71,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
               {/* Arrow 1 */}
               <div className="hidden sm:flex items-center justify-center">
-                <ArrowRight className="h-8 w-8 text-blue-600" />
+                <ArrowRight className="h-8 w-8 text-gray-400" />
               </div>
 
               {/* Step 2 */}
@@ -86,7 +86,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
 
               {/* Arrow 2 */}
               <div className="hidden sm:flex items-center justify-center">
-                <ArrowRight className="h-8 w-8 text-blue-600" />
+                <ArrowRight className="h-8 w-8 text-gray-400" />
               </div>
 
               {/* Step 3 */}
@@ -144,11 +144,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-blue-900">
+      <section className="py-16 bg-blue-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:py-16 lg:px-8 text-center">
           <button
             onClick={onGetStarted}
-            className="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            className="inline-flex items-center px-8 py-4 border border-transparent text-lg font-medium rounded-lg text-white bg-blue-800 hover:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
           >
             Get started
           </button>

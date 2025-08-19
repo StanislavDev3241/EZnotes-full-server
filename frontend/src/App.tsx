@@ -30,7 +30,7 @@ function App() {
     // Clear any existing tokens to ensure landing page shows first
     localStorage.removeItem("userToken");
     localStorage.removeItem("adminToken");
-    
+
     // Check if user is already logged in
     const token = localStorage.getItem("userToken");
     if (token) {
@@ -120,8 +120,8 @@ function App() {
           path="/"
           element={
             user?.role === "admin" ? (
-            <AdminPage
-              API_BASE_URL={API_BASE_URL}
+              <AdminPage
+                API_BASE_URL={API_BASE_URL}
                 onBackToMain={() => {}} // Admin doesn't need to go back to main
                 onLogout={handleLogout}
               />
