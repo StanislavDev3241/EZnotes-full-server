@@ -22,6 +22,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [showLanding, setShowLanding] = useState(true);
   const [isUnregisteredUser, setIsUnregisteredUser] = useState(false);
+  const [showLoginPage, setShowLoginPage] = useState(false);
 
   const API_BASE_URL =
     import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
@@ -68,6 +69,7 @@ function App() {
     setUser(userData);
     localStorage.setItem("userToken", token);
     setShowLanding(false); // Hide landing page after login
+    setShowLoginPage(false); // Hide login page after login
     setIsUnregisteredUser(false);
   };
 
@@ -75,18 +77,30 @@ function App() {
     setUser(null);
     localStorage.removeItem("userToken");
     setShowLanding(true); // Show landing page after logout
+    setShowLoginPage(false); // Hide login page after logout
     setIsUnregisteredUser(false);
   };
 
   const handleGetStarted = () => {
     setShowLanding(false); // Hide landing page when user clicks "Get Started"
+    setShowLoginPage(false); // Hide login page when user clicks "Get Started"
     setIsUnregisteredUser(true); // Mark as unregistered user - they can only upload and get notes
   };
 
   const handleBackToLanding = () => {
     setShowLanding(true);
+    setShowLoginPage(false);
     setIsUnregisteredUser(false);
     setUser(null);
+  };
+
+  const handleShowLogin = () => {
+    console.log(
+      "handleShowLogin called - setting showLanding to false, showLoginPage to true"
+    );
+    setShowLanding(false);
+    setShowLoginPage(true);
+    setIsUnregisteredUser(false);
   };
 
   if (isLoading) {
@@ -100,19 +114,34 @@ function App() {
     );
   }
 
+  console.log("Routing debug:", {
+    showLanding,
+    showLoginPage,
+    user: !!user,
+    isUnregisteredUser,
+  });
+
   // Show landing page if not logged in and landing should be shown
   if (showLanding && !user) {
-    return <LandingPage onGetStarted={handleGetStarted} />;
+    console.log("Showing LandingPage");
+    return (
+      <LandingPage
+        onGetStarted={handleGetStarted}
+        onShowLogin={handleShowLogin}
+      />
+    );
   }
 
-  // Show login page if not logged in and landing is hidden
-  if (!user && !isUnregisteredUser) {
+  // Show login page if showLoginPage is true
+  if (showLoginPage && !user) {
+    console.log("Showing LoginPage");
     return (
       <LoginPage onLogin={handleLogin} onBackToLanding={handleBackToLanding} />
     );
   }
 
   // Show main application if user is logged in OR if unregistered user wants to use the app
+  console.log("Showing MainDashboard/AdminPage");
   return (
     <Router>
       <Routes>

@@ -12,6 +12,7 @@ interface EnhancedUploadProps {
   onUploadComplete: (data: any) => void;
   onError: (error: string) => void;
   isUnregisteredUser?: boolean;
+  onShowSignup?: () => void;
 }
 
 interface UploadProgress {
@@ -24,6 +25,7 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
   onUploadComplete,
   onError,
   isUnregisteredUser,
+  onShowSignup,
 }) => {
   const [file, setFile] = useState<File | null>(null);
   const [customPrompt, setCustomPrompt] = useState(
@@ -390,9 +392,9 @@ END.`
         {isUnregisteredUser ? (
           <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
             <p className="text-sm text-gray-600">
-              Custom prompt editing is available for registered users. 
-              <button 
-                onClick={() => window.location.href = '/login'} 
+              Custom prompt editing is available for registered users.
+              <button
+                onClick={() => onShowSignup && onShowSignup()}
                 className="ml-1 text-blue-600 hover:text-blue-800 underline"
               >
                 Sign up
@@ -410,8 +412,8 @@ END.`
               rows={4}
             />
             <p className="text-xs text-gray-500">
-              These instructions will guide the AI in generating your dental SOAP
-              notes.
+              These instructions will guide the AI in generating your dental
+              SOAP notes.
             </p>
           </>
         )}

@@ -842,6 +842,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
               onUploadComplete={handleUploadComplete}
               onError={(error) => console.error("Upload error:", error)}
               isUnregisteredUser={isUnregisteredUser}
+              onShowSignup={() => onBackToLanding && onBackToLanding()}
             />
           </div>
         )}

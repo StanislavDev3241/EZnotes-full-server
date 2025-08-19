@@ -3,21 +3,25 @@ import { Upload, FileText, Monitor, ArrowRight, Menu } from "lucide-react";
 
 interface LandingPageProps {
   onGetStarted: () => void;
+  onShowLogin?: () => void;
 }
 
-const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
+const LandingPage: React.FC<LandingPageProps> = ({
+  onGetStarted,
+  onShowLogin,
+}) => {
   const [showMenu, setShowMenu] = useState(false);
 
   // Close menu when clicking outside
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (showMenu && !(event.target as Element).closest('.menu-container')) {
+      if (showMenu && !(event.target as Element).closest(".menu-container")) {
         setShowMenu(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showMenu]);
 
   return (
@@ -32,20 +36,26 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </div>
             </div>
             <div className="flex items-center space-x-4 relative menu-container">
-              <button 
+              <button
                 onClick={() => setShowMenu(!showMenu)}
                 className="p-2 text-gray-600 hover:text-gray-800"
               >
                 <Menu className="h-6 w-6" />
               </button>
-              
+
               {/* Dropdown Menu */}
               {showMenu && (
                 <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
                   <button
                     onClick={() => {
+                      console.log("Sign In clicked");
                       setShowMenu(false);
-                      window.location.href = '/login';
+                      if (onShowLogin) {
+                        console.log("Calling onShowLogin");
+                        onShowLogin();
+                      } else {
+                        console.log("onShowLogin is undefined");
+                      }
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
@@ -53,8 +63,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   </button>
                   <button
                     onClick={() => {
+                      console.log("Sign Up clicked");
                       setShowMenu(false);
-                      window.location.href = '/register';
+                      if (onShowLogin) {
+                        console.log("Calling onShowLogin for Sign Up");
+                        onShowLogin();
+                      } else {
+                        console.log("onShowLogin is undefined for Sign Up");
+                      }
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   >
