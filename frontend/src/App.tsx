@@ -28,15 +28,19 @@ function App() {
     import.meta.env.VITE_API_BASE_URL || "http://83.229.115.190:3001";
 
   useEffect(() => {
-    // Clear any existing tokens to ensure landing page shows first
-    localStorage.removeItem("userToken");
-    localStorage.removeItem("adminToken");
-
-    // Check if user is already logged in
-    const token = localStorage.getItem("userToken");
-    if (token) {
-      verifyUserToken(token);
+    // Check if user is already logged in first
+    const userToken = localStorage.getItem("userToken");
+    const adminToken = localStorage.getItem("adminToken");
+    
+    if (userToken) {
+      verifyUserToken(userToken);
+    } else if (adminToken) {
+      // Handle admin token verification if needed
+      // For now, just clear it and show landing page
+      localStorage.removeItem("adminToken");
+      setIsLoading(false);
     } else {
+      // No tokens found, show landing page
       setIsLoading(false);
     }
   }, []);
@@ -91,7 +95,7 @@ function App() {
     setShowLanding(true);
     setShowLoginPage(false);
     setIsUnregisteredUser(false);
-    setUser(null);
+    // Don't clear user data here - let the landing page handle it if needed
   };
 
   const handleShowLogin = () => {
@@ -121,8 +125,8 @@ function App() {
     isUnregisteredUser,
   });
 
-  // Show landing page if not logged in and landing should be shown
-  if (showLanding && !user) {
+  // Show landing page if landing should be shown
+  if (showLanding) {
     console.log("Showing LandingPage");
     return (
       <LandingPage
@@ -132,8 +136,8 @@ function App() {
     );
   }
 
-  // Show login page if showLoginPage is true
-  if (showLoginPage && !user) {
+  // Show login page if login page should be shown
+  if (showLoginPage) {
     console.log("Showing LoginPage");
     return (
       <LoginPage onLogin={handleLogin} onBackToLanding={handleBackToLanding} />
