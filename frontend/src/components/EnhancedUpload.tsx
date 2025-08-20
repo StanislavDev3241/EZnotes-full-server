@@ -418,15 +418,9 @@ SIGNATURE PLACEHOLDER
 
         // Choose upload method based on file size
         if (audioFile.size > LARGE_FILE_THRESHOLD) {
-          result = await handleChunkedUpload(
-            audioFile,
-            customPrompt
-          );
+          result = await handleChunkedUpload(audioFile, customPrompt);
         } else {
-          result = await handleRegularUpload(
-            audioFile,
-            customPrompt
-          );
+          result = await handleRegularUpload(audioFile, customPrompt);
         }
         fileName = audioFile.name;
       } else if (file) {

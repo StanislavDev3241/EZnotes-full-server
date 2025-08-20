@@ -86,7 +86,9 @@ class OpenAIService {
 
       if (fileSizeMB > 25) {
         throw new Error(
-          `File size ${fileSizeMB.toFixed(2)}MB exceeds Whisper API limit of 25MB`
+          `File size ${fileSizeMB.toFixed(
+            2
+          )}MB exceeds Whisper API limit of 25MB`
         );
       }
 
@@ -125,19 +127,75 @@ class OpenAIService {
         "subscribe in english",
         "thank you for watching",
         "knock on their doors",
-        "don't leave them waiting"
+        "don't leave them waiting",
       ];
 
-      const hasSuspiciousContent = suspiciousPatterns.some(pattern => 
+      const hasSuspiciousContent = suspiciousPatterns.some((pattern) =>
         transcription.toLowerCase().includes(pattern.toLowerCase())
       );
 
       if (hasSuspiciousContent) {
-        console.warn(`⚠️ WARNING: Transcription contains suspicious content patterns that may indicate corruption or wrong file`);
-        console.warn(`🔍 Suspicious content detected: ${transcription.substring(0, 200)}...`);
-        
+        console.warn(
+          `⚠️ WARNING: Transcription contains suspicious content patterns that may indicate corruption or wrong file`
+        );
+        console.warn(
+          `🔍 Suspicious content detected: ${transcription.substring(
+            0,
+            200
+          )}...`
+        );
+
         // Return the transcription but log the warning
         // The user can decide if this is correct or needs re-upload
+      }
+
+      // ✅ NEW: Check for "English English English" repetition pattern (indicates corruption)
+      const englishRepetitionPattern = /(english\s+){3,}/i;
+      if (englishRepetitionPattern.test(transcription)) {
+        console.error(
+          `🚨 CRITICAL: Transcription contains "English English English" repetition pattern - indicates file corruption`
+        );
+        console.error(
+          `🔍 Corrupted transcription sample: ${transcription.substring(
+            0,
+            500
+          )}...`
+        );
+
+        throw new Error(
+          `Transcription corruption detected. The audio file appears to be corrupted or the transcription failed. ` +
+            `Please try uploading the file again. If the problem persists, try: ` +
+            `1) Using a different audio file, 2) Checking the audio quality, 3) Using a smaller file size.`
+        );
+      }
+
+      // ✅ NEW: Check for excessive repetition patterns
+      const words = transcription.toLowerCase().split(/\s+/);
+      const wordCounts = {};
+      words.forEach((word) => {
+        wordCounts[word] = (wordCounts[word] || 0) + 1;
+      });
+
+      // Check if any word appears more than 50% of the time (indicates corruption)
+      const totalWords = words.length;
+      const suspiciousWords = Object.entries(wordCounts)
+        .filter(([word, count]) => count > totalWords * 0.5 && word.length > 3)
+        .map(([word, count]) => ({
+          word,
+          count,
+          percentage: ((count / totalWords) * 100).toFixed(1),
+        }));
+
+      if (suspiciousWords.length > 0) {
+        console.error(
+          `🚨 CRITICAL: Excessive word repetition detected - indicates transcription corruption`
+        );
+        console.error(`🔍 Suspicious words:`, suspiciousWords);
+
+        throw new Error(
+          `Transcription corruption detected. The transcription contains excessive repetition which indicates a corrupted file or failed transcription. ` +
+            `Please try uploading the file again with better audio quality.`
+        );
       }
 
       return transcription;

@@ -134,22 +134,30 @@ const processFileWithOpenAI = async (
     if (fileInfo.fileType.startsWith("audio/")) {
       // Audio file - use Whisper API
       console.log(`🎵 Audio file detected, using Whisper API`);
-      
+
       try {
         // ✅ SIMPLIFIED: Use universal prompt for all audio types
         transcription = await openaiService.transcribeAudio(fileInfo.filePath);
       } catch (transcriptionError) {
         console.error(`❌ Transcription failed:`, transcriptionError);
-        
+
         // Handle specific transcription errors
         if (transcriptionError.message.includes("25MB")) {
-          throw new Error(`File size exceeds Whisper API limit. Please use a smaller file or contact support for large file processing.`);
+          throw new Error(
+            `File size exceeds Whisper API limit. Please use a smaller file or contact support for large file processing.`
+          );
         } else if (transcriptionError.message.includes("API key")) {
-          throw new Error(`OpenAI API configuration error. Please check your API key and try again.`);
+          throw new Error(
+            `OpenAI API configuration error. Please check your API key and try again.`
+          );
         } else if (transcriptionError.message.includes("rate limit")) {
-          throw new Error(`OpenAI API rate limit exceeded. Please try again in a few minutes.`);
+          throw new Error(
+            `OpenAI API rate limit exceeded. Please try again in a few minutes.`
+          );
         } else {
-          throw new Error(`Transcription failed: ${transcriptionError.message}. Please try again or contact support.`);
+          throw new Error(
+            `Transcription failed: ${transcriptionError.message}. Please try again or contact support.`
+          );
         }
       }
     } else if (fileInfo.fileType === "text/plain") {
@@ -619,7 +627,7 @@ router.post("/finalize", optionalAuth, async (req, res) => {
 
     // Set up comprehensive stream error handling
     writeStream.on("error", (error) => {
-      console.error(`❌ Write stream error during chunk ${i}:`, error);
+      console.error(`❌ Write stream error during chunk processing:`, error);
       hasStreamError = true;
     });
 
@@ -669,8 +677,8 @@ router.post("/finalize", optionalAuth, async (req, res) => {
             reject(new Error(`Failed to read chunk ${i}: ${error.message}`));
           });
 
-          // Pipe chunk to final file
-          readStream.pipe(writeStream, { end: false });
+          // ✅ FIXED: Use proper stream piping without end: false to prevent corruption
+          readStream.pipe(writeStream, { end: i === totalChunks - 1 });
         });
 
         // Store chunk metadata for debugging
@@ -703,8 +711,8 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       }
     }
 
-    // Close the write stream
-    writeStream.end();
+    // ✅ FIXED: Don't manually end the stream - let the last chunk end it
+    // writeStream.end(); // REMOVED - this was causing corruption
 
     // Wait for write to complete with timeout
     const writeTimeout = setTimeout(() => {
@@ -850,6 +858,30 @@ router.post("/finalize", optionalAuth, async (req, res) => {
           console.warn(
             `⚠️ Potential text corruption detected in final file sample`
           );
+        }
+
+        // ✅ NEW: Check for "English English English" repetition in text files
+        const englishRepetitionPattern = /(english\s+){3,}/i;
+        if (englishRepetitionPattern.test(sampleData)) {
+          console.error(
+            `🚨 CRITICAL: Text file contains "English English English" repetition pattern - indicates corruption`
+          );
+
+          // Clean up corrupted file
+          try {
+            await fsPromises.unlink(finalFilePath);
+          } catch (cleanupError) {
+            console.warn(
+              `Warning: Could not cleanup corrupted text file:`,
+              cleanupError.message
+            );
+          }
+
+          return res.status(500).json({
+            error: "Text file corruption detected",
+            message:
+              "Text file contains corruption patterns. Please re-upload with a valid file.",
+          });
         }
 
         console.log(
