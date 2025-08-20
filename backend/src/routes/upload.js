@@ -685,6 +685,8 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       const chunkPath = path.join(tempFileDir, `chunk_${i}`);
 
       try {
+        console.log(`🔄 Processing chunk ${i + 1}/${totalChunks}: ${chunkPath}`);
+
         // ✅ IMPROVED: Stream-based chunk reading (no memory overflow)
         const readStream = fsSync.createReadStream(chunkPath);
 
@@ -694,7 +696,9 @@ router.post("/finalize", optionalAuth, async (req, res) => {
           throw new Error(`Chunk ${i} is empty (0 bytes)`);
         }
 
-        // ✅ IMPROVED: Stream chunk to final file with progress tracking
+        console.log(`📁 Chunk ${i} size: ${chunkStats.size} bytes`);
+
+        // ✅ FIXED: Sequential chunk processing to prevent corruption
         await new Promise((resolve, reject) => {
           let chunkBytesWritten = 0;
 
@@ -707,7 +711,7 @@ router.post("/finalize", optionalAuth, async (req, res) => {
           readStream.on("end", () => {
             totalBytesWritten += chunkBytesWritten;
             console.log(
-              `📁 Processed chunk ${i}: ${chunkBytesWritten} bytes (Total: ${totalBytesWritten}/${totalChunkSize})`
+              `✅ Processed chunk ${i}: ${chunkBytesWritten} bytes (Total: ${totalBytesWritten}/${totalChunkSize})`
             );
             resolve();
           });
@@ -717,8 +721,16 @@ router.post("/finalize", optionalAuth, async (req, res) => {
             reject(new Error(`Failed to read chunk ${i}: ${error.message}`));
           });
 
-          // ✅ FIXED: Use proper stream piping without end: false to prevent corruption
-          readStream.pipe(writeStream, { end: i === totalChunks - 1 });
+          // ✅ FIXED: Use sequential piping - only end stream on last chunk
+          if (i === totalChunks - 1) {
+            // Last chunk - end the write stream
+            console.log(`🔚 Processing final chunk ${i} - ending write stream`);
+            readStream.pipe(writeStream, { end: true });
+          } else {
+            // Not last chunk - don't end the write stream
+            console.log(`📝 Processing chunk ${i} - continuing write stream`);
+            readStream.pipe(writeStream, { end: false });
+          }
         });
 
         // Store chunk metadata for debugging
