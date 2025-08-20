@@ -756,9 +756,9 @@ router.post("/finalize", optionalAuth, async (req, res) => {
 
     // Wait for write to complete with timeout
     const writeTimeout = setTimeout(() => {
-      console.error(`❌ Write stream timeout after 30 seconds`);
+      console.error(`❌ Write stream timeout after 5 minutes`);
       hasStreamError = true;
-    }, 30000);
+    }, 5 * 60 * 1000); // 5 minutes timeout (increased from 30 seconds)
 
     try {
       await new Promise((resolve, reject) => {
@@ -1023,14 +1023,16 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       console.log(`🔍 File path: ${finalFilePath}`);
       console.log(`🔍 File size: ${fileInfo.fileSize} bytes`);
       console.log(`🔍 File type: ${fileType}`);
-      
+
       // Check if file exists and is accessible
       try {
         const fileExists = await fsPromises.access(finalFilePath);
         console.log(`✅ File exists and is accessible`);
       } catch (accessError) {
         console.error(`❌ File access error:`, accessError);
-        throw new Error(`File not accessible after merge: ${accessError.message}`);
+        throw new Error(
+          `File not accessible after merge: ${accessError.message}`
+        );
       }
 
       const customPromptObj = customPrompt
@@ -1038,22 +1040,13 @@ router.post("/finalize", optionalAuth, async (req, res) => {
         : null;
 
       console.log(`🚀 Calling processFileWithOpenAI...`);
-      
-      // Add timeout wrapper to prevent hanging
-      const processingPromise = processFileWithOpenAI(
+
+      const processingResult = await processFileWithOpenAI(
         fileInfo,
         finalFileId,
         fileInfo.userId,
         customPromptObj
       );
-      
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-          reject(new Error('OpenAI processing timeout after 5 minutes'));
-        }, 5 * 60 * 1000); // 5 minutes timeout
-      });
-      
-      const processingResult = await Promise.race([processingPromise, timeoutPromise]);
 
       console.log(`✅ OpenAI processing completed successfully`);
 
