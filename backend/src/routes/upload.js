@@ -308,12 +308,17 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
     console.log(`🚀 Upload request received: ${req.method} ${req.path}`);
     console.log(`📁 Request headers:`, req.headers);
     console.log(`📁 Request body keys:`, Object.keys(req.body || {}));
-    console.log(`📁 File object:`, req.file ? {
-      filename: req.file.filename,
-      originalname: req.file.originalname,
-      size: req.file.size,
-      mimetype: req.file.mimetype
-    } : 'No file');
+    console.log(
+      `📁 File object:`,
+      req.file
+        ? {
+            filename: req.file.filename,
+            originalname: req.file.originalname,
+            size: req.file.size,
+            mimetype: req.file.mimetype,
+          }
+        : "No file"
+    );
 
     if (!req.file) {
       console.log(`❌ No file in request`);
@@ -492,7 +497,8 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
     if (error.code === "ECONNRESET" || error.code === "ETIMEDOUT") {
       return res.status(408).json({
         error: "Upload timeout",
-        message: "The upload connection was reset. Please try again with a smaller file or check your internet connection.",
+        message:
+          "The upload connection was reset. Please try again with a smaller file or check your internet connection.",
       });
     }
 
@@ -1013,16 +1019,43 @@ router.post("/finalize", optionalAuth, async (req, res) => {
 
     // Process file with OpenAI
     try {
+      console.log(`🤖 Starting OpenAI processing for file: ${filename}`);
+      console.log(`🔍 File path: ${finalFilePath}`);
+      console.log(`🔍 File size: ${fileInfo.fileSize} bytes`);
+      console.log(`🔍 File type: ${fileType}`);
+      
+      // Check if file exists and is accessible
+      try {
+        const fileExists = await fsPromises.access(finalFilePath);
+        console.log(`✅ File exists and is accessible`);
+      } catch (accessError) {
+        console.error(`❌ File access error:`, accessError);
+        throw new Error(`File not accessible after merge: ${accessError.message}`);
+      }
+
       const customPromptObj = customPrompt
         ? { systemPrompt: customPrompt, userPrompt: "" }
         : null;
 
-      const processingResult = await processFileWithOpenAI(
+      console.log(`🚀 Calling processFileWithOpenAI...`);
+      
+      // Add timeout wrapper to prevent hanging
+      const processingPromise = processFileWithOpenAI(
         fileInfo,
         finalFileId,
         fileInfo.userId,
         customPromptObj
       );
+      
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('OpenAI processing timeout after 5 minutes'));
+        }, 5 * 60 * 1000); // 5 minutes timeout
+      });
+      
+      const processingResult = await Promise.race([processingPromise, timeoutPromise]);
+
+      console.log(`✅ OpenAI processing completed successfully`);
 
       // Update file and task status
       await pool.query(`UPDATE files SET status = 'processed' WHERE id = $1`, [
@@ -1032,6 +1065,8 @@ router.post("/finalize", optionalAuth, async (req, res) => {
         `UPDATE tasks SET status = 'completed' WHERE file_id = $1`,
         [finalFileId]
       );
+
+      console.log(`✅ Database updated successfully`);
 
       return res.json({
         success: true,
