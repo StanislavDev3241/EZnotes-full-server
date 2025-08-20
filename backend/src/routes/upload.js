@@ -667,7 +667,9 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       const chunkPath = path.join(tempFileDir, `chunk_${i}`);
 
       try {
-        console.log(`🔄 Processing chunk ${i + 1}/${totalChunks}: ${chunkPath}`);
+        console.log(
+          `🔄 Processing chunk ${i + 1}/${totalChunks}: ${chunkPath}`
+        );
 
         // Validate chunk exists and has content
         const chunkStats = await fsPromises.stat(chunkPath);
@@ -681,18 +683,20 @@ router.post("/finalize", optionalAuth, async (req, res) => {
         const chunkData = await fsPromises.readFile(chunkPath);
         hash.update(chunkData);
         writeStream.write(chunkData);
-        
-        console.log(`✅ Processed chunk ${i}: ${chunkStats.size} bytes`);
 
+        console.log(`✅ Processed chunk ${i}: ${chunkStats.size} bytes`);
       } catch (chunkError) {
         console.error(`❌ Error processing chunk ${i}:`, chunkError);
         writeStream.destroy();
-        
+
         // Clean up partial file
         try {
           await fsPromises.unlink(finalFilePath);
         } catch (cleanupError) {
-          console.warn(`Warning: Could not cleanup partial file:`, cleanupError.message);
+          console.warn(
+            `Warning: Could not cleanup partial file:`,
+            cleanupError.message
+          );
         }
 
         return res.status(500).json({
@@ -727,7 +731,10 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       try {
         await fsPromises.unlink(finalFilePath);
       } catch (cleanupError) {
-        console.warn(`Warning: Could not cleanup partial file:`, cleanupError.message);
+        console.warn(
+          `Warning: Could not cleanup partial file:`,
+          cleanupError.message
+        );
       }
 
       return res.status(500).json({
@@ -877,13 +884,12 @@ router.post("/finalize", optionalAuth, async (req, res) => {
     }
 
     // Log comprehensive chunk processing information
-    console.log(`🔍 Chunk merge details:`, JSON.stringify(chunkInfo, null, 2));
     console.log(`📊 Final file statistics:`, {
       expectedSize,
       actualSize: finalStats.size,
       sizeDifference: Math.abs(finalStats.size - expectedSize),
       totalChunks,
-      processedChunks: chunkInfo.length,
+      processedChunks: totalChunks,
       integrityHash: finalFileHash,
     });
 
