@@ -305,12 +305,25 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
   let tempFilePath = null;
 
   try {
+    console.log(`🚀 Upload request received: ${req.method} ${req.path}`);
+    console.log(`📁 Request headers:`, req.headers);
+    console.log(`📁 Request body keys:`, Object.keys(req.body || {}));
+    console.log(`📁 File object:`, req.file ? {
+      filename: req.file.filename,
+      originalname: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype
+    } : 'No file');
+
     if (!req.file) {
+      console.log(`❌ No file in request`);
       return res.status(400).json({ error: "No file uploaded" });
     }
 
     const { file } = req;
     tempFilePath = file.path;
+
+    console.log(`✅ File received: ${file.originalname} (${file.size} bytes)`);
 
     // File info
     const fileInfo = {
@@ -340,6 +353,7 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
     );
 
     // Move file from temp to uploads directory
+    console.log(`🔄 Moving file from temp to uploads...`);
     const uploadPath = await moveToUploads(tempFilePath, fileInfo.filename);
     tempFilePath = null; // Clear temp path since file was moved
 
@@ -402,12 +416,15 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
         `🔍 Before function call - fileInfo.filePath: ${fileInfo.filePath}`
       );
 
+      console.log(`🤖 Starting OpenAI processing...`);
       const processingResult = await processFileWithOpenAI(
         fileInfo,
         fileId,
         userId,
         customPrompt
       );
+
+      console.log(`✅ OpenAI processing completed successfully`);
 
       // Update file and task status
       await pool.query(`UPDATE files SET status = 'processed' WHERE id = $1`, [
@@ -418,6 +435,8 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
         `UPDATE tasks SET status = 'completed' WHERE file_id = $1`,
         [fileId]
       );
+
+      console.log(`✅ Database updated successfully`);
 
       return res.json({
         success: true,
@@ -467,6 +486,21 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
           console.error("❌ Error cleaning up temp file:", error);
         }
       }
+    }
+
+    // Handle specific error types
+    if (error.code === "ECONNRESET" || error.code === "ETIMEDOUT") {
+      return res.status(408).json({
+        error: "Upload timeout",
+        message: "The upload connection was reset. Please try again with a smaller file or check your internet connection.",
+      });
+    }
+
+    if (error.message && error.message.includes("File too large")) {
+      return res.status(413).json({
+        error: "File too large",
+        message: error.message,
+      });
     }
 
     res.status(500).json({

@@ -19,7 +19,7 @@ interface EnhancedUploadProps {
 
 // Chunk upload configuration
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
-const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024; // 50MB threshold for chunking (increased from 10MB)
+const LARGE_FILE_THRESHOLD = 5 * 1024 * 1024; // 5MB threshold for chunking (changed from 50MB)
 
 interface ChunkUploadState {
   isChunked: boolean;
