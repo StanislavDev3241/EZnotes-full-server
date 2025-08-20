@@ -32,7 +32,10 @@ class OpenAIService {
   async retryWithBackoff(apiCall, maxRetries = 3, operation = "API call") {
     for (let i = 0; i < maxRetries; i++) {
       try {
-        return await apiCall();
+        console.log(`🔄 ${operation} attempt ${i + 1}/${maxRetries} starting...`);
+        const result = await apiCall();
+        console.log(`✅ ${operation} attempt ${i + 1} succeeded`);
+        return result;
       } catch (error) {
         console.error(
           `❌ ${operation} attempt ${i + 1} failed:`,
@@ -75,22 +78,30 @@ class OpenAIService {
   // ✅ IMPROVED: Transcribe audio with Whisper API
   async transcribeAudio(audioFilePath, contentType = "general") {
     try {
-      console.log(`🎵 Transcribing audio file: ${audioFilePath}`);
+      console.log(`🎵 Starting transcription process for: ${audioFilePath}`);
+      console.log(`📁 Content type: ${contentType}`);
+      console.log(`🕐 Start time: ${new Date().toISOString()}`);
 
       // Check if file exists and is accessible
+      console.log(`🔍 Checking file accessibility...`);
       await fsPromises.access(audioFilePath);
+      console.log(`✅ File is accessible`);
 
       // Check file size (Whisper has 25MB limit)
+      console.log(`📏 Getting file statistics...`);
       const stats = await fsPromises.stat(audioFilePath);
       const fileSizeMB = stats.size / (1024 * 1024);
+      console.log(`📊 File size: ${fileSizeMB.toFixed(2)}MB (${stats.size} bytes)`);
 
       if (fileSizeMB > 25) {
+        console.error(`❌ File size exceeds Whisper API limit`);
         throw new Error(
           `File size ${fileSizeMB.toFixed(
             2
           )}MB exceeds Whisper API limit of 25MB`
         );
       }
+      console.log(`✅ File size is within limits`);
 
       // ✅ SIMPLIFIED: Use universal prompt for all audio types
       const whisperPrompt = "Please transcribe this audio and it is in English";
@@ -99,8 +110,16 @@ class OpenAIService {
 
       // ✅ IMPROVED: Dynamic timeout based on file size
       const dynamicTimeout = Math.max(300000, fileSizeMB * 20000); // 5 minutes minimum, 20 seconds per MB
-      
-      console.log(`⏱️ Using dynamic timeout: ${dynamicTimeout / 1000} seconds for ${fileSizeMB.toFixed(1)}MB file`);
+
+      console.log(
+        `⏱️ Using dynamic timeout: ${
+          dynamicTimeout / 1000
+        } seconds for ${fileSizeMB.toFixed(1)}MB file`
+      );
+
+      console.log(`🚀 Starting OpenAI Whisper API call...`);
+      console.log(`🤖 Model: ${process.env.WHISPER_MODEL || "whisper-1"}`);
+      console.log(`🌐 Language: en`);
 
       const transcription = await this.retryWithBackoff(
         () =>
@@ -118,6 +137,8 @@ class OpenAIService {
       console.log(
         `✅ Transcription completed: ${transcription.length} characters`
       );
+      console.log(`🕐 End time: ${new Date().toISOString()}`);
+      console.log(`📝 Transcription preview: ${transcription.substring(0, 200)}...`);
 
       // ✅ IMPROVED: Better transcription validation
       if (transcription.length < 10) {
@@ -206,6 +227,16 @@ class OpenAIService {
       return transcription;
     } catch (error) {
       console.error("❌ Whisper API error:", error);
+      console.error(`🕐 Error time: ${new Date().toISOString()}`);
+      console.error(`📁 File path: ${audioFilePath}`);
+      console.error(`🔍 Error details:`, {
+        message: error.message,
+        status: error.status,
+        code: error.code,
+        type: error.type,
+        name: error.name,
+        stack: error.stack?.split('\n')[0]
+      });
       throw new Error(`Audio transcription failed: ${error.message}`);
     }
   }
