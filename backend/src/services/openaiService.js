@@ -32,7 +32,9 @@ class OpenAIService {
   async retryWithBackoff(apiCall, maxRetries = 3, operation = "API call") {
     for (let i = 0; i < maxRetries; i++) {
       try {
-        console.log(`🔄 ${operation} attempt ${i + 1}/${maxRetries} starting...`);
+        console.log(
+          `🔄 ${operation} attempt ${i + 1}/${maxRetries} starting...`
+        );
         const result = await apiCall();
         console.log(`✅ ${operation} attempt ${i + 1} succeeded`);
         return result;
@@ -91,7 +93,9 @@ class OpenAIService {
       console.log(`📏 Getting file statistics...`);
       const stats = await fsPromises.stat(audioFilePath);
       const fileSizeMB = stats.size / (1024 * 1024);
-      console.log(`📊 File size: ${fileSizeMB.toFixed(2)}MB (${stats.size} bytes)`);
+      console.log(
+        `📊 File size: ${fileSizeMB.toFixed(2)}MB (${stats.size} bytes)`
+      );
 
       if (fileSizeMB > 25) {
         console.error(`❌ File size exceeds Whisper API limit`);
@@ -138,7 +142,9 @@ class OpenAIService {
         `✅ Transcription completed: ${transcription.length} characters`
       );
       console.log(`🕐 End time: ${new Date().toISOString()}`);
-      console.log(`📝 Transcription preview: ${transcription.substring(0, 200)}...`);
+      console.log(
+        `📝 Transcription preview: ${transcription.substring(0, 200)}...`
+      );
 
       // ✅ IMPROVED: Better transcription validation
       if (transcription.length < 10) {
@@ -154,6 +160,9 @@ class OpenAIService {
         "thank you for watching",
         "knock on their doors",
         "don't leave them waiting",
+        "thanks for watching",
+        "like, share the video",
+        "subscribe to the channel",
       ];
 
       const hasSuspiciousContent = suspiciousPatterns.some((pattern) =>
@@ -161,18 +170,20 @@ class OpenAIService {
       );
 
       if (hasSuspiciousContent) {
-        console.warn(
-          `⚠️ WARNING: Transcription contains suspicious content patterns that may indicate corruption or wrong file`
+        console.error(
+          `🚨 CRITICAL: Transcription contains suspicious content patterns that indicate corruption or wrong file`
         );
-        console.warn(
+        console.error(
           `🔍 Suspicious content detected: ${transcription.substring(
             0,
-            200
+            500
           )}...`
         );
 
-        // Return the transcription but log the warning
-        // The user can decide if this is correct or needs re-upload
+        throw new Error(
+          `Transcription corruption detected. The transcription contains suspicious patterns that indicate a corrupted file or wrong audio content. ` +
+            `Please try uploading the file again with a valid audio file.`
+        );
       }
 
       // ✅ NEW: Check for "English English English" repetition pattern (indicates corruption)
@@ -192,6 +203,25 @@ class OpenAIService {
           `Transcription corruption detected. The audio file appears to be corrupted or the transcription failed. ` +
             `Please try uploading the file again. If the problem persists, try: ` +
             `1) Using a different audio file, 2) Checking the audio quality, 3) Using a smaller file size.`
+        );
+      }
+
+      // ✅ NEW: Check for "Thanks for watching!" repetition pattern (indicates YouTube video corruption)
+      const thanksWatchingPattern = /(thanks for watching\s*!?\s*){5,}/i;
+      if (thanksWatchingPattern.test(transcription)) {
+        console.error(
+          `🚨 CRITICAL: Transcription contains excessive "Thanks for watching!" repetition - indicates YouTube video corruption`
+        );
+        console.error(
+          `🔍 Corrupted transcription sample: ${transcription.substring(
+            0,
+            500
+          )}...`
+        );
+
+        throw new Error(
+          `Transcription corruption detected. The audio appears to be from a YouTube video with corrupted content. ` +
+            `Please upload a valid audio file for transcription.`
         );
       }
 
@@ -235,7 +265,7 @@ class OpenAIService {
         code: error.code,
         type: error.type,
         name: error.name,
-        stack: error.stack?.split('\n')[0]
+        stack: error.stack?.split("\n")[0],
       });
       throw new Error(`Audio transcription failed: ${error.message}`);
     }
