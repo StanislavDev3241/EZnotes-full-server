@@ -655,40 +655,19 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       `📏 Total chunk size: ${totalChunkSize} bytes, Expected: ${expectedSize} bytes`
     );
 
-    // ✅ IMPROVED: Stream-based chunk merging with corruption prevention
+    // ✅ SIMPLIFIED: Reliable chunk merging without complex Promise chains
     const writeStream = fsSync.createWriteStream(finalFilePath);
     const crypto = require("crypto");
     const hash = crypto.createHash("sha256");
 
-    // Track chunk processing and validation
-    const chunkInfo = [];
-    let totalBytesWritten = 0;
-    let hasStreamError = false;
+    console.log(`🚀 Starting chunk merge process...`);
 
-    // Set up comprehensive stream error handling
-    writeStream.on("error", (error) => {
-      console.error(`❌ Write stream error during chunk processing:`, error);
-      hasStreamError = true;
-    });
-
-    writeStream.on("finish", () => {
-      console.log(`✅ Write stream finished successfully`);
-    });
-
-    // Process chunks sequentially with proper error handling
+    // Process chunks sequentially with simple approach
     for (let i = 0; i < totalChunks; i++) {
-      if (hasStreamError) {
-        console.error(`❌ Stopping chunk processing due to stream error`);
-        break;
-      }
-
       const chunkPath = path.join(tempFileDir, `chunk_${i}`);
 
       try {
         console.log(`🔄 Processing chunk ${i + 1}/${totalChunks}: ${chunkPath}`);
-
-        // ✅ IMPROVED: Stream-based chunk reading (no memory overflow)
-        const readStream = fsSync.createReadStream(chunkPath);
 
         // Validate chunk exists and has content
         const chunkStats = await fsPromises.stat(chunkPath);
@@ -698,61 +677,22 @@ router.post("/finalize", optionalAuth, async (req, res) => {
 
         console.log(`📁 Chunk ${i} size: ${chunkStats.size} bytes`);
 
-        // ✅ FIXED: Sequential chunk processing to prevent corruption
-        await new Promise((resolve, reject) => {
-          let chunkBytesWritten = 0;
+        // ✅ SIMPLIFIED: Direct file append without complex streaming
+        const chunkData = await fsPromises.readFile(chunkPath);
+        hash.update(chunkData);
+        writeStream.write(chunkData);
+        
+        console.log(`✅ Processed chunk ${i}: ${chunkStats.size} bytes`);
 
-          readStream.on("data", (chunk) => {
-            // Update hash for integrity verification
-            hash.update(chunk);
-            chunkBytesWritten += chunk.length;
-          });
-
-          readStream.on("end", () => {
-            totalBytesWritten += chunkBytesWritten;
-            console.log(
-              `✅ Processed chunk ${i}: ${chunkBytesWritten} bytes (Total: ${totalBytesWritten}/${totalChunkSize})`
-            );
-            resolve();
-          });
-
-          readStream.on("error", (error) => {
-            console.error(`❌ Error reading chunk ${i}:`, error);
-            reject(new Error(`Failed to read chunk ${i}: ${error.message}`));
-          });
-
-          // ✅ FIXED: Use sequential piping - only end stream on last chunk
-          if (i === totalChunks - 1) {
-            // Last chunk - end the write stream
-            console.log(`🔚 Processing final chunk ${i} - ending write stream`);
-            readStream.pipe(writeStream, { end: true });
-          } else {
-            // Not last chunk - don't end the write stream
-            console.log(`📝 Processing chunk ${i} - continuing write stream`);
-            readStream.pipe(writeStream, { end: false });
-          }
-        });
-
-        // Store chunk metadata for debugging
-        chunkInfo.push({
-          index: i,
-          size: chunkStats.size,
-          path: chunkPath,
-          processed: true,
-          bytesWritten: chunkStats.size,
-        });
       } catch (chunkError) {
         console.error(`❌ Error processing chunk ${i}:`, chunkError);
-
-        // Clean up partial file
         writeStream.destroy();
+        
+        // Clean up partial file
         try {
           await fsPromises.unlink(finalFilePath);
         } catch (cleanupError) {
-          console.warn(
-            `Warning: Could not cleanup partial file:`,
-            cleanupError.message
-          );
+          console.warn(`Warning: Could not cleanup partial file:`, cleanupError.message);
         }
 
         return res.status(500).json({
@@ -763,29 +703,20 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       }
     }
 
-    // ✅ FIXED: Don't manually end the stream - let the last chunk end it
-    // writeStream.end(); // REMOVED - this was causing corruption
+    // Close the write stream
+    writeStream.end();
+    console.log(`🔚 Write stream closed, waiting for completion...`);
 
-    // Wait for write to complete with timeout
-    const writeTimeout = setTimeout(() => {
-      console.error(`❌ Write stream timeout after 5 minutes`);
-      hasStreamError = true;
-    }, 5 * 60 * 1000); // 5 minutes timeout (increased from 30 seconds)
-
+    // ✅ SIMPLIFIED: Wait for write stream to finish
     try {
       await new Promise((resolve, reject) => {
-        if (hasStreamError) {
-          reject(new Error("Stream error occurred during processing"));
-          return;
-        }
-
         writeStream.on("finish", () => {
-          clearTimeout(writeTimeout);
+          console.log(`✅ Write stream finished successfully`);
           resolve();
         });
 
         writeStream.on("error", (error) => {
-          clearTimeout(writeTimeout);
+          console.error(`❌ Write stream error:`, error);
           reject(error);
         });
       });
@@ -796,10 +727,7 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       try {
         await fsPromises.unlink(finalFilePath);
       } catch (cleanupError) {
-        console.warn(
-          `Warning: Could not cleanup partial file:`,
-          cleanupError.message
-        );
+        console.warn(`Warning: Could not cleanup partial file:`, cleanupError.message);
       }
 
       return res.status(500).json({
