@@ -5,31 +5,118 @@ const path = require("path");
 
 class OpenAIService {
   constructor() {
+    // Validate API key configuration
+    if (
+      !process.env.OPENAI_API_KEY ||
+      process.env.OPENAI_API_KEY === "your_openai_api_key_here"
+    ) {
+      throw new Error(
+        "OpenAI API key not configured. Please set OPENAI_API_KEY environment variable."
+      );
+    }
+
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
+      maxRetries: 3,
+      timeout: 60000, // 60 seconds
     });
+
+    console.log(
+      `🤖 OpenAI service initialized with model: ${
+        process.env.OPENAI_MODEL || "gpt-4o"
+      }`
+    );
   }
 
-  // Transcribe audio with Whisper API
+  // ✅ IMPROVED: Retry logic with exponential backoff
+  async retryWithBackoff(apiCall, maxRetries = 3, operation = "API call") {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await apiCall();
+      } catch (error) {
+        console.error(
+          `❌ ${operation} attempt ${i + 1} failed:`,
+          error.message
+        );
+
+        if (error.status === 401) {
+          throw new Error(
+            "OpenAI API key invalid or expired. Please check your configuration."
+          );
+        } else if (error.status === 429) {
+          if (i < maxRetries - 1) {
+            const delay = Math.pow(2, i) * 1000;
+            console.log(`⏳ Rate limited, waiting ${delay}ms before retry...`);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            continue;
+          }
+          throw new Error(
+            "OpenAI API rate limit exceeded. Please try again later."
+          );
+        } else if (error.status === 500) {
+          if (i < maxRetries - 1) {
+            const delay = Math.pow(2, i) * 1000;
+            console.log(`⏳ Server error, waiting ${delay}ms before retry...`);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            continue;
+          }
+          throw new Error(
+            "OpenAI service temporarily unavailable. Please try again."
+          );
+        }
+
+        // For other errors, don't retry
+        throw error;
+      }
+    }
+    throw new Error(`${operation} failed after ${maxRetries} attempts`);
+  }
+
+  // ✅ IMPROVED: Transcribe audio with Whisper API
   async transcribeAudio(audioFilePath) {
     try {
       console.log(`🎵 Transcribing audio file: ${audioFilePath}`);
 
-      // Check if file exists
+      // Check if file exists and is accessible
       await fsPromises.access(audioFilePath);
 
-      const transcription = await this.openai.audio.transcriptions.create({
-        file: fs.createReadStream(audioFilePath),
-        model: "whisper-1",
-        response_format: "text",
-        language: "en", // Force English language
-        prompt:
-          "This is a dental/medical consultation in English. Please transcribe in English only.",
-      });
+      // Check file size (Whisper has 25MB limit)
+      const stats = await fsPromises.stat(audioFilePath);
+      const fileSizeMB = stats.size / (1024 * 1024);
+
+      if (fileSizeMB > 25) {
+        throw new Error(
+          `File size ${fileSizeMB.toFixed(
+            2
+          )}MB exceeds Whisper API limit of 25MB`
+        );
+      }
+
+      const transcription = await this.retryWithBackoff(
+        () =>
+          this.openai.audio.transcriptions.create({
+            file: fs.createReadStream(audioFilePath),
+            model: process.env.WHISPER_MODEL || "whisper-1",
+            response_format: "text",
+            language: "en", // Force English language
+            prompt:
+              "This is a dental/medical consultation in English. Please transcribe in English only.",
+          }),
+        3,
+        "Whisper transcription"
+      );
 
       console.log(
         `✅ Transcription completed: ${transcription.length} characters`
       );
+
+      // Validate transcription quality
+      if (transcription.length < 10) {
+        console.warn(
+          `⚠️ Warning: Very short transcription (${transcription.length} chars) - possible audio quality issues`
+        );
+      }
+
       return transcription;
     } catch (error) {
       console.error("❌ Whisper API error:", error);
@@ -37,16 +124,225 @@ class OpenAIService {
     }
   }
 
-  // Generate notes with custom prompt
+  // ✅ IMPROVED: Generate notes with custom prompt
   async generateNotes(transcription, customPrompt, context = {}) {
     try {
       console.log(
         `🤖 Generating notes with custom prompt for ${transcription.length} characters`
       );
 
+      // Validate transcription
+      if (!transcription || transcription.trim().length < 10) {
+        throw new Error("Transcription too short or empty for note generation");
+      }
+
       const systemPrompt =
-        customPrompt.systemPrompt ||
-        `SOAP note generator update; SYSTEM PROMPT — Dental SOAP Note Generator (Compact, <8k)
+        customPrompt?.systemPrompt || this.getDefaultSystemPrompt();
+      const userPrompt =
+        customPrompt?.userPrompt ||
+        this.getDefaultUserPrompt(transcription, context);
+
+      const completion = await this.retryWithBackoff(
+        () =>
+          this.openai.chat.completions.create({
+            model: process.env.OPENAI_MODEL || "gpt-4o",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            max_tokens: parseInt(process.env.CHAT_MAX_TOKENS) || 2000,
+            temperature: parseFloat(process.env.CHAT_TEMPERATURE) || 0.3,
+          }),
+        3,
+        "Note generation"
+      );
+
+      const response = completion.choices[0]?.message?.content;
+
+      if (!response) {
+        throw new Error("No response received from OpenAI");
+      }
+
+      console.log(
+        `✅ Notes generated successfully: ${response.length} characters`
+      );
+      return response;
+    } catch (error) {
+      console.error("❌ GPT API error:", error);
+      throw new Error(`Note generation failed: ${error.message}`);
+    }
+  }
+
+  // ✅ NEW: Method that chat routes actually call
+  async generateChatResponse(userMessage, noteContext, conversationHistory) {
+    try {
+      console.log(
+        `💬 Processing chat message: ${userMessage.length} characters`
+      );
+
+      // Build system message with note context
+      let systemContent = `You are a dental AI assistant helping to improve dental SOAP notes and answer questions about dental procedures.
+
+Your role:
+- Provide helpful suggestions for SOAP note improvement
+- Clarify dental terminology and concepts
+- Suggest additions for missing information
+- Ensure compliance with dental documentation standards
+- Answer questions about dental procedures, materials, and techniques
+- Help refine and enhance dental SOAP notes
+- Follow dental-specific guidelines and best practices`;
+
+      // Add note context if available
+      if (noteContext && Object.keys(noteContext).length > 0) {
+        systemContent += `\n\nCurrent note context:
+- File: ${noteContext.fileName || "Unknown"}
+- Custom Instructions: ${noteContext.customPrompt || "Default"}
+- Transcription: ${
+          noteContext.transcription
+            ? noteContext.transcription.substring(0, 500) + "..."
+            : "Not available"
+        }
+- SOAP Note: ${
+          noteContext.soapNote
+            ? noteContext.soapNote.substring(0, 500) + "..."
+            : "Not available"
+        }
+- Patient Summary: ${
+          noteContext.patientSummary
+            ? noteContext.patientSummary.substring(0, 300) + "..."
+            : "Not available"
+        }`;
+      }
+
+      const messages = [
+        {
+          role: "system",
+          content: systemContent,
+        },
+      ];
+
+      // Add conversation history if available
+      if (conversationHistory && conversationHistory.length > 0) {
+        messages.push(...conversationHistory);
+      }
+
+      // Add current user message
+      messages.push({ role: "user", content: userMessage });
+
+      const completion = await this.retryWithBackoff(
+        () =>
+          this.openai.chat.completions.create({
+            model: process.env.OPENAI_MODEL || "gpt-4o",
+            messages: messages,
+            max_tokens: parseInt(process.env.CHAT_MAX_TOKENS) || 1000,
+            temperature: parseFloat(process.env.CHAT_TEMPERATURE) || 0.3,
+          }),
+        3,
+        "Chat response generation"
+      );
+
+      const response = completion.choices[0]?.message?.content;
+
+      if (!response) {
+        throw new Error("No response received from OpenAI");
+      }
+
+      console.log(`✅ Chat response generated: ${response.length} characters`);
+      return response;
+    } catch (error) {
+      console.error("❌ Chat API error:", error);
+      throw new Error(`Chat processing failed: ${error.message}`);
+    }
+  }
+
+  // ✅ IMPROVED: Chat with AI for note improvement (keeping for backward compatibility)
+  async chatWithAI(conversationHistory, userMessage, noteContext) {
+    // Delegate to the new method
+    return this.generateChatResponse(
+      userMessage,
+      noteContext,
+      conversationHistory
+    );
+  }
+
+  // ✅ IMPROVED: Analyze note for missing information
+  async analyzeNoteCompleteness(noteContent, procedureType) {
+    try {
+      console.log(`🔍 Analyzing note completeness for ${procedureType}`);
+
+      if (!noteContent || noteContent.trim().length < 10) {
+        throw new Error("Note content too short for analysis");
+      }
+
+      const analysisPrompt = `Analyze this medical note for completeness. 
+      
+      Procedure Type: ${procedureType}
+      
+      Check for missing critical information in these areas:
+      - Patient demographics and history
+      - Procedure details and technique
+      - Anesthetic information
+      - Materials used
+      - Complications or issues
+      - Post-operative instructions
+      - Follow-up recommendations
+      
+      Note Content:
+      ${noteContent}
+      
+      Return a JSON response with:
+      {
+        "isComplete": boolean,
+        "missingFields": ["field1", "field2"],
+        "suggestions": ["suggestion1", "suggestion2"],
+        "overallQuality": "excellent|good|fair|poor"
+      }`;
+
+      const completion = await this.retryWithBackoff(
+        () =>
+          this.openai.chat.completions.create({
+            model: process.env.OPENAI_MODEL || "gpt-4o",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are a medical quality assurance AI. Return only valid JSON.",
+              },
+              { role: "user", content: analysisPrompt },
+            ],
+            max_tokens: 500,
+            temperature: 0.1,
+          }),
+        3,
+        "Note analysis"
+      );
+
+      const response = completion.choices[0]?.message?.content;
+
+      if (!response) {
+        throw new Error("No response received from OpenAI");
+      }
+
+      let analysis;
+      try {
+        analysis = JSON.parse(response);
+      } catch (parseError) {
+        throw new Error("Invalid JSON response from OpenAI analysis");
+      }
+
+      console.log(
+        `✅ Note analysis completed: ${analysis.overallQuality} quality`
+      );
+      return analysis;
+    } catch (error) {
+      console.error("❌ Note analysis error:", error);
+      throw new Error(`Note analysis failed: ${error.message}`);
+    }
+  }
+
+  // ✅ NEW: Helper methods for prompts
+  getDefaultSystemPrompt() {
+    return `SOAP note generator update; SYSTEM PROMPT — Dental SOAP Note Generator (Compact, <8k)
 
 ROLE
 You are a clinical documentation assistant for dental professionals. From a transcribed dictation, you will produce a structured SOAP note. You are category‑aware, anesthesia‑aware, and compliance‑safe.
@@ -107,10 +403,10 @@ COMPLIANCE GUARDRAILS
 • If transcript indicates no procedure requiring anesthesia (e.g., hygiene/check‑up), do not ask for anesthesia.
 
 END.`;
+  }
 
-      const userPrompt =
-        customPrompt.userPrompt ||
-        `Based on the following dental transcript, generate a comprehensive SOAP note following the system prompt guidelines.
+  getDefaultUserPrompt(transcription, context) {
+    return `Based on the following dental transcript, generate a comprehensive SOAP note following the system prompt guidelines.
 
 Dental Transcript:
 ${transcription}
@@ -118,155 +414,24 @@ ${transcription}
 Context: ${JSON.stringify(context)}
 
 Please follow the exact output format specified in the system prompt, including the META JSON block and structured SOAP note with proper headings.`;
-
-      const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        max_tokens: 2000,
-        temperature: 0.3,
-      });
-
-      const response = completion.choices[0].message.content;
-      console.log(
-        `✅ Notes generated successfully: ${response.length} characters`
-      );
-
-      return response;
-    } catch (error) {
-      console.error("❌ GPT API error:", error);
-      throw new Error(`Note generation failed: ${error.message}`);
-    }
   }
 
-  // Chat with AI for note improvement
-  async chatWithAI(conversationHistory, userMessage, noteContext) {
+  // ✅ NEW: Health check method
+  async healthCheck() {
     try {
-      console.log(
-        `💬 Processing chat message: ${userMessage.length} characters`
-      );
-
-      // Build system message with note context
-      let systemContent = `You are a dental AI assistant helping to improve dental SOAP notes and answer questions about dental procedures.
-
-Your role:
-- Provide helpful suggestions for SOAP note improvement
-- Clarify dental terminology and concepts
-- Suggest additions for missing information
-- Ensure compliance with dental documentation standards
-- Answer questions about dental procedures, materials, and techniques
-- Help refine and enhance dental SOAP notes
-- Follow dental-specific guidelines and best practices`;
-
-      // Add note context if available
-      if (noteContext && Object.keys(noteContext).length > 0) {
-        systemContent += `\n\nCurrent note context:
-- File: ${noteContext.fileName || "Unknown"}
-- Custom Instructions: ${noteContext.customPrompt || "Default"}
-- Transcription: ${
-          noteContext.transcription
-            ? noteContext.transcription.substring(0, 500) + "..."
-            : "Not available"
-        }
-- SOAP Note: ${
-          noteContext.soapNote
-            ? noteContext.soapNote.substring(0, 500) + "..."
-            : "Not available"
-        }
-- Patient Summary: ${
-          noteContext.patientSummary
-            ? noteContext.patientSummary.substring(0, 300) + "..."
-            : "Not available"
-        }`;
-      }
-
-      const messages = [
-        {
-          role: "system",
-          content: systemContent,
-        },
-      ];
-
-      // Add conversation history if available
-      if (conversationHistory && conversationHistory.length > 0) {
-        messages.push(...conversationHistory);
-      }
-
-      // Add current user message
-      messages.push({ role: "user", content: userMessage });
-
-      const completion = await this.openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || "gpt-4o",
-        messages: messages,
-        max_tokens: parseInt(process.env.CHAT_MAX_TOKENS) || 1000,
-        temperature: parseFloat(process.env.CHAT_TEMPERATURE) || 0.3,
-      });
-
-      const response = completion.choices[0].message.content;
-      console.log(`✅ Chat response generated: ${response.length} characters`);
-
-      return response;
+      // Simple API call to test connectivity
+      const response = await this.openai.models.list();
+      return {
+        status: "healthy",
+        message: "OpenAI API connection successful",
+        models: response.data.length,
+      };
     } catch (error) {
-      console.error("❌ Chat API error:", error);
-      throw new Error(`Chat processing failed: ${error.message}`);
-    }
-  }
-
-  // Analyze note for missing information
-  async analyzeNoteCompleteness(noteContent, procedureType) {
-    try {
-      console.log(`🔍 Analyzing note completeness for ${procedureType}`);
-
-      const analysisPrompt = `Analyze this medical note for completeness. 
-      
-      Procedure Type: ${procedureType}
-      
-      Check for missing critical information in these areas:
-      - Patient demographics and history
-      - Procedure details and technique
-      - Anesthetic information
-      - Materials used
-      - Complications or issues
-      - Post-operative instructions
-      - Follow-up recommendations
-      
-      Note Content:
-      ${noteContent}
-      
-      Return a JSON response with:
-      {
-        "isComplete": boolean,
-        "missingFields": ["field1", "field2"],
-        "suggestions": ["suggestion1", "suggestion2"],
-        "overallQuality": "excellent|good|fair|poor"
-      }`;
-
-      const completion = await this.openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a medical quality assurance AI. Return only valid JSON.",
-          },
-          { role: "user", content: analysisPrompt },
-        ],
-        max_tokens: 500,
-        temperature: 0.1,
-      });
-
-      const response = completion.choices[0].message.content;
-      const analysis = JSON.parse(response);
-
-      console.log(
-        `✅ Note analysis completed: ${analysis.overallQuality} quality`
-      );
-      return analysis;
-    } catch (error) {
-      console.error("❌ Note analysis error:", error);
-      throw new Error(`Note analysis failed: ${error.message}`);
+      return {
+        status: "unhealthy",
+        message: `OpenAI API connection failed: ${error.message}`,
+        error: error.message,
+      };
     }
   }
 }

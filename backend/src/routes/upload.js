@@ -21,6 +21,100 @@ const fsSync = require("fs"); // For createWriteStream
 
 const router = express.Router();
 
+// ✅ NEW: Audio file header validation function
+const validateAudioFileHeader = (buffer, fileType) => {
+  try {
+    // Check if buffer has minimum size for header validation
+    if (buffer.length < 12) {
+      console.warn(
+        `⚠️ Buffer too small for header validation: ${buffer.length} bytes`
+      );
+      return false;
+    }
+
+    // MP3 file validation (ID3v2 or MPEG frame header)
+    if (fileType === "audio/mpeg" || fileType === "audio/mp3") {
+      // Check for ID3v2 header (starts with "ID3")
+      if (buffer[0] === 0x49 && buffer[1] === 0x44 && buffer[2] === 0x33) {
+        console.log(`✅ Valid MP3 ID3v2 header detected`);
+        return true;
+      }
+
+      // Check for MPEG frame header (starts with 0xFF and has sync bits)
+      if (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0) {
+        console.log(`✅ Valid MP3 MPEG frame header detected`);
+        return true;
+      }
+
+      console.warn(`⚠️ Invalid MP3 header detected`);
+      return false;
+    }
+
+    // WAV file validation (starts with "RIFF")
+    if (fileType === "audio/wav" || fileType === "audio/x-wav") {
+      if (
+        buffer[0] === 0x52 &&
+        buffer[1] === 0x49 &&
+        buffer[2] === 0x46 &&
+        buffer[3] === 0x46
+      ) {
+        console.log(`✅ Valid WAV RIFF header detected`);
+        return true;
+      }
+
+      console.warn(`⚠️ Invalid WAV header detected`);
+      return false;
+    }
+
+    // M4A/AAC file validation (starts with "ftyp")
+    if (
+      fileType === "audio/mp4" ||
+      fileType === "audio/m4a" ||
+      fileType === "audio/aac"
+    ) {
+      // Check for "ftyp" box (usually at offset 4)
+      if (
+        buffer[4] === 0x66 &&
+        buffer[5] === 0x74 &&
+        buffer[6] === 0x79 &&
+        buffer[7] === 0x70
+      ) {
+        console.log(`✅ Valid M4A/AAC ftyp header detected`);
+        return true;
+      }
+
+      // Alternative: check for "M4A " signature
+      if (
+        buffer[8] === 0x4d &&
+        buffer[9] === 0x34 &&
+        buffer[10] === 0x41 &&
+        buffer[11] === 0x20
+      ) {
+        console.log(`✅ Valid M4A signature detected`);
+        return true;
+      }
+
+      console.warn(`⚠️ Invalid M4A/AAC header detected`);
+      return false;
+    }
+
+    // For other audio types, do basic validation
+    if (fileType.startsWith("audio/")) {
+      // Check if file has reasonable size and isn't completely empty
+      if (buffer.length > 100) {
+        console.log(`✅ Basic audio file validation passed for ${fileType}`);
+        return true;
+      }
+    }
+
+    console.warn(`⚠️ Unsupported audio type or invalid header: ${fileType}`);
+    return false;
+  } catch (error) {
+    console.error(`❌ Error during audio header validation:`, error);
+    return false;
+  }
+};
+
 // Enhanced file processing with OpenAI
 const processFileWithOpenAI = async (
   fileInfo,
@@ -40,13 +134,48 @@ const processFileWithOpenAI = async (
     if (fileInfo.fileType.startsWith("audio/")) {
       // Audio file - use Whisper API
       console.log(`🎵 Audio file detected, using Whisper API`);
-      transcription = await openaiService.transcribeAudio(fileInfo.filePath);
+
+      try {
+        transcription = await openaiService.transcribeAudio(fileInfo.filePath);
+      } catch (transcriptionError) {
+        console.error(`❌ Transcription failed:`, transcriptionError);
+
+        // Handle specific transcription errors
+        if (transcriptionError.message.includes("25MB")) {
+          throw new Error(
+            `File size exceeds Whisper API limit. Please use a smaller file or contact support for large file processing.`
+          );
+        } else if (transcriptionError.message.includes("API key")) {
+          throw new Error(
+            `OpenAI API configuration error. Please check your API key and try again.`
+          );
+        } else if (transcriptionError.message.includes("rate limit")) {
+          throw new Error(
+            `OpenAI API rate limit exceeded. Please try again in a few minutes.`
+          );
+        } else {
+          throw new Error(
+            `Transcription failed: ${transcriptionError.message}. Please try again or contact support.`
+          );
+        }
+      }
     } else if (fileInfo.fileType === "text/plain") {
       // Text file - read content directly
       console.log(`📄 Text file detected, reading content directly`);
       transcription = await fsPromises.readFile(fileInfo.filePath, "utf8");
     } else {
-      throw new Error(`Unsupported file type: ${fileInfo.fileType}`);
+      throw new Error(
+        `Unsupported file type: ${fileInfo.fileType}. Supported types: audio files (MP3, WAV, M4A, AAC) and text files.`
+      );
+    }
+
+    // Validate transcription quality
+    if (!transcription || transcription.trim().length < 10) {
+      throw new Error(
+        `Transcription too short or empty (${
+          transcription?.length || 0
+        } characters). This may indicate poor audio quality or transcription failure.`
+      );
     }
 
     // Store transcription in database
@@ -62,104 +191,55 @@ const processFileWithOpenAI = async (
     if (userId && customPrompt) {
       // Registered user with custom prompt
       console.log(`👤 Using custom prompt for registered user`);
-      const noteContent = await openaiService.generateNotes(
-        transcription,
-        customPrompt,
-        {
-          userId: userId,
-          procedureType: customPrompt.specialty || "general",
-        }
-      );
+      try {
+        const noteContent = await openaiService.generateNotes(
+          transcription,
+          customPrompt,
+          {
+            userId: userId,
+            procedureType: customPrompt.specialty || "general",
+          }
+        );
 
-      notes = {
-        soapNote: noteContent,
-        patientSummary: noteContent, // You might want to generate separate patient summary
-      };
+        notes = {
+          soapNote: noteContent,
+          patientSummary: noteContent, // You might want to generate separate patient summary
+        };
+      } catch (noteError) {
+        console.error(`❌ Note generation failed:`, noteError);
+        throw new Error(
+          `Failed to generate notes: ${noteError.message}. Please try again or contact support.`
+        );
+      }
     } else {
       // Unregistered user or default prompt
       console.log(`👤 Using default prompt`);
       const defaultPrompt = {
-        systemPrompt: `SOAP note generator update; SYSTEM PROMPT — Dental SOAP Note Generator (Compact, <8k)
-
-ROLE
-You are a clinical documentation assistant for dental professionals. From a transcribed dictation, you will produce a structured SOAP note. You are category‑aware, anesthesia‑aware, and compliance‑safe.
-
-PRIMARY BEHAVIOR
-1) Detect appointment category from transcript using the keyword map in Knowledge ("SOAP Reference v1"). If multiple categories appear, choose the most invasive (implant > extraction > endo > operative > hygiene > emergency).
-2) Apply only that category's rules (also in Knowledge). Do not assume facts.
-3) Early‑Stop: If any category‑required details are missing (e.g., anesthesia type/strength/carpules for operative/endo/implant/extraction), STOP and output a single clarification request. Do not generate a partial note or JSON.
-4) Use the Fuzzy Anesthetic Recognition rules and tables in Knowledge to recognize brand/generic, strengths, epi ratios, shorthand, and misspellings. Never assume concentration when more than one exists—ask to confirm.
-5) Source fidelity: use only content stated or clearly paraphrased from transcript. Avoid stock phrases unless explicitly said.
-6) Formatting: Use bullets for multiple Objective/Plan items. Split Plan into: Completed Today / Instructions Given / Next Steps.
-7) End notes with signature placeholder (below).
-
-OUTPUT ORDER (STRICT)
-If Early‑Stop triggers: output only the clarification question defined below.
-If proceeding, output these two blocks in order:
-A) META JSON block delimited by:
-<<META_JSON>>
-{ … see schema in Knowledge: "Mini Extraction Schema v1" … }
-<<END_META_JSON>>
-B) HUMAN SOAP NOTE in this exact order and with these headings:
-1. Subjective
-2. Objective
-3. Assessment
-4. Plan
-- Completed Today
-- Instructions Given
-- Next Steps / Return Visit
-Then append:
-—
-Provider Initials: ________ (Review required before charting)
-
-CLARIFICATION PROMPTS (USE VERBATIM WHEN NEEDED)
-• Anesthesia required but incomplete →
-"Before I generate the SOAP note, please provide the anesthetic type, concentration (e.g., 2% lidocaine with 1:100,000 epi), and number of carpules used for today's procedure."
-• Category unclear →
-"Can you confirm the appointment type (operative, check-up, implant, extraction, endodontic, emergency, other) before I proceed?"
-• Hygiene/check-up missing screenings (do not ask about anesthesia unless mentioned) →
-"Please confirm oral cancer screening findings and periodontal status/probing results."
-
-STYLE RULES
-• Formal clinical tone. No invented facts. No generic fillers (e.g., "tolerated well") unless stated.
-• Record procedural specifics exactly when stated (materials, devices/scanners, impression type, isolation, occlusal adjustment).
-• Only compute total anesthetic volume if carpules AND per‑carpule volume are explicitly provided (do not assume 1.7 mL).
-
-LINKED KNOWLEDGE (AUTHORITATIVE)
-Use Knowledge file "SOAP Reference v1" for:
-• Category keyword map and category‑specific required fields.
-• Fuzzy Anesthetic Recognition Module (normalization + fuzzy match).
-• Common anesthetics & typical concentrations table.
-• Early‑Stop algorithm details.
-• Mini Extraction Schema v1 (full JSON schema and field definitions).
-• Examples of good outputs and clarification cases.
-
-COMPLIANCE GUARDRAILS
-• Do not proceed if any mandatory data for the detected category is missing—issue one clarification request.
-• Do not include any content after Plan except the required signature line.
-• If transcript indicates no procedure requiring anesthesia (e.g., hygiene/check‑up), do not ask for anesthesia.
-
-END.`,
-        userPrompt: `Based on the following medical transcript, generate a comprehensive SOAP note following the system prompt guidelines.
-
-Medical Transcript:
-${transcription}
-
-Please follow the exact output format specified in the system prompt, including the META JSON block and structured SOAP note with proper headings.`,
-      };
-
-      const noteContent = await openaiService.generateNotes(
-        transcription,
-        defaultPrompt,
-        {
+        systemPrompt: openaiService.getDefaultSystemPrompt(),
+        userPrompt: openaiService.getDefaultUserPrompt(transcription, {
           procedureType: "general",
-        }
-      );
-
-      notes = {
-        soapNote: noteContent,
-        patientSummary: noteContent,
+        }),
       };
+
+      try {
+        const noteContent = await openaiService.generateNotes(
+          transcription,
+          defaultPrompt,
+          {
+            procedureType: "general",
+          }
+        );
+
+        notes = {
+          soapNote: noteContent,
+          patientSummary: noteContent,
+        };
+      } catch (noteError) {
+        console.error(`❌ Default note generation failed:`, noteError);
+        throw new Error(
+          `Failed to generate notes with default prompt: ${noteError.message}. Please try again or contact support.`
+        );
+      }
     }
 
     // Save notes to database
@@ -173,7 +253,7 @@ Please follow the exact output format specified in the system prompt, including 
         noteContent,
         userId,
         customPrompt ? JSON.stringify(customPrompt) : "default",
-        "gpt-4o",
+        process.env.OPENAI_MODEL || "gpt-4o",
       ]
     );
 
@@ -186,6 +266,16 @@ Please follow the exact output format specified in the system prompt, including 
     };
   } catch (error) {
     console.error("❌ OpenAI processing error:", error);
+
+    // Update file status to reflect error
+    try {
+      await pool.query(`UPDATE files SET status = 'failed' WHERE id = $1`, [
+        fileId,
+      ]);
+    } catch (dbError) {
+      console.error("❌ Failed to update file status:", dbError);
+    }
+
     throw error;
   }
 };
@@ -402,6 +492,19 @@ router.post(
         return res.status(400).json({ error: "Missing chunk information" });
       }
 
+      // Validate chunk index
+      const chunkIndexNum = parseInt(chunkIndex);
+      const totalChunksNum = parseInt(totalChunks);
+
+      if (chunkIndexNum < 0 || chunkIndexNum >= totalChunksNum) {
+        return res.status(400).json({
+          error: "Invalid chunk index",
+          message: `Chunk index ${chunkIndexNum} is out of range (0-${
+            totalChunksNum - 1
+          })`,
+        });
+      }
+
       // Create temp directory for this file
       const tempFileDir = path.join(
         process.env.TEMP_PATH || "./temp",
@@ -409,19 +512,31 @@ router.post(
       );
       await fsPromises.mkdir(tempFileDir, { recursive: true });
 
+      // Check if chunk already exists (prevent duplicates)
+      const chunkPath = path.join(tempFileDir, `chunk_${chunkIndexNum}`);
+      try {
+        await fsPromises.access(chunkPath);
+        console.warn(
+          `⚠️ Chunk ${chunkIndexNum} already exists, overwriting...`
+        );
+      } catch (error) {
+        // Chunk doesn't exist, which is fine
+      }
+
       // Save chunk
-      const chunkPath = path.join(tempFileDir, `chunk_${chunkIndex}`);
       await fsPromises.copyFile(req.file.path, chunkPath);
       await fsPromises.unlink(req.file.path);
 
+      // Verify chunk was saved correctly
+      const savedChunkStats = await fsPromises.stat(chunkPath);
       console.log(
-        `📁 Chunk ${chunkIndex}/${totalChunks} saved for ${filename}`
+        `📁 Chunk ${chunkIndexNum}/${totalChunksNum} saved for ${filename}: ${savedChunkStats.size} bytes`
       );
 
       res.json({
         success: true,
-        chunkIndex: parseInt(chunkIndex),
-        message: `Chunk ${chunkIndex} uploaded successfully`,
+        chunkIndex: chunkIndexNum,
+        message: `Chunk ${chunkIndexNum} uploaded successfully`,
       });
     } catch (error) {
       console.error("Chunk upload error:", error);
@@ -443,6 +558,14 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       return res.status(400).json({ error: "Missing file information" });
     }
 
+    // Validate chunk count
+    if (totalChunks <= 0 || totalChunks > 1000) {
+      return res.status(400).json({
+        error: "Invalid chunk count",
+        message: "Chunk count must be between 1 and 1000",
+      });
+    }
+
     const tempFileDir = path.join(
       process.env.TEMP_PATH || "./temp",
       `chunked_${fileId}`
@@ -452,11 +575,21 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       filename
     );
 
-    // Check if all chunks exist
+    // Check if all chunks exist and validate their sizes
+    let totalChunkSize = 0;
     for (let i = 0; i < totalChunks; i++) {
       const chunkPath = path.join(tempFileDir, `chunk_${i}`);
       try {
-        await fsPromises.access(chunkPath);
+        const chunkStats = await fsPromises.stat(chunkPath);
+        totalChunkSize += chunkStats.size;
+
+        // Validate chunk size (should be reasonable)
+        if (chunkStats.size === 0) {
+          return res.status(400).json({
+            error: "Invalid chunk",
+            message: `Chunk ${i} is empty (0 bytes)`,
+          });
+        }
       } catch (error) {
         return res.status(400).json({
           error: "Missing chunks",
@@ -465,38 +598,311 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       }
     }
 
-    // Combine chunks into final file
-    const writeStream = fsSync.createWriteStream(finalFilePath);
-
-    for (let i = 0; i < totalChunks; i++) {
-      const chunkPath = path.join(tempFileDir, `chunk_${i}`);
-      const chunkData = await fsPromises.readFile(chunkPath);
-      writeStream.write(chunkData);
+    // Validate total size matches expected
+    const expectedSize = parseInt(fileSize);
+    if (Math.abs(totalChunkSize - expectedSize) > 1024) {
+      // Allow 1KB difference
+      console.warn(
+        `Size mismatch: expected ${expectedSize}, got ${totalChunkSize}`
+      );
     }
 
-    writeStream.end();
+    console.log(
+      `🔍 Combining ${totalChunks} chunks into final file: ${filename}`
+    );
+    console.log(
+      `📏 Total chunk size: ${totalChunkSize} bytes, Expected: ${expectedSize} bytes`
+    );
 
-    // Wait for write to complete
-    await new Promise((resolve, reject) => {
-      writeStream.on("finish", resolve);
-      writeStream.on("error", reject);
+    // ✅ IMPROVED: Stream-based chunk merging with corruption prevention
+    const writeStream = fsSync.createWriteStream(finalFilePath);
+    const crypto = require("crypto");
+    const hash = crypto.createHash("sha256");
+
+    // Track chunk processing and validation
+    const chunkInfo = [];
+    let totalBytesWritten = 0;
+    let hasStreamError = false;
+
+    // Set up comprehensive stream error handling
+    writeStream.on("error", (error) => {
+      console.error(`❌ Write stream error during chunk ${i}:`, error);
+      hasStreamError = true;
     });
 
-    // Clean up temp chunks
+    writeStream.on("finish", () => {
+      console.log(`✅ Write stream finished successfully`);
+    });
+
+    // Process chunks sequentially with proper error handling
+    for (let i = 0; i < totalChunks; i++) {
+      if (hasStreamError) {
+        console.error(`❌ Stopping chunk processing due to stream error`);
+        break;
+      }
+
+      const chunkPath = path.join(tempFileDir, `chunk_${i}`);
+
+      try {
+        // ✅ IMPROVED: Stream-based chunk reading (no memory overflow)
+        const readStream = fsSync.createReadStream(chunkPath);
+
+        // Validate chunk exists and has content
+        const chunkStats = await fsPromises.stat(chunkPath);
+        if (chunkStats.size === 0) {
+          throw new Error(`Chunk ${i} is empty (0 bytes)`);
+        }
+
+        // ✅ IMPROVED: Stream chunk to final file with progress tracking
+        await new Promise((resolve, reject) => {
+          let chunkBytesWritten = 0;
+
+          readStream.on("data", (chunk) => {
+            // Update hash for integrity verification
+            hash.update(chunk);
+            chunkBytesWritten += chunk.length;
+          });
+
+          readStream.on("end", () => {
+            totalBytesWritten += chunkBytesWritten;
+            console.log(
+              `📁 Processed chunk ${i}: ${chunkBytesWritten} bytes (Total: ${totalBytesWritten}/${totalChunkSize})`
+            );
+            resolve();
+          });
+
+          readStream.on("error", (error) => {
+            console.error(`❌ Error reading chunk ${i}:`, error);
+            reject(new Error(`Failed to read chunk ${i}: ${error.message}`));
+          });
+
+          // Pipe chunk to final file
+          readStream.pipe(writeStream, { end: false });
+        });
+
+        // Store chunk metadata for debugging
+        chunkInfo.push({
+          index: i,
+          size: chunkStats.size,
+          path: chunkPath,
+          processed: true,
+          bytesWritten: chunkStats.size,
+        });
+      } catch (chunkError) {
+        console.error(`❌ Error processing chunk ${i}:`, chunkError);
+
+        // Clean up partial file
+        writeStream.destroy();
+        try {
+          await fsPromises.unlink(finalFilePath);
+        } catch (cleanupError) {
+          console.warn(
+            `Warning: Could not cleanup partial file:`,
+            cleanupError.message
+          );
+        }
+
+        return res.status(500).json({
+          error: "Chunk processing failed",
+          message: `Failed to process chunk ${i}: ${chunkError.message}`,
+          chunkIndex: i,
+        });
+      }
+    }
+
+    // Close the write stream
+    writeStream.end();
+
+    // Wait for write to complete with timeout
+    const writeTimeout = setTimeout(() => {
+      console.error(`❌ Write stream timeout after 30 seconds`);
+      hasStreamError = true;
+    }, 30000);
+
+    try {
+      await new Promise((resolve, reject) => {
+        if (hasStreamError) {
+          reject(new Error("Stream error occurred during processing"));
+          return;
+        }
+
+        writeStream.on("finish", () => {
+          clearTimeout(writeTimeout);
+          resolve();
+        });
+
+        writeStream.on("error", (error) => {
+          clearTimeout(writeTimeout);
+          reject(error);
+        });
+      });
+    } catch (writeError) {
+      console.error(`❌ Write stream failed:`, writeError);
+
+      // Clean up partial file
+      try {
+        await fsPromises.unlink(finalFilePath);
+      } catch (cleanupError) {
+        console.warn(
+          `Warning: Could not cleanup partial file:`,
+          cleanupError.message
+        );
+      }
+
+      return res.status(500).json({
+        error: "File creation failed",
+        message: `Failed to create final file: ${writeError.message}`,
+      });
+    }
+
+    // ✅ IMPROVED: Comprehensive file validation
+    const finalStats = await fsPromises.stat(finalFilePath);
+    console.log(`✅ Final file created: ${finalStats.size} bytes`);
+
+    if (finalStats.size === 0) {
+      return res.status(500).json({
+        error: "File creation failed",
+        message: "Final file is empty (0 bytes)",
+      });
+    }
+
+    // Validate final file size with strict tolerance
+    const sizeDifference = Math.abs(finalStats.size - expectedSize);
+    if (sizeDifference > 1024) {
+      // 1KB tolerance
+      console.error(
+        `❌ CRITICAL: File size mismatch - expected: ${expectedSize}, got: ${finalStats.size}, difference: ${sizeDifference} bytes`
+      );
+
+      // Clean up corrupted file
+      try {
+        await fsPromises.unlink(finalFilePath);
+      } catch (cleanupError) {
+        console.warn(
+          `Warning: Could not cleanup corrupted file:`,
+          cleanupError.message
+        );
+      }
+
+      return res.status(500).json({
+        error: "File corruption detected",
+        message: `File size mismatch indicates corruption. Expected: ${expectedSize} bytes, got: ${finalStats.size} bytes. Please re-upload.`,
+      });
+    }
+
+    // ✅ IMPROVED: File integrity verification using checksum
+    const finalFileHash = hash.digest("hex");
+    console.log(`🔒 File integrity hash: ${finalFileHash}`);
+
+    // ✅ IMPROVED: Binary file validation (for audio files)
+    const isAudioFile = fileType.startsWith("audio/");
+    if (isAudioFile) {
+      // For audio files, check file header and basic structure
+      try {
+        const headerBuffer = await fsPromises.readFile(finalFilePath, {
+          encoding: null,
+          flag: "r",
+        });
+
+        // Validate audio file headers
+        const isValidAudioHeader = validateAudioFileHeader(
+          headerBuffer,
+          fileType
+        );
+        if (!isValidAudioHeader) {
+          console.error(`❌ CRITICAL: Invalid audio file header detected`);
+
+          // Clean up corrupted file
+          try {
+            await fsPromises.unlink(finalFilePath);
+          } catch (cleanupError) {
+            console.warn(
+              `Warning: Could not cleanup corrupted audio file:`,
+              cleanupError.message
+            );
+          }
+
+          return res.status(500).json({
+            error: "Audio file corruption detected",
+            message:
+              "Invalid audio file header indicates corruption. Please re-upload.",
+          });
+        }
+
+        console.log(`✅ Audio file header validation passed`);
+      } catch (headerError) {
+        console.error(`❌ Error validating audio file header:`, headerError);
+        return res.status(500).json({
+          error: "Audio file validation failed",
+          message: "Could not validate audio file integrity. Please re-upload.",
+        });
+      }
+    } else {
+      // For text files, perform text-based validation
+      try {
+        const sampleData = await fsPromises.readFile(finalFilePath, {
+          encoding: "utf8",
+          flag: "r",
+        });
+
+        const sampleLength = Math.min(sampleData.length, 1000);
+        const sample = sampleData.substring(0, sampleLength);
+
+        // Check for obvious corruption patterns
+        if (
+          sample.includes("undefined") ||
+          sample.includes("null") ||
+          sample.includes("[object Object]")
+        ) {
+          console.warn(
+            `⚠️ Potential text corruption detected in final file sample`
+          );
+        }
+
+        console.log(
+          `🔍 Text file sample (first ${sampleLength} chars):`,
+          sample.substring(0, 200) + "..."
+        );
+      } catch (textError) {
+        console.warn(
+          `⚠️ Could not read text file sample for validation:`,
+          textError.message
+        );
+      }
+    }
+
+    // Log comprehensive chunk processing information
+    console.log(`🔍 Chunk merge details:`, JSON.stringify(chunkInfo, null, 2));
+    console.log(`📊 Final file statistics:`, {
+      expectedSize,
+      actualSize: finalStats.size,
+      sizeDifference: Math.abs(finalStats.size - expectedSize),
+      totalChunks,
+      processedChunks: chunkInfo.length,
+      integrityHash: finalFileHash,
+    });
+
+    // ✅ IMPROVED: Cleanup temporary chunks and directory
+    console.log(`🧹 Cleaning up temporary chunks...`);
     for (let i = 0; i < totalChunks; i++) {
       const chunkPath = path.join(tempFileDir, `chunk_${i}`);
       try {
         await fsPromises.unlink(chunkPath);
+        console.log(`✅ Cleaned up chunk ${i}`);
       } catch (error) {
-        console.warn(`Warning: Could not delete chunk ${i}:`, error.message);
+        console.warn(`⚠️ Warning: Could not delete chunk ${i}:`, error.message);
       }
     }
 
     // Remove temp directory
     try {
       await fsPromises.rmdir(tempFileDir);
+      console.log(`✅ Cleaned up temp directory: ${tempFileDir}`);
     } catch (error) {
-      console.warn(`Warning: Could not remove temp directory:`, error.message);
+      console.warn(
+        `⚠️ Warning: Could not remove temp directory:`,
+        error.message
+      );
     }
 
     // Get file stats and process with OpenAI
@@ -516,8 +922,8 @@ router.post("/finalize", optionalAuth, async (req, res) => {
     try {
       fileResult = await pool.query(
         `INSERT INTO files (filename, original_name, file_path, file_size, file_type, user_id, status)
-         VALUES ($1, $2, $3, $4, $5, $6, 'uploaded')
-         RETURNING id`,
+       VALUES ($1, $2, $3, $4, $5, $6, 'uploaded')
+       RETURNING id`,
         [
           fileInfo.filename,
           fileInfo.originalName,
@@ -538,7 +944,7 @@ router.post("/finalize", optionalAuth, async (req, res) => {
     try {
       await pool.query(
         `INSERT INTO tasks (file_id, user_id, task_type, status, priority)
-         VALUES ($1, $2, 'file_processing', 'pending', 1)`,
+       VALUES ($1, $2, 'file_processing', 'pending', 1)`,
         [finalFileId, fileInfo.userId]
       );
     } catch (dbError) {

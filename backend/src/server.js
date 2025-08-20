@@ -90,8 +90,29 @@ app.use("/api/admin", require("./routes/admin"));
 app.use("/api/queue", require("./routes/queue"));
 
 // Health check
-app.get("/health", (req, res) => {
-  res.json({ status: "OK", timestamp: new Date().toISOString() });
+app.get("/health", async (req, res) => {
+  try {
+    // Check OpenAI API status
+    const openaiService = require("./services/openaiService");
+    const openaiHealth = await openaiService.healthCheck();
+
+    res.json({
+      status: "OK",
+      timestamp: new Date().toISOString(),
+      services: {
+        server: "healthy",
+        openai: openaiHealth.status,
+        openaiMessage: openaiHealth.message,
+      },
+    });
+  } catch (error) {
+    console.error("Health check error:", error);
+    res.status(500).json({
+      status: "ERROR",
+      timestamp: new Date().toISOString(),
+      error: error.message,
+    });
+  }
 });
 
 // Error handling middleware

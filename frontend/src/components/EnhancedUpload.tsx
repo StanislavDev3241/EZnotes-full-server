@@ -19,7 +19,7 @@ interface EnhancedUploadProps {
 
 // Chunk upload configuration
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
-const LARGE_FILE_THRESHOLD = 10 * 1024 * 1024; // 10MB threshold for chunking
+const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024; // 50MB threshold for chunking (increased from 10MB)
 
 interface ChunkUploadState {
   isChunked: boolean;
@@ -120,29 +120,57 @@ SIGNATURE PLACEHOLDER
     fileId: string,
     filename: string
   ): Promise<boolean> => {
-    try {
-      const formData = new FormData();
-      formData.append("chunk", chunk);
-      formData.append("chunkIndex", chunkIndex.toString());
-      formData.append("totalChunks", totalChunks.toString());
-      formData.append("fileId", fileId);
-      formData.append("filename", filename);
+    const maxRetries = 3;
+    let retryCount = 0;
 
-      const response = await fetch(`${API_BASE_URL}/api/upload/chunk`, {
-        method: "POST",
-        body: formData,
-      });
+    while (retryCount < maxRetries) {
+      try {
+        const formData = new FormData();
+        formData.append("chunk", chunk);
+        formData.append("chunkIndex", chunkIndex.toString());
+        formData.append("totalChunks", totalChunks.toString());
+        formData.append("fileId", fileId);
+        formData.append("filename", filename);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Chunk upload failed");
+        const response = await fetch(`${API_BASE_URL}/api/upload/chunk`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || "Chunk upload failed");
+        }
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.message || "Chunk upload failed");
+        }
+
+        return true;
+      } catch (error) {
+        retryCount++;
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        console.error(
+          `Chunk ${chunkIndex} upload attempt ${retryCount} failed:`,
+          error
+        );
+
+        if (retryCount >= maxRetries) {
+          throw new Error(
+            `Chunk ${chunkIndex} failed after ${maxRetries} attempts: ${errorMessage}`
+          );
+        }
+
+        // Wait before retry (exponential backoff)
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.pow(2, retryCount) * 1000)
+        );
       }
-
-      return true;
-    } catch (error) {
-      console.error(`Chunk ${chunkIndex} upload failed:`, error);
-      throw error;
     }
+
+    return false;
   };
 
   // Finalize chunked upload
@@ -172,13 +200,52 @@ SIGNATURE PLACEHOLDER
 
       if (!response.ok) {
         const errorData = await response.json();
+
+        // Handle specific corruption errors
+        if (
+          errorData.error === "File corruption detected" ||
+          errorData.error === "Audio file corruption detected" ||
+          errorData.error === "Chunk processing failed"
+        ) {
+          console.error(`🚨 CORRUPTION DETECTED:`, errorData);
+
+          // Show user-friendly corruption error
+          const corruptionError = new Error(
+            `File corruption detected during upload. This usually indicates a network issue or server problem. ` +
+              `Please try uploading again. If the problem persists, try: ` +
+              `1) Using a smaller file, 2) Checking your internet connection, 3) Contacting support.`
+          );
+
+          // Add corruption details to error
+          (corruptionError as any).corruptionDetails = errorData;
+          throw corruptionError;
+        }
+
         throw new Error(errorData.message || "Finalization failed");
       }
 
-      return await response.json();
+      const result = await response.json();
+
+      // Validate the result contains expected data
+      if (!result.success || !result.file) {
+        throw new Error("Invalid response from server during finalization");
+      }
+
+      return result;
     } catch (error) {
       console.error("Finalization failed:", error);
-      throw error;
+
+      // Re-throw corruption errors with enhanced context
+      if (error instanceof Error && error.message.includes("corruption")) {
+        throw error;
+      }
+
+      // Handle other finalization errors
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `File finalization failed: ${errorMessage}. Please try uploading again.`
+      );
     }
   };
 
@@ -250,7 +317,34 @@ SIGNATURE PLACEHOLDER
       return result;
     } catch (error) {
       console.error("Chunked upload failed:", error);
-      throw error;
+
+      // Fallback to regular upload for smaller files
+      if (file.size < 100 * 1024 * 1024) {
+        // 100MB
+        console.log(
+          "🔄 Falling back to regular upload due to chunked upload failure"
+        );
+        setUploadProgress({
+          stage: "fallback",
+          message: "Chunked upload failed, trying regular upload...",
+          percentage: 25,
+        });
+
+        try {
+          const fallbackResult = await handleRegularUpload(file, customPrompt);
+          setUploadProgress({
+            stage: "complete",
+            message: "Upload complete (fallback method)!",
+            percentage: 100,
+          });
+          return fallbackResult;
+        } catch (fallbackError) {
+          console.error("Fallback upload also failed:", fallbackError);
+          throw error; // Throw original error if fallback also fails
+        }
+      } else {
+        throw error; // For very large files, don't fallback
+      }
     }
   };
 
@@ -472,11 +566,36 @@ SIGNATURE PLACEHOLDER
       {/* Error Display - Local to upload page */}
       {localError && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 text-red-400 mr-2" />
+          <div className="flex items-start">
+            <AlertCircle className="w-5 h-5 text-red-400 mr-2 mt-0.5 flex-shrink-0" />
             <div className="text-sm text-red-800">
-              <p className="font-medium">Upload Error</p>
-              <p>{localError}</p>
+              <p className="font-medium">
+                {localError.includes("corruption")
+                  ? "🚨 File Corruption Detected"
+                  : "Upload Error"}
+              </p>
+              <p className="mt-1">{localError}</p>
+
+              {/* Show corruption-specific guidance */}
+              {localError.includes("corruption") && (
+                <div className="mt-3 p-3 bg-red-100 rounded border border-red-300">
+                  <p className="text-xs font-medium text-red-800 mb-2">
+                    What this means:
+                  </p>
+                  <ul className="text-xs text-red-700 space-y-1">
+                    <li>• Your file may have been corrupted during upload</li>
+                    <li>• This could affect transcription accuracy</li>
+                    <li>
+                      • The system automatically rejected the corrupted file
+                    </li>
+                  </ul>
+                  <p className="text-xs text-red-700 mt-2">
+                    <strong>Recommendation:</strong> Try uploading again. If the
+                    problem persists, try using a smaller file or check your
+                    internet connection.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

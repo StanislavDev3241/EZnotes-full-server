@@ -44,11 +44,11 @@ services:
       RATE_LIMIT_WINDOW_MS: 900000
       RATE_LIMIT_MAX_REQUESTS: 100
       # OpenAI API Configuration
-      OPENAI_API_KEY: "your_openai_api_key_here"
-      OPENAI_MODEL: "gpt-4o"
-      WHISPER_MODEL: "whisper-1"
-      CHAT_MAX_TOKENS: 1000
-      CHAT_TEMPERATURE: 0.3
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-your_openai_api_key_here}"
+      OPENAI_MODEL: "${OPENAI_MODEL:-gpt-4o}"
+      WHISPER_MODEL: "${WHISPER_MODEL:-whisper-1}"
+      CHAT_MAX_TOKENS: "${CHAT_MAX_TOKENS:-1000}"
+      CHAT_TEMPERATURE: "${CHAT_TEMPERATURE:-0.3}"
     depends_on:
       - postgres
       - redis
