@@ -18,7 +18,7 @@ class OpenAIService {
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
       maxRetries: 3,
-      timeout: 60000, // 60 seconds
+      timeout: 300000, // 5 minutes (increased from 60 seconds for large audio files)
     });
 
     console.log(
@@ -96,6 +96,11 @@ class OpenAIService {
       const whisperPrompt = "Please transcribe this audio and it is in English";
 
       console.log(`🔤 Using Whisper prompt: ${whisperPrompt}`);
+
+      // ✅ IMPROVED: Dynamic timeout based on file size
+      const dynamicTimeout = Math.max(300000, fileSizeMB * 20000); // 5 minutes minimum, 20 seconds per MB
+      
+      console.log(`⏱️ Using dynamic timeout: ${dynamicTimeout / 1000} seconds for ${fileSizeMB.toFixed(1)}MB file`);
 
       const transcription = await this.retryWithBackoff(
         () =>
