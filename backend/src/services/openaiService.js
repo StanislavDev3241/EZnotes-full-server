@@ -76,7 +76,6 @@ class OpenAIService {
   async transcribeAudio(audioFilePath, contentType = "general") {
     try {
       console.log(`🎵 Transcribing audio file: ${audioFilePath}`);
-      console.log(`📋 Content type: ${contentType}`);
 
       // Check if file exists and is accessible
       await fsPromises.access(audioFilePath);
@@ -87,26 +86,12 @@ class OpenAIService {
 
       if (fileSizeMB > 25) {
         throw new Error(
-          `File size ${fileSizeMB.toFixed(
-            2
-          )}MB exceeds Whisper API limit of 25MB`
+          `File size ${fileSizeMB.toFixed(2)}MB exceeds Whisper API limit of 25MB`
         );
       }
 
-      // ✅ FIXED: Dynamic prompt based on content type
-      let whisperPrompt =
-        "This is an audio recording in English. Please transcribe accurately in English only.";
-
-      if (contentType === "medical" || contentType === "dental") {
-        whisperPrompt =
-          "This is a medical/dental consultation in English. Please transcribe accurately in English only.";
-      } else if (contentType === "business" || contentType === "meeting") {
-        whisperPrompt =
-          "This is a business meeting or professional conversation in English. Please transcribe accurately in English only.";
-      } else if (contentType === "general") {
-        whisperPrompt =
-          "This is an audio recording in English. Please transcribe accurately in English only.";
-      }
+      // ✅ SIMPLIFIED: Use universal prompt for all audio types
+      const whisperPrompt = "Please transcribe this audio and it is in English";
 
       console.log(`🔤 Using Whisper prompt: ${whisperPrompt}`);
 
@@ -140,24 +125,17 @@ class OpenAIService {
         "subscribe in english",
         "thank you for watching",
         "knock on their doors",
-        "don't leave them waiting",
+        "don't leave them waiting"
       ];
 
-      const hasSuspiciousContent = suspiciousPatterns.some((pattern) =>
+      const hasSuspiciousContent = suspiciousPatterns.some(pattern => 
         transcription.toLowerCase().includes(pattern.toLowerCase())
       );
 
       if (hasSuspiciousContent) {
-        console.warn(
-          `⚠️ WARNING: Transcription contains suspicious content patterns that may indicate corruption or wrong file`
-        );
-        console.warn(
-          `🔍 Suspicious content detected: ${transcription.substring(
-            0,
-            200
-          )}...`
-        );
-
+        console.warn(`⚠️ WARNING: Transcription contains suspicious content patterns that may indicate corruption or wrong file`);
+        console.warn(`🔍 Suspicious content detected: ${transcription.substring(0, 200)}...`);
+        
         // Return the transcription but log the warning
         // The user can decide if this is correct or needs re-upload
       }

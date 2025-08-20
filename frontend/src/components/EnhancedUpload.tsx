@@ -76,9 +76,6 @@ SIGNATURE PLACEHOLDER
 [Signature placeholder for dental professional]`
   );
 
-  // ✅ NEW: Content type selection for better transcription
-  const [contentType, setContentType] = useState<string>("general");
-
   // Chunk upload state
   const [chunkUploadState, setChunkUploadState] =
     useState<ChunkUploadState | null>(null);
@@ -183,8 +180,7 @@ SIGNATURE PLACEHOLDER
     fileType: string,
     fileSize: number,
     totalChunks: number,
-    customPrompt: string,
-    contentType: string
+    customPrompt: string
   ): Promise<any> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/upload/finalize`, {
@@ -199,7 +195,6 @@ SIGNATURE PLACEHOLDER
           fileSize,
           totalChunks,
           customPrompt: customPrompt.trim() || undefined,
-          contentType: contentType,
         }),
       });
 
@@ -255,11 +250,7 @@ SIGNATURE PLACEHOLDER
   };
 
   // Handle chunked upload
-  const handleChunkedUpload = async (
-    file: File,
-    customPrompt: string,
-    contentType: string
-  ) => {
+  const handleChunkedUpload = async (file: File, customPrompt: string) => {
     const fileId = generateFileId();
     const chunks = splitFileIntoChunks(file);
     const totalChunks = chunks.length;
@@ -314,8 +305,7 @@ SIGNATURE PLACEHOLDER
         file.type,
         file.size,
         totalChunks,
-        customPrompt,
-        contentType
+        customPrompt
       );
 
       setUploadProgress({
@@ -341,11 +331,7 @@ SIGNATURE PLACEHOLDER
         });
 
         try {
-          const fallbackResult = await handleRegularUpload(
-            file,
-            customPrompt,
-            contentType
-          );
+          const fallbackResult = await handleRegularUpload(file, customPrompt);
           setUploadProgress({
             stage: "complete",
             message: "Upload complete (fallback method)!",
@@ -363,14 +349,9 @@ SIGNATURE PLACEHOLDER
   };
 
   // Handle regular upload (small files)
-  const handleRegularUpload = async (
-    file: File,
-    customPrompt: string,
-    contentType: string
-  ) => {
+  const handleRegularUpload = async (file: File, customPrompt: string) => {
     const uploadData = new FormData();
     uploadData.append("file", file);
-    uploadData.append("contentType", contentType);
 
     if (customPrompt.trim()) {
       uploadData.append("customPrompt", customPrompt.trim());
@@ -439,23 +420,21 @@ SIGNATURE PLACEHOLDER
         if (audioFile.size > LARGE_FILE_THRESHOLD) {
           result = await handleChunkedUpload(
             audioFile,
-            customPrompt,
-            contentType
+            customPrompt
           );
         } else {
           result = await handleRegularUpload(
             audioFile,
-            customPrompt,
-            contentType
+            customPrompt
           );
         }
         fileName = audioFile.name;
       } else if (file) {
         // Choose upload method based on file size
         if (file.size > LARGE_FILE_THRESHOLD) {
-          result = await handleChunkedUpload(file, customPrompt, contentType);
+          result = await handleChunkedUpload(file, customPrompt);
         } else {
-          result = await handleRegularUpload(file, customPrompt, contentType);
+          result = await handleRegularUpload(file, customPrompt);
         }
         fileName = file.name;
       } else {
@@ -630,25 +609,6 @@ SIGNATURE PLACEHOLDER
 
       {/* Custom Prompt Input */}
       <div className="space-y-2">
-        {/* ✅ NEW: Content Type Selector */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Audio Content Type
-          </label>
-          <select
-            value={contentType}
-            onChange={(e) => setContentType(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="general">General Audio</option>
-            <option value="business">Business Meeting</option>
-            <option value="medical">Medical/Dental Consultation</option>
-          </select>
-          <p className="text-xs text-gray-500 mt-1">
-            Select the type of audio content for better transcription accuracy
-          </p>
-        </div>
-
         <label className="block text-sm font-medium text-gray-700">
           Custom Instructions
         </label>

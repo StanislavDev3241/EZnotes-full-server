@@ -120,15 +120,13 @@ const processFileWithOpenAI = async (
   fileInfo,
   fileId,
   userId,
-  customPrompt = null,
-  contentType = "general"
+  customPrompt = null
 ) => {
   try {
     console.log(`🤖 Processing file with OpenAI: ${fileInfo.filename}`);
     console.log(`🔍 Debug fileInfo:`, JSON.stringify(fileInfo, null, 2));
     console.log(`🔍 Debug fileInfo.filePath: ${fileInfo.filePath}`);
     console.log(`🔍 Debug fileInfo type: ${typeof fileInfo.filePath}`);
-    console.log(`📋 Content type: ${contentType}`);
 
     let transcription = "";
 
@@ -136,56 +134,22 @@ const processFileWithOpenAI = async (
     if (fileInfo.fileType.startsWith("audio/")) {
       // Audio file - use Whisper API
       console.log(`🎵 Audio file detected, using Whisper API`);
-
-      // ✅ IMPROVED: Use provided content type for better transcription
-      let detectedContentType = contentType;
-
-      // Fallback detection if no content type provided
-      if (!contentType || contentType === "general") {
-        // Check if this is a medical/dental application
-        if (
-          customPrompt &&
-          customPrompt.systemPrompt &&
-          (customPrompt.systemPrompt.includes("dental") ||
-            customPrompt.systemPrompt.includes("medical"))
-        ) {
-          detectedContentType = "medical";
-        } else if (
-          fileInfo.filename.toLowerCase().includes("meeting") ||
-          fileInfo.filename.toLowerCase().includes("business") ||
-          fileInfo.filename.toLowerCase().includes("client")
-        ) {
-          detectedContentType = "business";
-        }
-      }
-
-      console.log(`📋 Using content type: ${detectedContentType}`);
-
+      
       try {
-        transcription = await openaiService.transcribeAudio(
-          fileInfo.filePath,
-          detectedContentType
-        );
+        // ✅ SIMPLIFIED: Use universal prompt for all audio types
+        transcription = await openaiService.transcribeAudio(fileInfo.filePath);
       } catch (transcriptionError) {
         console.error(`❌ Transcription failed:`, transcriptionError);
-
+        
         // Handle specific transcription errors
         if (transcriptionError.message.includes("25MB")) {
-          throw new Error(
-            `File size exceeds Whisper API limit. Please use a smaller file or contact support for large file processing.`
-          );
+          throw new Error(`File size exceeds Whisper API limit. Please use a smaller file or contact support for large file processing.`);
         } else if (transcriptionError.message.includes("API key")) {
-          throw new Error(
-            `OpenAI API configuration error. Please check your API key and try again.`
-          );
+          throw new Error(`OpenAI API configuration error. Please check your API key and try again.`);
         } else if (transcriptionError.message.includes("rate limit")) {
-          throw new Error(
-            `OpenAI API rate limit exceeded. Please try again in a few minutes.`
-          );
+          throw new Error(`OpenAI API rate limit exceeded. Please try again in a few minutes.`);
         } else {
-          throw new Error(
-            `Transcription failed: ${transcriptionError.message}. Please try again or contact support.`
-          );
+          throw new Error(`Transcription failed: ${transcriptionError.message}. Please try again or contact support.`);
         }
       }
     } else if (fileInfo.fileType === "text/plain") {
@@ -434,8 +398,7 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
         fileInfo,
         fileId,
         userId,
-        customPrompt,
-        req.body.contentType || "general"
+        customPrompt
       );
 
       // Update file and task status
@@ -992,8 +955,7 @@ router.post("/finalize", optionalAuth, async (req, res) => {
         fileInfo,
         finalFileId,
         fileInfo.userId,
-        customPromptObj,
-        req.body.contentType || "general"
+        customPromptObj
       );
 
       // Update file and task status
