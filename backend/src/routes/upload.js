@@ -120,13 +120,15 @@ const processFileWithOpenAI = async (
   fileInfo,
   fileId,
   userId,
-  customPrompt = null
+  customPrompt = null,
+  contentType = "general"
 ) => {
   try {
     console.log(`🤖 Processing file with OpenAI: ${fileInfo.filename}`);
     console.log(`🔍 Debug fileInfo:`, JSON.stringify(fileInfo, null, 2));
     console.log(`🔍 Debug fileInfo.filePath: ${fileInfo.filePath}`);
     console.log(`🔍 Debug fileInfo type: ${typeof fileInfo.filePath}`);
+    console.log(`📋 Content type: ${contentType}`);
 
     let transcription = "";
 
@@ -135,8 +137,35 @@ const processFileWithOpenAI = async (
       // Audio file - use Whisper API
       console.log(`🎵 Audio file detected, using Whisper API`);
 
+      // ✅ IMPROVED: Use provided content type for better transcription
+      let detectedContentType = contentType;
+
+      // Fallback detection if no content type provided
+      if (!contentType || contentType === "general") {
+        // Check if this is a medical/dental application
+        if (
+          customPrompt &&
+          customPrompt.systemPrompt &&
+          (customPrompt.systemPrompt.includes("dental") ||
+            customPrompt.systemPrompt.includes("medical"))
+        ) {
+          detectedContentType = "medical";
+        } else if (
+          fileInfo.filename.toLowerCase().includes("meeting") ||
+          fileInfo.filename.toLowerCase().includes("business") ||
+          fileInfo.filename.toLowerCase().includes("client")
+        ) {
+          detectedContentType = "business";
+        }
+      }
+
+      console.log(`📋 Using content type: ${detectedContentType}`);
+
       try {
-        transcription = await openaiService.transcribeAudio(fileInfo.filePath);
+        transcription = await openaiService.transcribeAudio(
+          fileInfo.filePath,
+          detectedContentType
+        );
       } catch (transcriptionError) {
         console.error(`❌ Transcription failed:`, transcriptionError);
 
@@ -405,7 +434,8 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
         fileInfo,
         fileId,
         userId,
-        customPrompt
+        customPrompt,
+        req.body.contentType || "general"
       );
 
       // Update file and task status
@@ -962,7 +992,8 @@ router.post("/finalize", optionalAuth, async (req, res) => {
         fileInfo,
         finalFileId,
         fileInfo.userId,
-        customPromptObj
+        customPromptObj,
+        req.body.contentType || "general"
       );
 
       // Update file and task status

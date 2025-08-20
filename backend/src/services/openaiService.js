@@ -73,9 +73,10 @@ class OpenAIService {
   }
 
   // ✅ IMPROVED: Transcribe audio with Whisper API
-  async transcribeAudio(audioFilePath) {
+  async transcribeAudio(audioFilePath, contentType = "general") {
     try {
       console.log(`🎵 Transcribing audio file: ${audioFilePath}`);
+      console.log(`📋 Content type: ${contentType}`);
 
       // Check if file exists and is accessible
       await fsPromises.access(audioFilePath);
@@ -92,6 +93,23 @@ class OpenAIService {
         );
       }
 
+      // ✅ FIXED: Dynamic prompt based on content type
+      let whisperPrompt =
+        "This is an audio recording in English. Please transcribe accurately in English only.";
+
+      if (contentType === "medical" || contentType === "dental") {
+        whisperPrompt =
+          "This is a medical/dental consultation in English. Please transcribe accurately in English only.";
+      } else if (contentType === "business" || contentType === "meeting") {
+        whisperPrompt =
+          "This is a business meeting or professional conversation in English. Please transcribe accurately in English only.";
+      } else if (contentType === "general") {
+        whisperPrompt =
+          "This is an audio recording in English. Please transcribe accurately in English only.";
+      }
+
+      console.log(`🔤 Using Whisper prompt: ${whisperPrompt}`);
+
       const transcription = await this.retryWithBackoff(
         () =>
           this.openai.audio.transcriptions.create({
@@ -99,8 +117,7 @@ class OpenAIService {
             model: process.env.WHISPER_MODEL || "whisper-1",
             response_format: "text",
             language: "en", // Force English language
-            prompt:
-              "This is a dental/medical consultation in English. Please transcribe in English only.",
+            prompt: whisperPrompt,
           }),
         3,
         "Whisper transcription"
@@ -110,11 +127,39 @@ class OpenAIService {
         `✅ Transcription completed: ${transcription.length} characters`
       );
 
-      // Validate transcription quality
+      // ✅ IMPROVED: Better transcription validation
       if (transcription.length < 10) {
         console.warn(
           `⚠️ Warning: Very short transcription (${transcription.length} chars) - possible audio quality issues`
         );
+      }
+
+      // ✅ NEW: Check for suspicious content patterns
+      const suspiciousPatterns = [
+        "please subscribe",
+        "subscribe in english",
+        "thank you for watching",
+        "knock on their doors",
+        "don't leave them waiting",
+      ];
+
+      const hasSuspiciousContent = suspiciousPatterns.some((pattern) =>
+        transcription.toLowerCase().includes(pattern.toLowerCase())
+      );
+
+      if (hasSuspiciousContent) {
+        console.warn(
+          `⚠️ WARNING: Transcription contains suspicious content patterns that may indicate corruption or wrong file`
+        );
+        console.warn(
+          `🔍 Suspicious content detected: ${transcription.substring(
+            0,
+            200
+          )}...`
+        );
+
+        // Return the transcription but log the warning
+        // The user can decide if this is correct or needs re-upload
       }
 
       return transcription;

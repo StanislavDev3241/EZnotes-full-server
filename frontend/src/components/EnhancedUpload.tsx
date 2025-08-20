@@ -65,7 +65,7 @@ If proceeding, output these two blocks in order:
 A) META JSON block delimited by:
 <<META_JSON>>
 { … see schema in Knowledge: "Mini Extraction Schema v1" … }
-<<META_JSON>>
+<<END_META_JSON>>
 
 B) SOAP Note block delimited by:
 <<SOAP_NOTE>>
@@ -75,6 +75,9 @@ B) SOAP Note block delimited by:
 SIGNATURE PLACEHOLDER
 [Signature placeholder for dental professional]`
   );
+
+  // ✅ NEW: Content type selection for better transcription
+  const [contentType, setContentType] = useState<string>("general");
 
   // Chunk upload state
   const [chunkUploadState, setChunkUploadState] =
@@ -180,7 +183,8 @@ SIGNATURE PLACEHOLDER
     fileType: string,
     fileSize: number,
     totalChunks: number,
-    customPrompt: string
+    customPrompt: string,
+    contentType: string
   ): Promise<any> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/upload/finalize`, {
@@ -195,6 +199,7 @@ SIGNATURE PLACEHOLDER
           fileSize,
           totalChunks,
           customPrompt: customPrompt.trim() || undefined,
+          contentType: contentType,
         }),
       });
 
@@ -250,7 +255,11 @@ SIGNATURE PLACEHOLDER
   };
 
   // Handle chunked upload
-  const handleChunkedUpload = async (file: File, customPrompt: string) => {
+  const handleChunkedUpload = async (
+    file: File,
+    customPrompt: string,
+    contentType: string
+  ) => {
     const fileId = generateFileId();
     const chunks = splitFileIntoChunks(file);
     const totalChunks = chunks.length;
@@ -305,7 +314,8 @@ SIGNATURE PLACEHOLDER
         file.type,
         file.size,
         totalChunks,
-        customPrompt
+        customPrompt,
+        contentType
       );
 
       setUploadProgress({
@@ -331,7 +341,11 @@ SIGNATURE PLACEHOLDER
         });
 
         try {
-          const fallbackResult = await handleRegularUpload(file, customPrompt);
+          const fallbackResult = await handleRegularUpload(
+            file,
+            customPrompt,
+            contentType
+          );
           setUploadProgress({
             stage: "complete",
             message: "Upload complete (fallback method)!",
@@ -349,9 +363,14 @@ SIGNATURE PLACEHOLDER
   };
 
   // Handle regular upload (small files)
-  const handleRegularUpload = async (file: File, customPrompt: string) => {
+  const handleRegularUpload = async (
+    file: File,
+    customPrompt: string,
+    contentType: string
+  ) => {
     const uploadData = new FormData();
     uploadData.append("file", file);
+    uploadData.append("contentType", contentType);
 
     if (customPrompt.trim()) {
       uploadData.append("customPrompt", customPrompt.trim());
@@ -418,17 +437,25 @@ SIGNATURE PLACEHOLDER
 
         // Choose upload method based on file size
         if (audioFile.size > LARGE_FILE_THRESHOLD) {
-          result = await handleChunkedUpload(audioFile, customPrompt);
+          result = await handleChunkedUpload(
+            audioFile,
+            customPrompt,
+            contentType
+          );
         } else {
-          result = await handleRegularUpload(audioFile, customPrompt);
+          result = await handleRegularUpload(
+            audioFile,
+            customPrompt,
+            contentType
+          );
         }
         fileName = audioFile.name;
       } else if (file) {
         // Choose upload method based on file size
         if (file.size > LARGE_FILE_THRESHOLD) {
-          result = await handleChunkedUpload(file, customPrompt);
+          result = await handleChunkedUpload(file, customPrompt, contentType);
         } else {
-          result = await handleRegularUpload(file, customPrompt);
+          result = await handleRegularUpload(file, customPrompt, contentType);
         }
         fileName = file.name;
       } else {
@@ -603,6 +630,25 @@ SIGNATURE PLACEHOLDER
 
       {/* Custom Prompt Input */}
       <div className="space-y-2">
+        {/* ✅ NEW: Content Type Selector */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Audio Content Type
+          </label>
+          <select
+            value={contentType}
+            onChange={(e) => setContentType(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="general">General Audio</option>
+            <option value="business">Business Meeting</option>
+            <option value="medical">Medical/Dental Consultation</option>
+          </select>
+          <p className="text-xs text-gray-500 mt-1">
+            Select the type of audio content for better transcription accuracy
+          </p>
+        </div>
+
         <label className="block text-sm font-medium text-gray-700">
           Custom Instructions
         </label>
