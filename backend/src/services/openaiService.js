@@ -283,11 +283,23 @@ class OpenAIService {
         throw new Error("Transcription too short or empty for note generation");
       }
 
+      console.log(`🔍 Custom prompt object:`, customPrompt ? "Provided" : "Not provided");
+      if (customPrompt) {
+        console.log(`🔍 Custom prompt systemPrompt: ${customPrompt.systemPrompt ? "Yes" : "No"}`);
+        console.log(`🔍 Custom prompt userPrompt: ${customPrompt.userPrompt ? "Yes" : "No"}`);
+        console.log(`🔍 System prompt length: ${customPrompt.systemPrompt?.length || 0} characters`);
+      }
+
       const systemPrompt =
         customPrompt?.systemPrompt || this.getDefaultSystemPrompt();
       const userPrompt =
         customPrompt?.userPrompt ||
         this.getDefaultUserPrompt(transcription, context);
+
+      console.log(`🔍 Final system prompt length: ${systemPrompt.length} characters`);
+      console.log(`🔍 Final user prompt length: ${userPrompt.length} characters`);
+      console.log(`🔍 System prompt preview: ${systemPrompt.substring(0, 100)}...`);
+      console.log(`🔍 User prompt preview: ${userPrompt.substring(0, 100)}...`);
 
       const completion = await this.retryWithBackoff(
         () =>
