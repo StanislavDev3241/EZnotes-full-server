@@ -189,10 +189,19 @@ const processFileWithOpenAI = async (
 
     // Generate notes based on user type and custom prompt
     let notes;
+    
+    // DEBUG: Add detailed logging
+    console.log(`🔍 DEBUG: userId = ${userId}`);
+    console.log(`🔍 DEBUG: customPrompt = ${JSON.stringify(customPrompt)}`);
+    console.log(`🔍 DEBUG: customPrompt.systemPrompt = ${customPrompt?.systemPrompt}`);
+    console.log(`🔍 DEBUG: Condition check: userId && customPrompt && customPrompt.systemPrompt = ${!!(userId && customPrompt && customPrompt.systemPrompt)}`);
+    
     if (userId && customPrompt && customPrompt.systemPrompt) {
       // Registered user with custom prompt
       console.log(`👤 Using custom prompt for registered user`);
-      console.log(`🔍 Custom prompt: ${customPrompt.systemPrompt.substring(0, 200)}...`);
+      console.log(
+        `🔍 Custom prompt: ${customPrompt.systemPrompt.substring(0, 200)}...`
+      );
       try {
         const noteContent = await openaiService.generateNotes(
           transcription,
@@ -216,6 +225,11 @@ const processFileWithOpenAI = async (
     } else {
       // Unregistered user or default prompt
       console.log(`👤 Using default prompt`);
+      console.log(`🔍 DEBUG: Reason for using default prompt:`);
+      console.log(`🔍 DEBUG: - userId exists: ${!!userId}`);
+      console.log(`🔍 DEBUG: - customPrompt exists: ${!!customPrompt}`);
+      console.log(`🔍 DEBUG: - customPrompt.systemPrompt exists: ${!!customPrompt?.systemPrompt}`);
+      
       const defaultPrompt = {
         systemPrompt: openaiService.getDefaultSystemPrompt(),
         userPrompt: openaiService.getDefaultUserPrompt(transcription, {
@@ -410,9 +424,15 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
 
     // Process file with OpenAI
     try {
+      console.log(`🔍 DEBUG: req.body.customPrompt = ${req.body.customPrompt}`);
+      console.log(`🔍 DEBUG: req.body.customPrompt type = ${typeof req.body.customPrompt}`);
+      console.log(`🔍 DEBUG: req.body.customPrompt length = ${req.body.customPrompt?.length}`);
+      
       const customPrompt = req.body.customPrompt
         ? { systemPrompt: req.body.customPrompt, userPrompt: null }
         : null;
+
+      console.log(`🔍 DEBUG: customPrompt object created = ${JSON.stringify(customPrompt)}`);
 
       // Validate custom prompt length
       if (customPrompt && customPrompt.systemPrompt.length > 10000) {
