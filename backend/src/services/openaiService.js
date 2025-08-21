@@ -426,95 +426,18 @@ Patient Summary:`;
         `💬 Processing chat message: ${userMessage.length} characters`
       );
 
-      // Check if user wants to generate a SOAP note
-      const soapNoteKeywords = [
-        "generate soap note",
-        "create soap note",
-        "make soap note",
-        "write soap note",
-        "produce soap note",
-        "soap note generation",
-        "generate note",
-        "create note",
-        "write note",
-        "generate notes",
-        "create notes",
-        "write notes",
-        "generate the notes",
-        "create the notes",
-        "write the notes",
-        "generate notes based",
-        "create notes based",
-        "write notes based",
-        "generate the notes based",
-        "create the notes based",
-        "write the notes based",
-        "generate soap",
-        "create soap",
-        "write soap",
-        "generate dental note",
-        "create dental note",
-        "write dental note",
-        "generate dental notes",
-        "create dental notes",
-        "write dental notes",
-      ];
+      // Natural conversation understanding - no keyword detection needed
+      console.log(`💬 Processing natural conversation: "${userMessage}"`);
 
-      const wantsSoapNote = soapNoteKeywords.some((keyword) =>
-        userMessage.toLowerCase().includes(keyword)
-      );
-
-      // Also check if user is asking to generate notes based on transcription
-      const transcriptionBasedKeywords = [
-        "based on the transcription",
-        "based on transcription",
-        "from the transcription",
-        "from transcription",
-        "using the transcription",
-        "using transcription",
-        "with the transcription",
-        "with transcription",
-      ];
-
-      const wantsTranscriptionBasedNote = transcriptionBasedKeywords.some(
-        (keyword) => userMessage.toLowerCase().includes(keyword)
-      );
-
-      // Check if user is asking for patient summary specifically
-      const patientSummaryKeywords = [
-        "patient summary",
-        "patient summary",
-        "summary of patient",
-        "patient information",
-        "patient details",
-        "patient overview",
-        "give me patient summary",
-        "could you please give me patient summary",
-        "patient summary please",
-        "summary please",
-        "generate patient summary",
-        "create patient summary",
-        "make patient summary",
-        "write patient summary",
-        "produce patient summary",
-        "patient summary generation",
-        "generate summary",
-        "create summary",
-        "make summary",
-        "write summary",
-        "produce summary",
-        "summary generation",
-      ];
-
-      const wantsPatientSummary = patientSummaryKeywords.some((keyword) =>
-        userMessage.toLowerCase().includes(keyword)
-      );
-
-      // If user wants SOAP note and we have transcription context, use SOAP generation
+      // If user is asking for SOAP notes or patient summary and we have transcription context, use specialized generation
       if (
-        (wantsSoapNote || wantsTranscriptionBasedNote) &&
         noteContext &&
-        noteContext.transcription
+        noteContext.transcription &&
+        (userMessage.toLowerCase().includes("soap") || 
+         userMessage.toLowerCase().includes("note") || 
+         userMessage.toLowerCase().includes("summary") ||
+         userMessage.toLowerCase().includes("generate") ||
+         userMessage.toLowerCase().includes("create"))
       ) {
         console.log(
           `🔍 User requested SOAP note generation, switching to SOAP mode`
@@ -716,193 +639,22 @@ The notes have been generated using the same system as the upload functionality,
           `🔍 User requested patient summary, checking conversation history`
         );
 
-        // First, analyze the conversation to extract actual patient information
-        const userMessages = conversationHistory
-          .filter((msg) => msg.role === "user")
-          .map((msg) => msg.content)
-          .join("\n");
-
-        console.log(
-          `🔍 Analyzing conversation for patient information: ${userMessages.length} characters`
-        );
-
-        // Create a prompt to extract actual patient information from the conversation
-        const conversationAnalysisPrompt = `Analyze the following conversation and extract ONLY the actual patient information that was provided. Focus on:
-- Patient symptoms or complaints mentioned
-- Clinical findings that were stated
-- Test results that were given
-- Treatment information that was provided
-- Any specific medical/dental details mentioned
-
-IMPORTANT: Look for specific statements like "Periodontal status Normal", "Oral cancer screening WNL/negative", etc.
-DO NOT make assumptions or provide generic information. Only include what was explicitly stated.
-
-Conversation:
-${userMessages}
-
-Extract ONLY the actual patient information that was provided (not generic statements):`;
-
-        try {
-          const analysisResponse = await this.retryWithBackoff(
-            () =>
-              this.openai.chat.completions.create({
-                model: process.env.OPENAI_MODEL || "gpt-4o",
-                messages: [
-                  {
-                    role: "system",
-                    content:
-                      "You are a medical assistant that extracts ONLY the actual patient information provided in conversations. Look for specific clinical findings like 'Periodontal status Normal', 'Oral cancer screening WNL/negative', etc. Do not make assumptions or provide generic information. Only include what was explicitly stated.",
-                  },
-                  { role: "user", content: conversationAnalysisPrompt },
-                ],
-                max_tokens: 400,
-                temperature: 0.1,
-              }),
-            3,
-            "Conversation analysis for patient information"
-          );
-
-          const extractedInfo =
-            analysisResponse.choices[0]?.message?.content || "";
-          console.log(`🔍 Extracted patient information: ${extractedInfo}`);
-
-          // If we found actual patient information, use it
-          if (extractedInfo && extractedInfo.trim().length > 10) {
-            return `Based on the information provided in our conversation, here's the patient summary:
-
-**Patient Summary:**
-${extractedInfo}
-
-This summary is based on the actual information you provided during our conversation.`;
-          }
-        } catch (error) {
-          console.warn(`⚠️ Failed to analyze conversation: ${error.message}`);
-        }
-
-        // Look for recent SOAP note generation in conversation history
-        const recentAssistantMessages = conversationHistory
-          .filter((msg) => msg.role === "assistant")
-          .slice(-5); // Check last 5 assistant messages
-
-        for (const msg of recentAssistantMessages) {
-          if (
-            msg.content &&
-            msg.content.includes("SOAP Note:") &&
-            msg.content.includes("Patient Summary:")
-          ) {
-            // Extract just the patient summary part
-            const patientSummaryMatch = msg.content.match(
-              /\*\*Patient Summary:\*\*\s*([\s\S]*?)(?=\n\n|$|\*\*|<<)/
-            );
-            if (patientSummaryMatch) {
-              const patientSummary = patientSummaryMatch[1].trim();
-              return `Here's the patient summary from the recently generated notes:
-
-**Patient Summary:**
-${patientSummary}
-
-This summary was generated based on the transcription and our conversation.`;
-            }
-          }
-
-          // Also check for SOAP notes without the "Patient Summary:" header
-          if (
-            msg.content &&
-            (msg.content.includes("<<SOAP_NOTE>>") ||
-              msg.content.includes("**Subjective:") ||
-              msg.content.includes("**Objective:"))
-          ) {
-            // Extract the SOAP note content and create a patient summary from it
-            const soapNoteMatch = msg.content.match(
-              /<<SOAP_NOTE>>\s*([\s\S]*?)\s*<<\/SOAP_NOTE>>/
-            );
-
-            if (soapNoteMatch) {
-              const soapNoteContent = soapNoteMatch[1].trim();
-
-              // Create a patient summary from the SOAP note content
-              const summaryPrompt = `Based on the following SOAP note, create a concise patient summary that includes:
-- Patient's main concerns/complaints
-- Key clinical findings
-- Diagnosis/assessment
-- Treatment plan
-
-SOAP Note:
-${soapNoteContent}
-
-Patient Summary:`;
-
-              try {
-                const summaryResponse = await this.retryWithBackoff(
-                  () =>
-                    this.openai.chat.completions.create({
-                      model: process.env.OPENAI_MODEL || "gpt-4o",
-                      messages: [
-                        {
-                          role: "system",
-                          content:
-                            "You are a dental assistant that creates concise patient summaries from SOAP notes. Focus on the key clinical information and patient status.",
-                        },
-                        { role: "user", content: summaryPrompt },
-                      ],
-                      max_tokens: 300,
-                      temperature: 0.3,
-                    }),
-                  3,
-                  "Patient summary extraction"
-                );
-
-                const extractedSummary =
-                  summaryResponse.choices[0]?.message?.content || "";
-
-                return `Here's the patient summary extracted from the SOAP note:
-
-**Patient Summary:**
-${extractedSummary}
-
-This summary was generated from the SOAP note in our conversation.`;
-              } catch (error) {
-                console.warn(
-                  `⚠️ Failed to extract patient summary: ${error.message}`
-                );
-              }
-            }
-          }
-        }
-
-        // If no recent SOAP note found, generate one
-        if (noteContext && noteContext.transcription) {
-          console.log(
-            `🔍 No recent SOAP note found, generating new one for patient summary`
-          );
-          // This will trigger the SOAP generation logic above
-          return this.generateChatResponse(
-            "generate notes based on transcription",
-            noteContext,
-            conversationHistory
-          );
-        }
+        // Natural conversation - let the AI understand what the user wants naturally
+        console.log(`🔍 Using natural conversation understanding`);
       }
 
-      // Build system message with note context for regular chat
-      let systemContent = `You are a dental AI assistant helping to improve dental SOAP notes and answer questions about dental procedures.
+      // Build system message with note context for natural conversation
+      let systemContent = `You are a dental AI assistant that helps with dental consultations, SOAP notes, and patient care.
 
-Your role:
-- Provide helpful suggestions for SOAP note improvement
-- Clarify dental terminology and concepts
-- Suggest additions for missing information
-- Ensure compliance with dental documentation standards
-- Answer questions about dental procedures, materials, and techniques
-- Help refine and enhance dental SOAP notes
-- Follow dental-specific guidelines and best practices
+Your capabilities:
+- Generate SOAP notes from consultation transcriptions
+- Create patient summaries
+- Answer questions about dental procedures and terminology
+- Help improve dental documentation
+- Provide dental care guidance
+- Analyze dental consultation data
 
-IMPORTANT: If the user asks you to generate a SOAP note and you have access to transcription data, you can generate a complete SOAP note using the proper format.
-
-SOAP NOTE GENERATION:
-- When user asks to "generate notes based on transcription" or similar, use the SOAP note generation system
-- Include all available context from the conversation history
-- Generate complete SOAP notes with proper META JSON and structured format
-- Do not ask for clarification if sufficient information is available from chat context`;
+You work naturally like ChatGPT - understand user intent from conversation context and respond appropriately. If the user asks for SOAP notes, patient summaries, or any dental documentation, generate them using the available transcription data and conversation context.`;
 
       // Add note context if available
       if (noteContext && Object.keys(noteContext).length > 0) {
