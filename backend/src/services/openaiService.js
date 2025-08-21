@@ -448,7 +448,7 @@ Patient Summary:`;
           `🔍 User requested SOAP note generation, switching to SOAP mode`
         );
         console.log(
-          `🔍 Keywords detected: wantsSoapNote=${wantsSoapNote}, wantsTranscriptionBasedNote=${wantsTranscriptionBasedNote}`
+          `🔍 SOAP note generation mode activated`
         );
 
         // First, summarize the conversation to extract additional medical information
