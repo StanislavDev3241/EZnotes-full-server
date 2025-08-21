@@ -411,6 +411,25 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
       if (response.ok) {
         const noteData = await response.json();
 
+        // Parse the note content to extract SOAP note and patient summary
+        let parsedNotes = { soapNote: "", patientSummary: "" };
+        try {
+          if (noteData.content) {
+            const contentObj = JSON.parse(noteData.content);
+            parsedNotes = {
+              soapNote: contentObj.soapNote || noteData.content,
+              patientSummary: contentObj.patientSummary || noteData.content,
+            };
+          }
+        } catch (parseError) {
+          console.warn("Failed to parse note content as JSON, using as string:", parseError);
+          // Fallback: use the content as both SOAP note and patient summary
+          parsedNotes = {
+            soapNote: noteData.content || "",
+            patientSummary: noteData.content || "",
+          };
+        }
+
         // Create a note context object that matches our UploadResult interface
         const noteContext = {
           fileId: noteData.file_id?.toString() || "",
@@ -418,13 +437,11 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
           conversationId: currentConversationId || "",
           fileName: `Note ${noteData.id}`,
           status: "completed",
-          transcription: noteData.content || "",
-          notes: {
-            soapNote: noteData.content || "",
-            patientSummary: noteData.content || "",
-          },
+          transcription: noteData.transcription || "",
+          notes: parsedNotes,
         };
 
+        console.log("Loaded note context:", noteContext);
         setCurrentNote(noteContext);
       }
     } catch (error) {
@@ -642,30 +659,51 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                   {messages.length === 0 ? (
                     <div className="text-center text-gray-500 mt-20 max-w-2xl mx-auto">
                       <div className="mb-6">
-                        <svg className="h-16 w-16 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        <svg
+                          className="h-16 w-16 mx-auto text-gray-300"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                          />
                         </svg>
                       </div>
-                      <h3 className="text-xl font-medium mb-2">Start a conversation</h3>
+                      <h3 className="text-xl font-medium mb-2">
+                        Start a conversation
+                      </h3>
                       <p className="text-gray-600 mb-6">
-                        Upload a file or start recording to begin chatting with AI
+                        Upload a file or start recording to begin chatting with
+                        AI
                       </p>
-                      
+
                       {/* Quick Action Buttons */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-lg mx-auto">
                         <button
                           onClick={() => setInputMessage("Generate SOAP note")}
                           className="p-4 text-left bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors"
                         >
-                          <div className="font-medium mb-1">Generate SOAP Note</div>
-                          <div className="text-sm text-blue-600">Create complete SOAP notes</div>
+                          <div className="font-medium mb-1">
+                            Generate SOAP Note
+                          </div>
+                          <div className="text-sm text-blue-600">
+                            Create complete SOAP notes
+                          </div>
                         </button>
                         <button
-                          onClick={() => setInputMessage("Help me improve my SOAP note")}
+                          onClick={() =>
+                            setInputMessage("Help me improve my SOAP note")
+                          }
                           className="p-4 text-left bg-green-50 text-green-700 rounded-lg hover:bg-green-100 border border-green-200 transition-colors"
                         >
                           <div className="font-medium mb-1">Improve Notes</div>
-                          <div className="text-sm text-green-600">Get enhancement suggestions</div>
+                          <div className="text-sm text-green-600">
+                            Get enhancement suggestions
+                          </div>
                         </button>
                       </div>
                     </div>
@@ -688,10 +726,18 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                         <div className="flex items-center space-x-2">
                           <div className="flex space-x-1">
                             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                            <div
+                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                              style={{ animationDelay: "0.1s" }}
+                            ></div>
+                            <div
+                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                              style={{ animationDelay: "0.2s" }}
+                            ></div>
                           </div>
-                          <span className="text-sm text-gray-600">AI is thinking...</span>
+                          <span className="text-sm text-gray-600">
+                            AI is thinking...
+                          </span>
                         </div>
                       </div>
                     </div>

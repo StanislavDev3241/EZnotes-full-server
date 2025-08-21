@@ -163,10 +163,61 @@ router.post("/", authenticateToken, async (req, res) => {
           : msg.ai_response || msg.message_text,
     }));
 
-    // Generate AI response
+    // Enhanced note context: Fetch actual note content if noteId is provided
+    let enhancedNoteContext = noteContext;
+    if (noteContext && noteContext.noteId) {
+      try {
+        console.log(`🔍 Fetching note content for noteId: ${noteContext.noteId}`);
+        
+        // Fetch the actual note content from the database
+        const noteResult = await pool.query(
+          `SELECT n.content, n.note_type, f.file_name, f.transcription
+           FROM notes n
+           LEFT JOIN files f ON n.file_id = f.id
+           WHERE n.id = $1 AND n.user_id = $2`,
+          [noteContext.noteId, userId]
+        );
+
+        if (noteResult.rows.length > 0) {
+          const noteData = noteResult.rows[0];
+          console.log(`✅ Found note content: ${noteData.content.length} characters`);
+          
+          // Parse the note content
+          let parsedNotes = {};
+          try {
+            parsedNotes = JSON.parse(noteData.content);
+          } catch (parseError) {
+            console.warn(`⚠️ Failed to parse note content as JSON: ${parseError.message}`);
+            // Fallback: treat as string
+            parsedNotes = { soapNote: noteData.content, patientSummary: noteData.content };
+          }
+
+          // Enhance the note context with actual content
+          enhancedNoteContext = {
+            ...noteContext,
+            notes: parsedNotes,
+            transcription: noteData.transcription,
+            fileName: noteData.file_name,
+            noteType: noteData.note_type,
+            status: "completed"
+          };
+
+          console.log(`🔍 Enhanced note context with actual content`);
+          console.log(`🔍 SOAP Note length: ${parsedNotes.soapNote?.length || 0} characters`);
+          console.log(`🔍 Patient Summary length: ${parsedNotes.patientSummary?.length || 0} characters`);
+        } else {
+          console.warn(`⚠️ No note found for noteId: ${noteContext.noteId}`);
+        }
+      } catch (error) {
+        console.error(`❌ Error fetching note content: ${error.message}`);
+        // Continue with original noteContext
+      }
+    }
+
+    // Generate AI response with enhanced note context
     const aiResponse = await openaiService.generateChatResponse(
       message,
-      noteContext,
+      enhancedNoteContext,
       formattedHistory
     );
 
