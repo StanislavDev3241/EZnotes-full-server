@@ -25,6 +25,21 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Client-side validation
+    if (!email.trim()) {
+      setError("Email is required");
+      return;
+    }
+    if (!password.trim()) {
+      setError("Password is required");
+      return;
+    }
+    if (!isLogin && !name.trim()) {
+      setError("Name is required");
+      return;
+    }
+    
     setLoading(true);
     setError("");
 
@@ -64,6 +79,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding }) => {
           <button
             onClick={onBackToLanding}
             className="absolute top-4 left-4 text-gray-500 hover:text-gray-700 transition-colors"
+            aria-label="Back to home page"
           >
             ← Back to Home
           </button>
@@ -71,80 +87,110 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding }) => {
             {isLogin ? "Welcome Back" : "Create Account"}
           </h1>
           <p className="text-gray-600">
-            {isLogin
-              ? "Sign in to your ClearlyAI account"
-              : "Join ClearlyAI for medical note generation"}
+            {isLogin ? "Sign in to your account" : "Create a new account"}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Error Display */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex">
+              <div className="text-red-600 text-sm">{error}</div>
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           {!isLogin && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                Full Name <span className="text-red-500">*</span>
               </label>
               <input
+                id="name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter your full name"
-                required={!isLogin}
+                required
+                aria-describedby={!isLogin && !name.trim() ? "name-error" : undefined}
               />
+              {!isLogin && !name.trim() && (
+                <p id="name-error" className="mt-1 text-sm text-red-600">
+                  Name is required
+                </p>
+              )}
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              Email Address <span className="text-red-500">*</span>
             </label>
             <input
+              id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Enter your email"
               required
+              aria-describedby={!email.trim() ? "email-error" : undefined}
             />
+            {!email.trim() && (
+              <p id="email-error" className="mt-1 text-sm text-red-600">
+                Email is required
+              </p>
+            )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              Password <span className="text-red-500">*</span>
             </label>
             <input
+              id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Enter your password"
               required
+              aria-describedby={!password.trim() ? "password-error" : undefined}
             />
+            {!password.trim() && (
+              <p id="password-error" className="mt-1 text-sm text-red-600">
+                Password is required
+              </p>
+            )}
           </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-describedby={loading ? "loading-text" : undefined}
           >
-            {loading ? "Processing..." : isLogin ? "Sign In" : "Create Account"}
+            {loading ? (
+              <span id="loading-text" className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                {isLogin ? "Signing in..." : "Creating account..."}
+              </span>
+            ) : (
+              isLogin ? "Sign In" : "Create Account"
+            )}
           </button>
         </form>
 
         <div className="mt-6 text-center">
           <button
+            type="button"
             onClick={() => setIsLogin(!isLogin)}
-            className="text-blue-600 hover:text-blue-700 text-sm"
+            className="text-blue-600 hover:text-blue-800 transition-colors"
+            aria-label={isLogin ? "Switch to create account" : "Switch to sign in"}
           >
-            {isLogin
-              ? "Don't have an account? Sign up"
-              : "Already have an account? Sign in"}
+            {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
           </button>
         </div>
       </div>

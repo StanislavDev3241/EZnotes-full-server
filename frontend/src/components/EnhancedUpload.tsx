@@ -7,6 +7,7 @@ import {
   FileAudio,
   CheckCircle,
   Loader2,
+  X,
 } from "lucide-react";
 
 interface UploadResult {
@@ -561,7 +562,9 @@ SIGNATURE PLACEHOLDER
       }
       // Cleanup media recorder
       if (mediaRecorderRef.current.stream) {
-        mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+        mediaRecorderRef.current.stream
+          .getTracks()
+          .forEach((track) => track.stop());
       }
       mediaRecorderRef.current = null;
     }
@@ -661,160 +664,191 @@ SIGNATURE PLACEHOLDER
       </div>
 
       {/* File Upload Section */}
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-          >
-            <Upload className="w-4 h-4" />
-            <span>Choose File</span>
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".txt,.mp3,.wav,.m4a,.aac"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-          <span className="text-sm text-gray-500">or drag and drop</span>
-        </div>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Upload Audio or Text File
+        </h3>
 
-        {/* Drag & Drop Area */}
-        <div
-          onDrop={handleFileDrop}
-          onDragOver={handleDragOver}
-          className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-            file || audioBlob
-              ? "border-green-300 bg-green-50"
-              : "border-gray-300 hover:border-gray-400"
-          }`}
-        >
-          {file || audioBlob ? (
-            <div className="space-y-2">
-              <CheckCircle className="w-8 h-8 text-green-500 mx-auto" />
-              <p className="text-sm text-gray-600">
-                {file ? file.name : `Recording (${formatTime(recordingTime)})`}
-              </p>
-              <button
-                onClick={removeFile}
-                className="text-red-600 hover:text-red-800 text-sm transition-colors"
-              >
-                Remove
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Upload className="w-8 h-8 text-gray-400 mx-auto" />
-              <p className="text-sm text-gray-600">
-                Drag and drop a file here, or click to browse
-              </p>
-              <p className="text-xs text-gray-500">
-                Supports: TXT, MP3, WAV, M4A, AAC
-              </p>
+        {/* File Input */}
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="btn-secondary flex items-center space-x-2"
+              aria-label="Select file to upload"
+            >
+              <Upload className="w-4 h-4" />
+              <span>Choose File</span>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileSelect}
+              accept="audio/*,.txt,.doc,.docx,.pdf"
+              className="hidden"
+              aria-describedby="file-help"
+            />
+            <p id="file-help" className="text-sm text-gray-600">
+              Supported formats: Audio files (MP3, WAV, M4A), Text files (TXT, DOC, DOCX, PDF)
+            </p>
+          </div>
+
+          {/* Selected File Display */}
+          {file && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <FileAudio className="w-5 h-5 text-green-600" />
+                  <div>
+                    <p className="font-medium text-green-800">{file.name}</p>
+                    <p className="text-sm text-green-600">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={removeFile}
+                  className="text-red-600 hover:text-red-800 transition-colors"
+                  aria-label="Remove selected file"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           )}
         </div>
-
-        {/* File Info Display */}
-        {file && (
-          <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-md">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <FileAudio className="w-4 h-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">
-                  {file.name}
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="text-sm text-gray-600">
-                  {Math.round(file.size / 1024 / 1024)}MB
-                </span>
-                {file.size > LARGE_FILE_THRESHOLD && (
-                  <div className="text-xs text-blue-600 font-medium">
-                    Will use chunked upload
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Audio Recording Info */}
-        {audioBlob && (
-          <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-md">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Mic className="w-4 h-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">
-                  Audio Recording
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="text-sm text-gray-600">
-                  {Math.round(audioBlob.size / 1024 / 1024)}MB
-                </span>
-                {audioBlob.size > LARGE_FILE_THRESHOLD && (
-                  <div className="text-xs text-blue-600 font-medium">
-                    Will use chunked upload
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Audio Recording Section */}
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-          <button
-            onClick={isRecording ? stopRecording : startRecording}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
-              isRecording
-                ? "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500"
-                : "bg-green-600 text-white hover:bg-green-700 focus:ring-green-500"
-            }`}
-          >
-            {isRecording ? (
-              <>
-                <MicOff className="w-4 h-4" />
-                <span>Stop Recording</span>
-              </>
-            ) : (
-              <>
-                <Mic className="w-4 h-4" />
-                <span>Start Recording</span>
-              </>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Record Audio
+        </h3>
+
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+            <button
+              type="button"
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={isUploading}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
+                isRecording
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+              aria-label={isRecording ? "Stop recording" : "Start recording"}
+              aria-describedby={isRecording ? "recording-status" : undefined}
+            >
+              {isRecording ? (
+                <>
+                  <MicOff className="w-4 h-4" />
+                  <span>Stop Recording</span>
+                </>
+              ) : (
+                <>
+                  <Mic className="w-4 h-4" />
+                  <span>Start Recording</span>
+                </>
+              )}
+            </button>
+            
+            {isRecording && (
+              <div id="recording-status" className="flex items-center space-x-2 text-red-600">
+                <div className="flex space-x-1">
+                  {[...Array(5)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="w-1 h-4 bg-red-500 rounded-full wave-bar"
+                    />
+                  ))}
+                </div>
+                <span className="text-sm font-medium">
+                  Recording... {formatTime(recordingTime)}
+                </span>
+              </div>
             )}
-          </button>
-          {isRecording && (
-            <span className="text-sm text-gray-600">
-              Recording: {formatTime(recordingTime)}
-            </span>
+          </div>
+
+          {/* Recording Info */}
+          {audioBlob && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Mic className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <p className="font-medium text-blue-800">Audio Recording</p>
+                    <p className="text-sm text-blue-600">
+                      Duration: {formatTime(recordingTime)} | 
+                      Size: {(audioBlob.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={removeFile}
+                  className="text-red-600 hover:text-red-800 transition-colors"
+                  aria-label="Remove audio recording"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
       {/* Upload Button */}
-      <button
-        onClick={handleUpload}
-        disabled={isUploading || (!file && !audioBlob)}
-        className={`w-full py-3 px-4 rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
-          isUploading || (!file && !audioBlob)
-            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-            : "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500"
-        }`}
-      >
-        {isUploading ? (
-          <div className="flex items-center justify-center space-x-2">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span>{uploadProgress.message}</span>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <button
+          type="button"
+          onClick={handleUpload}
+          disabled={isUploading || (!file && !audioBlob)}
+          className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-describedby={
+            isUploading 
+              ? "upload-progress" 
+              : !file && !audioBlob 
+                ? "upload-help" 
+                : undefined
+          }
+        >
+          {isUploading ? (
+            <span className="flex items-center justify-center">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Processing...
+            </span>
+          ) : (
+            "Generate Medical Notes"
+          )}
+        </button>
+        
+        {isUploading && (
+          <div id="upload-progress" className="mt-4">
+            <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+              <span>{uploadProgress.message}</span>
+              <span>{uploadProgress.percentage}%</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${uploadProgress.percentage}%` }}
+                role="progressbar"
+                aria-valuenow={uploadProgress.percentage}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              />
+            </div>
           </div>
-        ) : (
-          "Process with AI"
         )}
-      </button>
+        
+        {!file && !audioBlob && (
+          <p id="upload-help" className="mt-2 text-sm text-gray-500 text-center">
+            Please select a file or record audio to generate medical notes
+          </p>
+        )}
+      </div>
 
       {/* Progress Display */}
       {uploadProgress.stage && (
