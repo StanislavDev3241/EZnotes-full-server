@@ -638,7 +638,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                           onClick={() => setShowFullNotes(!showFullNotes)}
                           className="text-blue-600 hover:text-blue-800 text-sm self-start sm:self-auto"
                         >
-                          {showFullNotes ? "Hide Full Notes" : "View Full Notes"}
+                          {showFullNotes
+                            ? "Hide Full Notes"
+                            : "View Full Notes"}
                         </button>
                         <button
                           onClick={() => setCurrentNote(null)}
@@ -662,47 +664,66 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                           {currentNote.transcription.substring(0, 100)}...
                         </p>
                       )}
-                      
+
                       {/* Show SOAP Note and Patient Summary */}
                       {currentNote.notes && currentNote.notes.soapNote && (
                         <div className="mt-3 p-3 bg-white rounded border border-blue-300">
-                          <h4 className="font-semibold text-blue-900 mb-2">SOAP Note:</h4>
+                          <h4 className="font-semibold text-blue-900 mb-2">
+                            SOAP Note:
+                          </h4>
                           <div className="text-xs text-blue-800 max-h-32 overflow-y-auto">
                             {currentNote.notes.soapNote.substring(0, 300)}
                             {currentNote.notes.soapNote.length > 300 && "..."}
                           </div>
                         </div>
                       )}
-                      
-                      {currentNote.notes && currentNote.notes.patientSummary && (
-                        <div className="mt-2 p-3 bg-white rounded border border-green-300">
-                          <h4 className="font-semibold text-green-900 mb-2">Patient Summary:</h4>
-                          <div className="text-xs text-green-800 max-h-24 overflow-y-auto">
-                            {currentNote.notes.patientSummary.substring(0, 200)}
-                            {currentNote.notes.patientSummary.length > 200 && "..."}
+
+                      {currentNote.notes &&
+                        currentNote.notes.patientSummary && (
+                          <div className="mt-2 p-3 bg-white rounded border border-green-300">
+                            <h4 className="font-semibold text-green-900 mb-2">
+                              Patient Summary:
+                            </h4>
+                            <div className="text-xs text-green-800 max-h-24 overflow-y-auto">
+                              {currentNote.notes.patientSummary.substring(
+                                0,
+                                200
+                              )}
+                              {currentNote.notes.patientSummary.length > 200 &&
+                                "..."}
+                            </div>
                           </div>
-                        </div>
-                      )}
-                      
+                        )}
+
                       {/* Full Notes Display */}
                       {showFullNotes && currentNote.notes && (
                         <div className="mt-3 p-4 bg-white rounded border border-gray-300">
-                          <h4 className="font-semibold text-gray-900 mb-3">Complete Notes:</h4>
-                          
+                          <h4 className="font-semibold text-gray-900 mb-3">
+                            Complete Notes:
+                          </h4>
+
                           {currentNote.notes.soapNote && (
                             <div className="mb-4">
-                              <h5 className="font-medium text-blue-900 mb-2">Full SOAP Note:</h5>
+                              <h5 className="font-medium text-blue-900 mb-2">
+                                Full SOAP Note:
+                              </h5>
                               <div className="text-xs text-gray-800 max-h-64 overflow-y-auto p-3 bg-gray-50 rounded border">
-                                <pre className="whitespace-pre-wrap">{currentNote.notes.soapNote}</pre>
+                                <pre className="whitespace-pre-wrap">
+                                  {currentNote.notes.soapNote}
+                                </pre>
                               </div>
                             </div>
                           )}
-                          
+
                           {currentNote.notes.patientSummary && (
                             <div>
-                              <h5 className="font-medium text-green-900 mb-2">Full Patient Summary:</h5>
+                              <h5 className="font-medium text-green-900 mb-2">
+                                Full Patient Summary:
+                              </h5>
                               <div className="text-xs text-gray-800 max-h-32 overflow-y-auto p-3 bg-gray-50 rounded border">
-                                <pre className="whitespace-pre-wrap">{currentNote.notes.patientSummary}</pre>
+                                <pre className="whitespace-pre-wrap">
+                                  {currentNote.notes.patientSummary}
+                                </pre>
                               </div>
                             </div>
                           )}
