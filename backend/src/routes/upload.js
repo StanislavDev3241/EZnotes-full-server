@@ -410,13 +410,20 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
     // Process file with OpenAI
     try {
       const customPrompt = req.body.customPrompt
-        ? { systemPrompt: req.body.customPrompt, userPrompt: "" }
+        ? { systemPrompt: req.body.customPrompt, userPrompt: null }
         : null;
 
       console.log(`🔍 Custom prompt received:`, customPrompt ? "Yes" : "No");
       if (customPrompt) {
-        console.log(`🔍 Custom prompt length: ${customPrompt.systemPrompt.length} characters`);
-        console.log(`🔍 Custom prompt preview: ${customPrompt.systemPrompt.substring(0, 100)}...`);
+        console.log(
+          `🔍 Custom prompt length: ${customPrompt.systemPrompt.length} characters`
+        );
+        console.log(
+          `🔍 Custom prompt preview: ${customPrompt.systemPrompt.substring(
+            0,
+            100
+          )}...`
+        );
       }
 
       console.log(
@@ -988,13 +995,20 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       }
 
       const customPromptObj = customPrompt
-        ? { systemPrompt: customPrompt, userPrompt: "" }
+        ? { systemPrompt: customPrompt, userPrompt: null }
         : null;
 
       console.log(`🔍 Custom prompt received:`, customPromptObj ? "Yes" : "No");
       if (customPromptObj) {
-        console.log(`🔍 Custom prompt length: ${customPromptObj.systemPrompt.length} characters`);
-        console.log(`🔍 Custom prompt preview: ${customPromptObj.systemPrompt.substring(0, 100)}...`);
+        console.log(
+          `🔍 Custom prompt length: ${customPromptObj.systemPrompt.length} characters`
+        );
+        console.log(
+          `🔍 Custom prompt preview: ${customPromptObj.systemPrompt.substring(
+            0,
+            100
+          )}...`
+        );
       }
 
       console.log(`🚀 Calling processFileWithOpenAI...`);

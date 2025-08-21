@@ -283,23 +283,47 @@ class OpenAIService {
         throw new Error("Transcription too short or empty for note generation");
       }
 
-      console.log(`🔍 Custom prompt object:`, customPrompt ? "Provided" : "Not provided");
+      console.log(
+        `🔍 Custom prompt object:`,
+        customPrompt ? "Provided" : "Not provided"
+      );
       if (customPrompt) {
-        console.log(`🔍 Custom prompt systemPrompt: ${customPrompt.systemPrompt ? "Yes" : "No"}`);
-        console.log(`🔍 Custom prompt userPrompt: ${customPrompt.userPrompt ? "Yes" : "No"}`);
-        console.log(`🔍 System prompt length: ${customPrompt.systemPrompt?.length || 0} characters`);
+        console.log(
+          `🔍 Custom prompt systemPrompt: ${
+            customPrompt.systemPrompt ? "Yes" : "No"
+          }`
+        );
+        console.log(
+          `🔍 Custom prompt userPrompt: ${
+            customPrompt.userPrompt ? "Yes" : "No"
+          }`
+        );
+        console.log(
+          `🔍 System prompt length: ${
+            customPrompt.systemPrompt?.length || 0
+          } characters`
+        );
       }
 
       const systemPrompt =
         customPrompt?.systemPrompt || this.getDefaultSystemPrompt();
-      const userPrompt =
-        customPrompt?.userPrompt ||
+      
+      // Always include transcription in user prompt, even with custom system prompt
+      const userPrompt = customPrompt?.userPrompt || 
         this.getDefaultUserPrompt(transcription, context);
 
-      console.log(`🔍 Final system prompt length: ${systemPrompt.length} characters`);
-      console.log(`🔍 Final user prompt length: ${userPrompt.length} characters`);
-      console.log(`🔍 System prompt preview: ${systemPrompt.substring(0, 100)}...`);
+      console.log(
+        `🔍 Final system prompt length: ${systemPrompt.length} characters`
+      );
+      console.log(
+        `🔍 Final user prompt length: ${userPrompt.length} characters`
+      );
+      console.log(
+        `🔍 System prompt preview: ${systemPrompt.substring(0, 100)}...`
+      );
       console.log(`🔍 User prompt preview: ${userPrompt.substring(0, 100)}...`);
+      console.log(`🔍 Transcription length: ${transcription.length} characters`);
+      console.log(`🔍 Transcription preview: ${transcription.substring(0, 200)}...`);
 
       const completion = await this.retryWithBackoff(
         () =>
@@ -310,7 +334,8 @@ class OpenAIService {
               { role: "user", content: userPrompt },
             ],
             max_tokens: parseInt(process.env.CHAT_MAX_TOKENS) || 2000,
-            temperature: parseFloat(process.env.CHAT_TEMPERATURE) || 0.3,
+            temperature: parseFloat(process.env.CHAT_TEMPERATURE) || 0.7,
+            seed: Math.floor(Math.random() * 1000000), // Add randomness to prevent caching
           }),
         3,
         "Note generation"
