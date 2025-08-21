@@ -197,11 +197,13 @@ function AppContent() {
 
 function App() {
   return (
-    <ErrorBoundary>
-      <div className="min-h-screen">
-        <AppContent />
-      </div>
-    </ErrorBoundary>
+    <Router>
+      <ErrorBoundary>
+        <div className="min-h-screen">
+          <AppContent />
+        </div>
+      </ErrorBoundary>
+    </Router>
   );
 }
 
