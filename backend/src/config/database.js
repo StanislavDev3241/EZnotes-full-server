@@ -8,7 +8,7 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD || "clearly_postgres",
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000, // Increased from 2000ms to 10000ms
 });
 
 // Test database connection

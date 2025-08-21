@@ -19,7 +19,20 @@ class ChatService {
 
       ws.on("message", async (message) => {
         try {
-          const data = JSON.parse(message);
+          let data;
+          try {
+            data = JSON.parse(message);
+          } catch (parseError) {
+            console.error("❌ Invalid JSON in WebSocket message:", parseError);
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                error: "Invalid message format",
+              })
+            );
+            return;
+          }
+          
           console.log(`📨 Received message type: ${data.type}`);
 
           switch (data.type) {

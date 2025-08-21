@@ -413,6 +413,14 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
         ? { systemPrompt: req.body.customPrompt, userPrompt: null }
         : null;
 
+      // Validate custom prompt length
+      if (customPrompt && customPrompt.systemPrompt.length > 10000) {
+        return res.status(400).json({
+          error: "Custom prompt too long",
+          message: "Custom prompt must be less than 10,000 characters"
+        });
+      }
+
       console.log(`🔍 Custom prompt received:`, customPrompt ? "Yes" : "No");
       if (customPrompt) {
         console.log(
@@ -997,6 +1005,14 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       const customPromptObj = customPrompt
         ? { systemPrompt: customPrompt, userPrompt: null }
         : null;
+
+      // Validate custom prompt length
+      if (customPromptObj && customPromptObj.systemPrompt.length > 10000) {
+        return res.status(400).json({
+          error: "Custom prompt too long",
+          message: "Custom prompt must be less than 10,000 characters"
+        });
+      }
 
       console.log(`🔍 Custom prompt received:`, customPromptObj ? "Yes" : "No");
       if (customPromptObj) {
