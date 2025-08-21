@@ -380,36 +380,121 @@ class OpenAIService {
         "generate note",
         "create note",
         "write note",
+        "generate notes",
+        "create notes",
+        "write notes",
+        "generate the notes",
+        "create the notes",
+        "write the notes",
+        "generate notes based",
+        "create notes based",
+        "write notes based",
+        "generate the notes based",
+        "create the notes based",
+        "write the notes based",
+        "generate soap",
+        "create soap",
+        "write soap",
+        "generate dental note",
+        "create dental note",
+        "write dental note",
+        "generate dental notes",
+        "create dental notes",
+        "write dental notes"
       ];
 
       const wantsSoapNote = soapNoteKeywords.some((keyword) =>
         userMessage.toLowerCase().includes(keyword)
       );
 
+      // Also check if user is asking to generate notes based on transcription
+      const transcriptionBasedKeywords = [
+        "based on the transcription",
+        "based on transcription",
+        "from the transcription",
+        "from transcription",
+        "using the transcription",
+        "using transcription",
+        "with the transcription",
+        "with transcription"
+      ];
+
+      const wantsTranscriptionBasedNote = transcriptionBasedKeywords.some((keyword) =>
+        userMessage.toLowerCase().includes(keyword)
+      );
+
       // If user wants SOAP note and we have transcription context, use SOAP generation
-      if (wantsSoapNote && noteContext && noteContext.transcription) {
+      if ((wantsSoapNote || wantsTranscriptionBasedNote) && noteContext && noteContext.transcription) {
         console.log(
           `🔍 User requested SOAP note generation, switching to SOAP mode`
         );
+        console.log(`🔍 Keywords detected: wantsSoapNote=${wantsSoapNote}, wantsTranscriptionBasedNote=${wantsTranscriptionBasedNote}`);
 
-        // Use the SOAP note generation system prompt
-        const systemPrompt = this.getDefaultSystemPrompt();
-
-        // Create user prompt with transcription
-        const userPrompt = this.getDefaultUserPrompt(
-          noteContext.transcription,
-          noteContext
-        );
-
-        // Add any additional context from chat history
-        let enhancedUserPrompt = userPrompt;
+        // First, summarize the conversation to extract additional medical information
+        let conversationSummary = "";
         if (conversationHistory && conversationHistory.length > 0) {
-          const chatContext = conversationHistory
+          const userMessages = conversationHistory
             .filter((msg) => msg.role === "user")
             .map((msg) => msg.content)
             .join("\n");
-          enhancedUserPrompt += `\n\nAdditional context from our conversation:\n${chatContext}`;
+          
+          console.log(`🔍 Summarizing conversation: ${userMessages.length} characters`);
+          
+          // Create a summary prompt to extract medical information
+          const summaryPrompt = `Please summarize the following conversation and extract ONLY the medical/dental information that would be relevant for a SOAP note. Focus on:
+- Patient symptoms or complaints
+- Clinical findings
+- Test results
+- Treatment information
+- Recommendations
+
+Conversation:
+${userMessages}
+
+Summary of medical information:`;
+
+          try {
+            const summaryResponse = await this.retryWithBackoff(
+              () =>
+                this.openai.chat.completions.create({
+                  model: process.env.OPENAI_MODEL || "gpt-4o",
+                  messages: [
+                    { 
+                      role: "system", 
+                      content: "You are a medical assistant that extracts relevant medical information from conversations. Be concise and focus only on medical/dental details." 
+                    },
+                    { role: "user", content: summaryPrompt },
+                  ],
+                  max_tokens: 500,
+                  temperature: 0.3,
+                }),
+              3,
+              "Conversation summarization"
+            );
+
+            conversationSummary = summaryResponse.choices[0]?.message?.content || "";
+            console.log(`🔍 Conversation summary: ${conversationSummary}`);
+          } catch (error) {
+            console.warn(`⚠️ Failed to summarize conversation: ${error.message}`);
+            // Fallback: use raw conversation
+            conversationSummary = userMessages;
+          }
         }
+
+        // Combine original transcription with conversation summary
+        const enhancedTranscription = conversationSummary 
+          ? `${noteContext.transcription}\n\nAdditional information from conversation:\n${conversationSummary}`
+          : noteContext.transcription;
+
+        console.log(`🔍 Enhanced transcription length: ${enhancedTranscription.length} characters`);
+
+        // Use the SAME system prompt as the upload system
+        const systemPrompt = this.getDefaultSystemPrompt();
+
+        // Create user prompt with enhanced transcription
+        const userPrompt = this.getDefaultUserPrompt(enhancedTranscription, noteContext);
+
+        console.log(`🔍 Final user prompt length: ${userPrompt.length} characters`);
 
         const completion = await this.retryWithBackoff(
           () =>
@@ -417,7 +502,7 @@ class OpenAIService {
               model: process.env.OPENAI_MODEL || "gpt-4o",
               messages: [
                 { role: "system", content: systemPrompt },
-                { role: "user", content: enhancedUserPrompt },
+                { role: "user", content: userPrompt },
               ],
               max_tokens: parseInt(process.env.CHAT_MAX_TOKENS) || 2000,
               temperature: parseFloat(process.env.CHAT_TEMPERATURE) || 0.7,
@@ -432,6 +517,7 @@ class OpenAIService {
           throw new Error("No response received from OpenAI");
         }
 
+        console.log(`✅ SOAP note generated via chat: ${response.length} characters`);
         return response;
       }
 
@@ -447,7 +533,13 @@ Your role:
 - Help refine and enhance dental SOAP notes
 - Follow dental-specific guidelines and best practices
 
-IMPORTANT: If the user asks you to generate a SOAP note and you have access to transcription data, you can generate a complete SOAP note using the proper format.`;
+IMPORTANT: If the user asks you to generate a SOAP note and you have access to transcription data, you can generate a complete SOAP note using the proper format.
+
+SOAP NOTE GENERATION:
+- When user asks to "generate notes based on transcription" or similar, use the SOAP note generation system
+- Include all available context from the conversation history
+- Generate complete SOAP notes with proper META JSON and structured format
+- Do not ask for clarification if sufficient information is available from chat context`;
 
       // Add note context if available
       if (noteContext && Object.keys(noteContext).length > 0) {
