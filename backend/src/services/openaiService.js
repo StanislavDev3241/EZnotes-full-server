@@ -355,7 +355,64 @@ class OpenAIService {
       console.log(
         `✅ Notes generated successfully: ${response.length} characters`
       );
-      return response;
+
+      // Extract patient summary from the SOAP note
+      let patientSummary = "";
+      try {
+        // Try to extract SOAP note content first
+        const soapNoteMatch = response.match(
+          /<<SOAP_NOTE>>\s*([\s\S]*?)\s*<<\/SOAP_NOTE>>/
+        );
+        
+        let soapNoteContent = response;
+        if (soapNoteMatch) {
+          soapNoteContent = soapNoteMatch[1].trim();
+        }
+
+        // Create a patient summary from the SOAP note content
+        const summaryPrompt = `Based on the following SOAP note, create a concise patient summary that includes:
+- Patient's main concerns/complaints
+- Key clinical findings
+- Diagnosis/assessment
+- Treatment plan
+
+SOAP Note:
+${soapNoteContent}
+
+Patient Summary:`;
+
+        const summaryResponse = await this.retryWithBackoff(
+          () =>
+            this.openai.chat.completions.create({
+              model: process.env.OPENAI_MODEL || "gpt-4o",
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "You are a dental assistant that creates concise patient summaries from SOAP notes. Focus on the key clinical information and patient status.",
+                },
+                { role: "user", content: summaryPrompt },
+              ],
+              max_tokens: 300,
+              temperature: 0.3,
+            }),
+          3,
+          "Patient summary extraction from SOAP"
+        );
+
+        patientSummary = summaryResponse.choices[0]?.message?.content || "";
+        console.log(`✅ Patient summary extracted: ${patientSummary.length} characters`);
+      } catch (error) {
+        console.warn(`⚠️ Failed to extract patient summary from SOAP note: ${error.message}`);
+        // Fallback: use a simple extraction
+        patientSummary = "Patient summary could not be generated automatically. Please review the SOAP note for patient details.";
+      }
+
+      // Return both SOAP note and patient summary
+      return {
+        soapNote: response,
+        patientSummary: patientSummary,
+      };
     } catch (error) {
       console.error("❌ GPT API error:", error);
       throw new Error(`Note generation failed: ${error.message}`);
@@ -653,7 +710,9 @@ The notes have been generated using the same system as the upload functionality,
           .map((msg) => msg.content)
           .join("\n");
 
-        console.log(`🔍 Analyzing conversation for patient information: ${userMessages.length} characters`);
+        console.log(
+          `🔍 Analyzing conversation for patient information: ${userMessages.length} characters`
+        );
 
         // Create a prompt to extract actual patient information from the conversation
         const conversationAnalysisPrompt = `Analyze the following conversation and extract ONLY the actual patient information that was provided. Focus on:
@@ -662,6 +721,9 @@ The notes have been generated using the same system as the upload functionality,
 - Test results that were given
 - Treatment information that was provided
 - Any specific medical/dental details mentioned
+
+IMPORTANT: Look for specific statements like "Periodontal status Normal", "Oral cancer screening WNL/negative", etc.
+DO NOT make assumptions or provide generic information. Only include what was explicitly stated.
 
 Conversation:
 ${userMessages}
@@ -677,7 +739,7 @@ Extract ONLY the actual patient information that was provided (not generic state
                   {
                     role: "system",
                     content:
-                      "You are a medical assistant that extracts ONLY the actual patient information provided in conversations. Do not make assumptions or provide generic information. Only include what was explicitly stated.",
+                      "You are a medical assistant that extracts ONLY the actual patient information provided in conversations. Look for specific clinical findings like 'Periodontal status Normal', 'Oral cancer screening WNL/negative', etc. Do not make assumptions or provide generic information. Only include what was explicitly stated.",
                   },
                   { role: "user", content: conversationAnalysisPrompt },
                 ],
@@ -688,7 +750,8 @@ Extract ONLY the actual patient information that was provided (not generic state
             "Conversation analysis for patient information"
           );
 
-          const extractedInfo = analysisResponse.choices[0]?.message?.content || "";
+          const extractedInfo =
+            analysisResponse.choices[0]?.message?.content || "";
           console.log(`🔍 Extracted patient information: ${extractedInfo}`);
 
           // If we found actual patient information, use it

@@ -211,7 +211,7 @@ const processFileWithOpenAI = async (
         `🔍 Custom prompt: ${customPrompt.systemPrompt.substring(0, 200)}...`
       );
       try {
-        const noteContent = await openaiService.generateNotes(
+        const noteResult = await openaiService.generateNotes(
           transcription,
           customPrompt,
           {
@@ -220,10 +220,18 @@ const processFileWithOpenAI = async (
           }
         );
 
-        notes = {
-          soapNote: noteContent,
-          patientSummary: noteContent, // You might want to generate separate patient summary
-        };
+        // Handle both old string format and new object format
+        if (typeof noteResult === 'string') {
+          notes = {
+            soapNote: noteResult,
+            patientSummary: noteResult, // Fallback for backward compatibility
+          };
+        } else {
+          notes = {
+            soapNote: noteResult.soapNote,
+            patientSummary: noteResult.patientSummary,
+          };
+        }
       } catch (noteError) {
         console.error(`❌ Note generation failed:`, noteError);
         throw new Error(
@@ -248,7 +256,7 @@ const processFileWithOpenAI = async (
       };
 
       try {
-        const noteContent = await openaiService.generateNotes(
+        const noteResult = await openaiService.generateNotes(
           transcription,
           defaultPrompt,
           {
@@ -256,10 +264,18 @@ const processFileWithOpenAI = async (
           }
         );
 
-        notes = {
-          soapNote: noteContent,
-          patientSummary: noteContent,
-        };
+        // Handle both old string format and new object format
+        if (typeof noteResult === 'string') {
+          notes = {
+            soapNote: noteResult,
+            patientSummary: noteResult, // Fallback for backward compatibility
+          };
+        } else {
+          notes = {
+            soapNote: noteResult.soapNote,
+            patientSummary: noteResult.patientSummary,
+          };
+        }
       } catch (noteError) {
         console.error(`❌ Default note generation failed:`, noteError);
         throw new Error(
