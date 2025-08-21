@@ -189,9 +189,10 @@ const processFileWithOpenAI = async (
 
     // Generate notes based on user type and custom prompt
     let notes;
-    if (userId && customPrompt) {
+    if (userId && customPrompt && customPrompt.systemPrompt) {
       // Registered user with custom prompt
       console.log(`👤 Using custom prompt for registered user`);
+      console.log(`🔍 Custom prompt: ${customPrompt.systemPrompt.substring(0, 200)}...`);
       try {
         const noteContent = await openaiService.generateNotes(
           transcription,
@@ -417,7 +418,7 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
       if (customPrompt && customPrompt.systemPrompt.length > 10000) {
         return res.status(400).json({
           error: "Custom prompt too long",
-          message: "Custom prompt must be less than 10,000 characters"
+          message: "Custom prompt must be less than 10,000 characters",
         });
       }
 
@@ -1010,7 +1011,7 @@ router.post("/finalize", optionalAuth, async (req, res) => {
       if (customPromptObj && customPromptObj.systemPrompt.length > 10000) {
         return res.status(400).json({
           error: "Custom prompt too long",
-          message: "Custom prompt must be less than 10,000 characters"
+          message: "Custom prompt must be less than 10,000 characters",
         });
       }
 

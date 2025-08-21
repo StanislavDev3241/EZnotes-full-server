@@ -307,7 +307,7 @@ class OpenAIService {
 
       const systemPrompt =
         customPrompt?.systemPrompt || this.getDefaultSystemPrompt();
-      
+
       // Always include transcription in user prompt, even with custom system prompt
       const userPrompt = customPrompt?.userPrompt || 
         this.getDefaultUserPrompt(transcription, context);
@@ -322,8 +322,12 @@ class OpenAIService {
         `🔍 System prompt preview: ${systemPrompt.substring(0, 100)}...`
       );
       console.log(`🔍 User prompt preview: ${userPrompt.substring(0, 100)}...`);
-      console.log(`🔍 Transcription length: ${transcription.length} characters`);
-      console.log(`🔍 Transcription preview: ${transcription.substring(0, 200)}...`);
+      console.log(
+        `🔍 Transcription length: ${transcription.length} characters`
+      );
+      console.log(
+        `🔍 Transcription preview: ${transcription.substring(0, 200)}...`
+      );
 
       const completion = await this.retryWithBackoff(
         () =>
@@ -380,22 +384,27 @@ Your role:
       if (noteContext && Object.keys(noteContext).length > 0) {
         systemContent += `\n\nCurrent note context:
 - File: ${noteContext.fileName || "Unknown"}
-- Custom Instructions: ${noteContext.customPrompt || "Default"}
-- Transcription: ${
-          noteContext.transcription
-            ? noteContext.transcription.substring(0, 500) + "..."
-            : "Not available"
+- Status: ${noteContext.status || "Unknown"}`;
+
+        // Add custom prompt if available
+        if (noteContext.customPrompt) {
+          systemContent += `\n- Custom Instructions: ${noteContext.customPrompt}`;
         }
-- SOAP Note: ${
-          noteContext.soapNote
-            ? noteContext.soapNote.substring(0, 500) + "..."
-            : "Not available"
+
+        // Add transcription if available
+        if (noteContext.transcription) {
+          systemContent += `\n- Transcription: ${noteContext.transcription.substring(0, 500)}...`;
         }
-- Patient Summary: ${
-          noteContext.patientSummary
-            ? noteContext.patientSummary.substring(0, 300) + "..."
-            : "Not available"
-        }`;
+
+        // Add SOAP note if available
+        if (noteContext.notes && noteContext.notes.soapNote) {
+          systemContent += `\n- SOAP Note: ${noteContext.notes.soapNote.substring(0, 500)}...`;
+        }
+
+        // Add patient summary if available
+        if (noteContext.notes && noteContext.notes.patientSummary) {
+          systemContent += `\n- Patient Summary: ${noteContext.notes.patientSummary.substring(0, 300)}...`;
+        }
       }
 
       const messages = [
@@ -594,8 +603,6 @@ END.`;
 
 Dental Transcript:
 ${transcription}
-
-Context: ${JSON.stringify(context)}
 
 Please follow the exact output format specified in the system prompt, including the META JSON block and structured SOAP note with proper headings.`;
   }
