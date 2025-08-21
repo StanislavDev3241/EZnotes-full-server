@@ -196,8 +196,8 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
       if (response.ok) {
         const result = await response.json();
         alert("Recording uploaded successfully! File ID: " + result.fileId);
-        // Navigate to results or chat
-        navigate("/chat");
+        // Navigate to app dashboard instead of non-existent /chat route
+        navigate("/app");
       } else {
         throw new Error("Upload failed");
       }
@@ -224,11 +224,11 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <button
-            onClick={() => navigate("/chat")}
+            onClick={() => navigate("/app")}
             className="flex items-center text-gray-600 hover:text-gray-800"
           >
             <ArrowLeft className="h-5 w-5 mr-2" />
-            Back to Chat
+            Back to Dashboard
           </button>
           <h1 className="text-3xl font-bold text-gray-900">Audio Recording</h1>
           <div className="w-20"></div> {/* Spacer for centering */}

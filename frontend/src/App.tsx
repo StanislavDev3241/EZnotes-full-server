@@ -78,11 +78,11 @@ function AppContent() {
           // For now, just clear it and show landing page
           localStorage.removeItem("adminToken");
           // Don't redirect here - let the user stay where they are
-          } else {
+        } else {
           // No tokens found, user can stay on current page
           // Only redirect if they're trying to access protected routes
-          }
-        } catch (error) {
+        }
+      } catch (error) {
         console.error("Initialization failed:", error);
       } finally {
         setIsLoading(false);
@@ -109,24 +109,24 @@ function AppContent() {
         // Only redirect if user is on landing/login page and should be in app
         if (location.pathname === "/" || location.pathname === "/login") {
           navigateTo("/app");
-          }
-        } else {
+        }
+      } else {
         // Token is invalid, clear it
         localStorage.removeItem("userToken");
         setUser(null);
 
         // Only redirect if user is on protected routes
-        if (location.pathname === "/app" || location.pathname === "/admin") {
+        if (location.pathname === "/app") {
           navigateTo("/");
         }
       }
-      } catch (error) {
+    } catch (error) {
       console.error("Token verification failed:", error);
       localStorage.removeItem("userToken");
       setUser(null);
 
       // Only redirect if user is on protected routes
-      if (location.pathname === "/app" || location.pathname === "/admin") {
+      if (location.pathname === "/app") {
         navigateTo("/");
       }
     }
@@ -161,17 +161,17 @@ function AppContent() {
   };
 
   if (isLoading) {
-  return (
+    return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading...</p>
-            </div>
-          </div>
+        </div>
+      </div>
     );
   }
 
-                                return (
+  return (
     <Routes>
       <Route
         path="/"
@@ -224,7 +224,7 @@ function App() {
       <Router>
         <AppContent />
       </Router>
-                          </div>
+    </div>
   );
 }
 
