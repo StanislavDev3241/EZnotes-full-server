@@ -425,6 +425,321 @@ Patient Summary:`;
   }
 
   // ✅ NEW: Method that chat routes actually call
+  async generateChatResponse(userMessage, noteContext, conversationHistory) {
+    try {
+      console.log(
+        `💬 Processing chat message: ${userMessage.length} characters`
+      );
+
+      // Natural conversation understanding - no keyword detection needed
+      console.log(`💬 Processing natural conversation: "${userMessage}"`);
+
+      // Natural conversation - always use natural understanding
+      if (noteContext && noteContext.transcription) {
+        console.log(
+          `🔍 Natural conversation with transcription context available`
+        );
+        console.log(`🔍 SOAP note generation mode activated`);
+
+        // First, summarize the conversation to extract additional medical information
+        let conversationSummary = "";
+        if (conversationHistory && conversationHistory.length > 0) {
+          const userMessages = conversationHistory
+            .filter((msg) => msg.role === "user")
+            .map((msg) => msg.content)
+            .join("\n");
+
+          console.log(
+            `🔍 Summarizing conversation: ${userMessages.length} characters`
+          );
+
+          // Create a summary prompt to extract medical information
+          const summaryPrompt = `Analyze the following conversation and extract ONLY the actual medical/dental information that was provided. Focus on:
+- Patient symptoms or complaints that were mentioned
+- Clinical findings that were stated
+- Test results that were given
+- Treatment information that was provided
+- Any specific medical/dental details mentioned
+
+DO NOT make assumptions or provide generic information. Only include what was explicitly stated.
+
+Conversation:
+${userMessages}
+
+Extract ONLY the actual medical/dental information that was provided:`;
+
+          try {
+            const summaryResponse = await this.retryWithBackoff(
+              () =>
+                this.openai.chat.completions.create({
+                  model: process.env.OPENAI_MODEL || "gpt-4o",
+                  messages: [
+                    {
+                      role: "system",
+                      content:
+                        "You are a medical assistant that extracts ONLY the actual medical information provided in conversations. Do not make assumptions or provide generic information. Only include what was explicitly stated.",
+                    },
+                    { role: "user", content: summaryPrompt },
+                  ],
+                  max_tokens: 500,
+                  temperature: 0.1,
+                }),
+              3,
+              "Conversation summarization"
+            );
+
+            conversationSummary =
+              summaryResponse.choices[0]?.message?.content || "";
+            console.log(`🔍 Conversation summary: ${conversationSummary}`);
+          } catch (error) {
+            console.warn(
+              `⚠️ Failed to summarize conversation: ${error.message}`
+            );
+            // Fallback: use raw conversation
+            conversationSummary = userMessages;
+          }
+        }
+
+        // Combine original transcription with conversation summary
+        const enhancedTranscription = conversationSummary
+          ? `${noteContext.transcription}\n\nAdditional information from conversation:\n${conversationSummary}`
+          : noteContext.transcription;
+
+        console.log(
+          `🔍 Enhanced transcription length: ${enhancedTranscription.length} characters`
+        );
+
+        // Use the SAME system prompt as the upload system
+        const systemPrompt = this.getDefaultSystemPrompt();
+
+        // Create user prompt with enhanced transcription
+        const userPrompt = this.getDefaultUserPrompt(
+          enhancedTranscription,
+          noteContext
+        );
+
+        console.log(
+          `🔍 Final user prompt length: ${userPrompt.length} characters`
+        );
+
+        const completion = await this.retryWithBackoff(
+          () =>
+            this.openai.chat.completions.create({
+              model: process.env.OPENAI_MODEL || "gpt-4o",
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt },
+              ],
+              max_tokens: parseInt(process.env.CHAT_MAX_TOKENS) || 2000,
+              temperature: parseFloat(process.env.CHAT_TEMPERATURE) || 0.7,
+              seed: Math.floor(Math.random() * 1000000),
+            }),
+          3,
+          "SOAP note generation via chat"
+        );
+
+        const response = completion.choices[0]?.message?.content;
+        if (!response) {
+          throw new Error("No response received from OpenAI");
+        }
+
+        console.log(
+          `✅ SOAP note generated via chat: ${response.length} characters`
+        );
+
+        // Extract patient summary from the SOAP note
+        let patientSummary = "";
+        try {
+          // Try to extract SOAP note content first
+          const soapNoteMatch = response.match(
+            /<<SOAP_NOTE>>\s*([\s\S]*?)\s*<<\/SOAP_NOTE>>/
+          );
+
+          let soapNoteContent = response;
+          if (soapNoteMatch) {
+            soapNoteContent = soapNoteMatch[1].trim();
+          }
+
+          // Create a patient summary from the SOAP note content
+          const summaryPrompt = `Based on the following SOAP note, create a concise patient summary that includes:
+- Patient's main concerns/complaints
+- Key clinical findings
+- Diagnosis/assessment
+- Treatment plan
+
+SOAP Note:
+${soapNoteContent}
+
+Patient Summary:`;
+
+          const summaryResponse = await this.retryWithBackoff(
+            () =>
+              this.openai.chat.completions.create({
+                model: process.env.OPENAI_MODEL || "gpt-4o",
+                messages: [
+                  {
+                    role: "system",
+                    content:
+                      "You are a dental assistant that creates concise patient summaries from SOAP notes. Focus on the key clinical information and patient status.",
+                  },
+                  { role: "user", content: summaryPrompt },
+                ],
+                max_tokens: 300,
+                temperature: 0.3,
+              }),
+            3,
+            "Patient summary extraction from SOAP"
+          );
+
+          patientSummary = summaryResponse.choices[0]?.message?.content || "";
+          console.log(
+            `✅ Patient summary extracted: ${patientSummary.length} characters`
+          );
+        } catch (error) {
+          console.warn(
+            `⚠️ Failed to extract patient summary from SOAP note: ${error.message}`
+          );
+          // Fallback: use a simple extraction
+          patientSummary =
+            "Patient summary could not be generated automatically. Please review the SOAP note for patient details.";
+        }
+
+        // Return both SOAP note and patient summary like the upload system
+        const notes = {
+          soapNote: response,
+          patientSummary: patientSummary,
+        };
+
+        // Format the response to include both notes
+        const formattedResponse = `I've generated the SOAP note and patient summary based on the transcription and our conversation:
+
+**SOAP Note:**
+${response}
+
+**Patient Summary:**
+${patientSummary}
+
+The notes have been generated using the same system as the upload functionality, incorporating all the information from our conversation.`;
+
+        return formattedResponse;
+      }
+
+      // Handle patient summary requests by checking conversation history for recent SOAP notes
+      if (
+        wantsPatientSummary &&
+        conversationHistory &&
+        conversationHistory.length > 0
+      ) {
+        console.log(
+          `🔍 User requested patient summary, checking conversation history`
+        );
+
+        // Natural conversation - let the AI understand what the user wants naturally
+        console.log(`🔍 Using natural conversation understanding`);
+      }
+
+      // Build system message with note context for natural conversation
+      let systemContent = `You are a specialized dental AI assistant that helps with dental consultations, SOAP notes, and patient care.
+
+Your core capabilities:
+- Generate comprehensive SOAP notes from consultation transcriptions
+- Create concise patient summaries with key clinical information
+- Answer questions about dental procedures, terminology, and best practices
+- Help improve dental documentation quality and completeness
+- Provide dental care guidance and recommendations
+- Analyze dental consultation data for insights
+
+SOAP Note Generation:
+- Use the standard SOAP format: Subjective, Objective, Assessment, Plan
+- Include all relevant clinical findings from the transcription
+- Add any additional information from conversation context
+- Ensure proper dental terminology and professional language
+- Include treatment recommendations and follow-up plans
+
+Patient Summary Creation:
+- Focus on key patient concerns and complaints
+- Highlight important clinical findings and assessments
+- Include diagnosis and treatment plans
+- Keep summaries concise but comprehensive
+- Use clear, professional language
+
+You work naturally like ChatGPT - understand user intent from conversation context and respond appropriately. When users ask for SOAP notes, patient summaries, or dental documentation, generate them using the available transcription data and conversation context. Always maintain professional dental standards and terminology.`;
+
+      // Add note context if available
+      if (noteContext && Object.keys(noteContext).length > 0) {
+        systemContent += `\n\nCurrent note context:
+- File: ${noteContext.fileName || "Unknown"}
+- Status: ${noteContext.status || "Unknown"}`;
+
+        // Add custom prompt if available
+        if (noteContext.customPrompt) {
+          systemContent += `\n- Custom Instructions: ${noteContext.customPrompt}`;
+        }
+
+        // Add transcription if available
+        if (noteContext.transcription) {
+          systemContent += `\n- Transcription: ${noteContext.transcription.substring(
+            0,
+            500
+          )}...`;
+        }
+
+        // Add SOAP note if available
+        if (noteContext.notes && noteContext.notes.soapNote) {
+          systemContent += `\n- SOAP Note: ${noteContext.notes.soapNote.substring(
+            0,
+            500
+          )}...`;
+        }
+
+        // Add patient summary if available
+        if (noteContext.notes && noteContext.notes.patientSummary) {
+          systemContent += `\n- Patient Summary: ${noteContext.notes.patientSummary.substring(
+            0,
+            300
+          )}...`;
+        }
+      }
+
+      const messages = [
+        {
+          role: "system",
+          content: systemContent,
+        },
+      ];
+
+      // Add conversation history if available
+      if (conversationHistory && conversationHistory.length > 0) {
+        messages.push(...conversationHistory);
+      }
+
+      // Add current user message
+      messages.push({ role: "user", content: userMessage });
+
+      const completion = await this.retryWithBackoff(
+        () =>
+          this.openai.chat.completions.create({
+            model: process.env.OPENAI_MODEL || "gpt-4o",
+            messages: messages,
+            max_tokens: parseInt(process.env.CHAT_MAX_TOKENS) || 1000,
+            temperature: parseFloat(process.env.CHAT_TEMPERATURE) || 0.3,
+          }),
+        3,
+        "Chat response generation"
+      );
+
+      const response = completion.choices[0]?.message?.content;
+
+      if (!response) {
+        throw new Error("No response received from OpenAI");
+      }
+
+      console.log(`✅ Chat response generated: ${response.length} characters`);
+      return response;
+    } catch (error) {
+      console.error("❌ Chat generation error:", error);
+      throw new Error(`Chat response failed: ${error.message}`);
+    }
   }
 
   // ✅ IMPROVED: Chat with AI for note improvement (keeping for backward compatibility)
@@ -607,111 +922,3 @@ Please follow the exact output format specified in the system prompt, including 
 }
 
 module.exports = new OpenAIService();
-  // ✅ CLEAN: Simple natural conversation like ChatGPT
-  async generateChatResponse(userMessage, noteContext, conversationHistory) {
-    try {
-      console.log(`💬 Processing chat message: "${userMessage}"`);
-
-      // Build system message with note context for natural conversation
-      let systemContent = `You are a specialized dental AI assistant that helps with dental consultations, SOAP notes, and patient care.
-
-Your core capabilities:
-- Generate comprehensive SOAP notes from consultation transcriptions
-- Create concise patient summaries with key clinical information
-- Answer questions about dental procedures, terminology, and best practices
-- Help improve dental documentation quality and completeness
-- Provide dental care guidance and recommendations
-- Analyze dental consultation data for insights
-
-SOAP Note Generation:
-- Use the standard SOAP format: Subjective, Objective, Assessment, Plan
-- Include all relevant clinical findings from the transcription
-- Add any additional information from conversation context
-- Ensure proper dental terminology and professional language
-- Include treatment recommendations and follow-up plans
-
-Patient Summary Creation:
-- Focus on key patient concerns and complaints
-- Highlight important clinical findings and assessments
-- Include diagnosis and treatment plans
-- Keep summaries concise but comprehensive
-- Use clear, professional language
-
-You work naturally like ChatGPT - understand user intent from conversation context and respond appropriately. When users ask for SOAP notes, patient summaries, or dental documentation, generate them using the available transcription data and conversation context. Always maintain professional dental standards and terminology.`;
-
-      // Add note context if available
-      if (noteContext && Object.keys(noteContext).length > 0) {
-        systemContent += `\n\nCurrent note context:
-- File: ${noteContext.fileName || "Unknown"}
-- Status: ${noteContext.status || "Unknown"}`;
-
-        // Add custom prompt if available
-        if (noteContext.customPrompt) {
-          systemContent += `\n- Custom Instructions: ${noteContext.customPrompt}`;
-        }
-
-        // Add transcription if available
-        if (noteContext.transcription) {
-          systemContent += `\n- Transcription: ${noteContext.transcription.substring(
-            0,
-            500
-          )}...`;
-        }
-
-        // Add SOAP note if available
-        if (noteContext.notes && noteContext.notes.soapNote) {
-          systemContent += `\n- SOAP Note: ${noteContext.notes.soapNote.substring(
-            0,
-            500
-          )}...`;
-        }
-
-        // Add patient summary if available
-        if (noteContext.notes && noteContext.notes.patientSummary) {
-          systemContent += `\n- Patient Summary: ${noteContext.notes.patientSummary.substring(
-            0,
-            300
-          )}...`;
-        }
-      }
-
-      const messages = [
-        {
-          role: "system",
-          content: systemContent,
-        },
-      ];
-
-      // Add conversation history if available
-      if (conversationHistory && conversationHistory.length > 0) {
-        messages.push(...conversationHistory);
-      }
-
-      // Add current user message
-      messages.push({ role: "user", content: userMessage });
-
-      const completion = await this.retryWithBackoff(
-        () =>
-          this.openai.chat.completions.create({
-            model: process.env.OPENAI_MODEL || "gpt-4o",
-            messages: messages,
-            max_tokens: parseInt(process.env.CHAT_MAX_TOKENS) || 1000,
-            temperature: parseFloat(process.env.CHAT_TEMPERATURE) || 0.3,
-          }),
-        3,
-        "Chat response generation"
-      );
-
-      const response = completion.choices[0]?.message?.content;
-
-      if (!response) {
-        throw new Error("No response received from OpenAI");
-      }
-
-      console.log(`✅ Chat response generated: ${response.length} characters`);
-      return response;
-    } catch (error) {
-      console.error("❌ Chat generation error:", error);
-      throw new Error(`Chat response failed: ${error.message}`);
-    }
-  } 
