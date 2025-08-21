@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -11,6 +11,7 @@ import LoginPage from "./components/LoginPage";
 import MainDashboard from "./components/MainDashboard";
 import LandingPage from "./components/LandingPage";
 import AdminPage from "./components/AdminPage";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 interface User {
   id: number;
@@ -172,59 +173,59 @@ function AppContent() {
   }
 
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <LandingPage
-            onGetStarted={handleGetStarted}
-            onShowLogin={handleShowLogin}
-          />
-        }
-      />
-      <Route
-        path="/login"
-        element={
-          <LoginPage
-            onLogin={handleLogin}
-            onBackToLanding={handleBackToLanding}
-          />
-        }
-      />
-      <Route
-        path="/app"
-        element={
-          <ProtectedRoute user={user} isUnregisteredUser={isUnregisteredUser}>
-            {user?.role === "admin" ? (
-              <AdminPage
-                API_BASE_URL={API_BASE_URL}
-                onBackToMain={() => navigateTo("/app")}
-                onLogout={handleLogout}
-              />
-            ) : (
-              <MainDashboard
-                user={user}
-                onLogout={handleLogout}
-                isUnregisteredUser={isUnregisteredUser}
-                onBackToLanding={handleBackToLanding}
-                onShowLogin={handleShowLogin}
-              />
-            )}
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <ErrorBoundary>
+      <Router>
+        <div className="App">
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <LandingPage
+                  onGetStarted={handleGetStarted}
+                  onShowLogin={handleShowLogin}
+                />
+              }
+            />
+            <Route
+              path="/login"
+              element={
+                <LoginPage
+                  onLogin={handleLogin}
+                  onBackToLanding={handleBackToLanding}
+                />
+              }
+            />
+            <Route
+              path="/app"
+              element={
+                user || isUnregisteredUser ? (
+                  <MainDashboard
+                    user={user}
+                    onLogout={handleLogout}
+                    isUnregisteredUser={isUnregisteredUser}
+                    onBackToLanding={handleBackToLanding}
+                    onShowLogin={handleShowLogin}
+                  />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
+      </Router>
+    </ErrorBoundary>
   );
 }
 
 function App() {
   return (
-    <div className="min-h-screen">
-      <Router>
+    <ErrorBoundary>
+      <div className="min-h-screen">
         <AppContent />
-      </Router>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }
 

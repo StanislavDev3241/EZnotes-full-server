@@ -35,17 +35,30 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
 
   // Initialize media recorder
   useEffect(() => {
+    let stream: MediaStream | null = null;
+    
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       navigator.mediaDevices
         .getUserMedia({ audio: true })
-        .then((stream) => {
-          const recorder = new MediaRecorder(stream);
+        .then((mediaStream) => {
+          stream = mediaStream;
+          const recorder = new MediaRecorder(mediaStream);
           setMediaRecorder(recorder);
         })
         .catch((err) => {
           console.error("Error accessing microphone:", err);
         });
     }
+
+    // Cleanup function
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      if (mediaRecorder) {
+        mediaRecorder.stop();
+      }
+    };
   }, []);
 
   const scrollToBottom = () => {
