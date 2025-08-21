@@ -145,6 +145,24 @@ router.post("/", authenticateToken, async (req, res) => {
 
     const userMessageId = userMessageResult.rows[0].id;
 
+    // Get conversation history for context
+    const historyResult = await pool.query(
+      `SELECT sender_type, message_text, ai_response 
+       FROM chat_messages 
+       WHERE conversation_id = $1 
+       ORDER BY created_at ASC`,
+      [conversationId]
+    );
+
+    // Format conversation history for OpenAI API
+    const conversationHistory = historyResult.rows.map((msg) => ({
+      role: msg.sender_type === "user" ? "user" : "assistant",
+      content:
+        msg.sender_type === "user"
+          ? msg.message_text
+          : msg.ai_response || msg.message_text,
+    }));
+
     // Generate AI response
     const aiResponse = await openaiService.generateChatResponse(
       message,
