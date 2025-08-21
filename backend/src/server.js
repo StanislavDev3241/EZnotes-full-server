@@ -92,25 +92,37 @@ app.use("/api/queue", require("./routes/queue"));
 // Health check
 app.get("/health", async (req, res) => {
   try {
+    // Check database health
+    const { healthCheck } = require("./config/database");
+    const dbHealth = await healthCheck();
+
     // Check OpenAI API status
     const openaiService = require("./services/openaiService");
     const openaiHealth = await openaiService.healthCheck();
 
-    res.json({
-      status: "OK",
+    const overallHealth = dbHealth && openaiHealth;
+
+    res.status(overallHealth ? 200 : 503).json({
+      status: overallHealth ? "OK" : "DEGRADED",
       timestamp: new Date().toISOString(),
       services: {
-        server: "healthy",
-        openai: openaiHealth.status,
-        openaiMessage: openaiHealth.message,
+        database: dbHealth ? "OK" : "ERROR",
+        openai: openaiHealth ? "OK" : "ERROR"
       },
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      version: process.env.npm_package_version || "1.0.0"
     });
   } catch (error) {
     console.error("Health check error:", error);
-    res.status(500).json({
+    res.status(503).json({
       status: "ERROR",
       timestamp: new Date().toISOString(),
       error: error.message,
+      services: {
+        database: "UNKNOWN",
+        openai: "UNKNOWN"
+      }
     });
   }
 });
