@@ -400,7 +400,7 @@ class OpenAIService {
         "write dental note",
         "generate dental notes",
         "create dental notes",
-        "write dental notes"
+        "write dental notes",
       ];
 
       const wantsSoapNote = soapNoteKeywords.some((keyword) =>
@@ -416,19 +416,43 @@ class OpenAIService {
         "using the transcription",
         "using transcription",
         "with the transcription",
-        "with transcription"
+        "with transcription",
       ];
 
-      const wantsTranscriptionBasedNote = transcriptionBasedKeywords.some((keyword) =>
+      const wantsTranscriptionBasedNote = transcriptionBasedKeywords.some(
+        (keyword) => userMessage.toLowerCase().includes(keyword)
+      );
+
+      // Check if user is asking for patient summary specifically
+      const patientSummaryKeywords = [
+        "patient summary",
+        "patient summary",
+        "summary of patient",
+        "patient information",
+        "patient details",
+        "patient overview",
+        "give me patient summary",
+        "could you please give me patient summary",
+        "patient summary please",
+        "summary please"
+      ];
+
+      const wantsPatientSummary = patientSummaryKeywords.some((keyword) =>
         userMessage.toLowerCase().includes(keyword)
       );
 
       // If user wants SOAP note and we have transcription context, use SOAP generation
-      if ((wantsSoapNote || wantsTranscriptionBasedNote) && noteContext && noteContext.transcription) {
+      if (
+        (wantsSoapNote || wantsTranscriptionBasedNote) &&
+        noteContext &&
+        noteContext.transcription
+      ) {
         console.log(
           `🔍 User requested SOAP note generation, switching to SOAP mode`
         );
-        console.log(`🔍 Keywords detected: wantsSoapNote=${wantsSoapNote}, wantsTranscriptionBasedNote=${wantsTranscriptionBasedNote}`);
+        console.log(
+          `🔍 Keywords detected: wantsSoapNote=${wantsSoapNote}, wantsTranscriptionBasedNote=${wantsTranscriptionBasedNote}`
+        );
 
         // First, summarize the conversation to extract additional medical information
         let conversationSummary = "";
@@ -437,9 +461,11 @@ class OpenAIService {
             .filter((msg) => msg.role === "user")
             .map((msg) => msg.content)
             .join("\n");
-          
-          console.log(`🔍 Summarizing conversation: ${userMessages.length} characters`);
-          
+
+          console.log(
+            `🔍 Summarizing conversation: ${userMessages.length} characters`
+          );
+
           // Create a summary prompt to extract medical information
           const summaryPrompt = `Please summarize the following conversation and extract ONLY the medical/dental information that would be relevant for a SOAP note. Focus on:
 - Patient symptoms or complaints
@@ -459,9 +485,10 @@ Summary of medical information:`;
                 this.openai.chat.completions.create({
                   model: process.env.OPENAI_MODEL || "gpt-4o",
                   messages: [
-                    { 
-                      role: "system", 
-                      content: "You are a medical assistant that extracts relevant medical information from conversations. Be concise and focus only on medical/dental details." 
+                    {
+                      role: "system",
+                      content:
+                        "You are a medical assistant that extracts relevant medical information from conversations. Be concise and focus only on medical/dental details.",
                     },
                     { role: "user", content: summaryPrompt },
                   ],
@@ -472,29 +499,39 @@ Summary of medical information:`;
               "Conversation summarization"
             );
 
-            conversationSummary = summaryResponse.choices[0]?.message?.content || "";
+            conversationSummary =
+              summaryResponse.choices[0]?.message?.content || "";
             console.log(`🔍 Conversation summary: ${conversationSummary}`);
           } catch (error) {
-            console.warn(`⚠️ Failed to summarize conversation: ${error.message}`);
+            console.warn(
+              `⚠️ Failed to summarize conversation: ${error.message}`
+            );
             // Fallback: use raw conversation
             conversationSummary = userMessages;
           }
         }
 
         // Combine original transcription with conversation summary
-        const enhancedTranscription = conversationSummary 
+        const enhancedTranscription = conversationSummary
           ? `${noteContext.transcription}\n\nAdditional information from conversation:\n${conversationSummary}`
           : noteContext.transcription;
 
-        console.log(`🔍 Enhanced transcription length: ${enhancedTranscription.length} characters`);
+        console.log(
+          `🔍 Enhanced transcription length: ${enhancedTranscription.length} characters`
+        );
 
         // Use the SAME system prompt as the upload system
         const systemPrompt = this.getDefaultSystemPrompt();
 
         // Create user prompt with enhanced transcription
-        const userPrompt = this.getDefaultUserPrompt(enhancedTranscription, noteContext);
+        const userPrompt = this.getDefaultUserPrompt(
+          enhancedTranscription,
+          noteContext
+        );
 
-        console.log(`🔍 Final user prompt length: ${userPrompt.length} characters`);
+        console.log(
+          `🔍 Final user prompt length: ${userPrompt.length} characters`
+        );
 
         const completion = await this.retryWithBackoff(
           () =>
@@ -517,8 +554,61 @@ Summary of medical information:`;
           throw new Error("No response received from OpenAI");
         }
 
-        console.log(`✅ SOAP note generated via chat: ${response.length} characters`);
-        return response;
+        console.log(
+          `✅ SOAP note generated via chat: ${response.length} characters`
+        );
+
+        // Return both SOAP note and patient summary like the upload system
+        const notes = {
+          soapNote: response,
+          patientSummary: response,
+        };
+
+        // Format the response to include both notes
+        const formattedResponse = `I've generated the SOAP note and patient summary based on the transcription and our conversation:
+
+**SOAP Note:**
+${response}
+
+**Patient Summary:**
+${response}
+
+The notes have been generated using the same system as the upload functionality, incorporating all the information from our conversation.`;
+
+        return formattedResponse;
+      }
+
+      // Handle patient summary requests by checking conversation history for recent SOAP notes
+      if (wantsPatientSummary && conversationHistory && conversationHistory.length > 0) {
+        console.log(`🔍 User requested patient summary, checking conversation history`);
+        
+        // Look for recent SOAP note generation in conversation history
+        const recentAssistantMessages = conversationHistory
+          .filter((msg) => msg.role === "assistant")
+          .slice(-3); // Check last 3 assistant messages
+        
+        for (const msg of recentAssistantMessages) {
+          if (msg.content && msg.content.includes("SOAP Note:") && msg.content.includes("Patient Summary:")) {
+            // Extract just the patient summary part
+            const patientSummaryMatch = msg.content.match(/\*\*Patient Summary:\*\*\s*([\s\S]*?)(?=\n\n|$)/);
+            if (patientSummaryMatch) {
+              const patientSummary = patientSummaryMatch[1].trim();
+              return `Here's the patient summary from the recently generated notes:
+
+**Patient Summary:**
+${patientSummary}
+
+This summary was generated based on the transcription and our conversation.`;
+            }
+          }
+        }
+        
+        // If no recent SOAP note found, generate one
+        if (noteContext && noteContext.transcription) {
+          console.log(`🔍 No recent SOAP note found, generating new one for patient summary`);
+          // This will trigger the SOAP generation logic above
+          return this.generateChatResponse("generate notes based on transcription", noteContext, conversationHistory);
+        }
       }
 
       // Build system message with note context for regular chat
