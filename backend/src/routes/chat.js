@@ -155,7 +155,7 @@ router.post("/", authenticateToken, async (req, res) => {
     );
 
     // Format conversation history for OpenAI API
-    const conversationHistory = historyResult.rows.map((msg) => ({
+    const formattedHistory = historyResult.rows.map((msg) => ({
       role: msg.sender_type === "user" ? "user" : "assistant",
       content:
         msg.sender_type === "user"
@@ -167,7 +167,7 @@ router.post("/", authenticateToken, async (req, res) => {
     const aiResponse = await openaiService.generateChatResponse(
       message,
       noteContext,
-      conversationHistory
+      formattedHistory
     );
 
     // Save AI response to database
