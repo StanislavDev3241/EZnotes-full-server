@@ -102,27 +102,27 @@ const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
   if (isEditing) {
     return (
       <div className="flex justify-end mb-4">
-        <div className="max-w-xs lg:max-w-md bg-blue-100 border border-blue-300 rounded-lg p-3">
+        <div className="max-w-2xl lg:max-w-4xl bg-blue-50 border border-blue-300 rounded-xl p-4 shadow-sm">
           <textarea
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
-            className="w-full resize-none border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            rows={3}
+            className="w-full resize-none border border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            rows={4}
             autoFocus
           />
-          <div className="flex justify-end space-x-2 mt-2">
+          <div className="flex justify-end space-x-3 mt-3">
             <button
               onClick={handleSaveEdit}
-              className="flex items-center px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+              className="flex items-center px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
             >
-              <Check className="w-3 h-3 mr-1" />
+              <Check className="w-4 h-4 mr-1" />
               Save
             </button>
             <button
               onClick={handleCancelEdit}
-              className="flex items-center px-2 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 transition-colors"
+              className="flex items-center px-3 py-2 bg-gray-500 text-white text-sm rounded-lg hover:bg-gray-600 transition-colors"
             >
-              <X className="w-3 h-3 mr-1" />
+              <X className="w-4 h-4 mr-1" />
               Cancel
             </button>
           </div>
@@ -140,29 +140,31 @@ const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
       onMouseLeave={() => setShowActions(false)}
     >
       <div
-        className={`relative max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-          isOwnMessage ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-800"
+        className={`relative max-w-2xl lg:max-w-4xl px-6 py-4 rounded-xl shadow-sm ${
+          isOwnMessage ? "bg-blue-600 text-white" : "bg-white text-gray-900 border border-gray-200"
         }`}
       >
         {/* Message Content */}
-        <p className="whitespace-pre-wrap text-sm lg:text-base">
-          {message.text}
-        </p>
+        <div className="prose prose-sm max-w-none">
+          <div className="whitespace-pre-wrap text-sm leading-relaxed">
+            {message.text}
+          </div>
+        </div>
 
         {/* Timestamp */}
-        <p
-          className={`text-xs mt-1 ${
-            isOwnMessage ? "opacity-70" : "text-gray-500"
+        <div
+          className={`text-xs mt-3 ${
+            isOwnMessage ? "text-blue-100" : "text-gray-500"
           }`}
         >
           {message.timestamp.toLocaleTimeString()}
-        </p>
+        </div>
 
         {/* Action Buttons - Show on hover */}
         {showActions && (
           <div
-            className={`absolute top-0 ${
-              isOwnMessage ? "-left-20" : "-right-20"
+            className={`absolute top-2 ${
+              isOwnMessage ? "-left-24" : "-right-24"
             } flex space-x-1 bg-white border border-gray-200 rounded-lg shadow-lg p-1`}
           >
             {/* Copy Button - Available for all messages */}
@@ -211,7 +213,7 @@ const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
               </button>
             )}
 
-            {/* Download Button - Only for AI messages */}
+            {/* Download Note Button - Only for AI messages */}
             {isAIMessage && (
               <button
                 onClick={handleDownloadNote}
@@ -224,19 +226,13 @@ const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
           </div>
         )}
 
-        {/* Note Context Indicator - Show if message has note context */}
+        {/* Note Context Indicator */}
         {hasNoteContext && (
-          <div
-            className={`mt-2 p-2 rounded text-xs ${
-              isOwnMessage
-                ? "bg-blue-500 text-white"
-                : "bg-gray-200 text-gray-700"
-            }`}
-          >
-            <div className="flex items-center">
-              <FileText className="w-3 h-3 mr-1" />
-              <span>Contains note context</span>
-            </div>
+          <div className="mt-2 flex items-center space-x-1">
+            <FileText className="w-3 h-3 text-blue-500" />
+            <span className="text-xs text-blue-600">
+              Note context available
+            </span>
           </div>
         )}
       </div>

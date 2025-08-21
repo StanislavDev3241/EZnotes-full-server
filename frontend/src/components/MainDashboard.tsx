@@ -586,11 +586,11 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
       {/* Main Content - Account for header height */}
       <div className="flex-1 overflow-y-auto pt-2">
         {activeSection === "chat" && (
-          <div className="flex flex-col lg:flex-row h-full gap-2 px-4 pb-6">
+          <div className="flex flex-col lg:flex-row h-full gap-4 px-4 pb-6">
             {/* Chat Interface - Left Side */}
             <div className="flex-1 flex flex-col bg-white rounded-lg shadow-sm min-h-0">
               {/* Chat History Manager */}
-              <div className="p-3 border-b border-gray-200">
+              <div className="p-4 border-b border-gray-200">
                 <ChatHistoryManager
                   userId={user?.id || 0}
                   onContinueFromHistory={handleContinueFromHistory}
@@ -604,7 +604,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
               <div className="flex-1 flex flex-col min-h-0">
                 {/* Current Note Context Display */}
                 {currentNote && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mx-3 mt-3 mb-3">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mx-4 mt-4 mb-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <div className="flex items-center space-x-2">
                         <FileText className="w-4 h-4 text-blue-600" />
@@ -637,15 +637,37 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                   </div>
                 )}
 
-                {/* Chat Messages */}
-                <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 min-h-0">
+                {/* Chat Messages - Improved Layout */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6 min-h-0">
                   {messages.length === 0 ? (
-                    <div className="text-center text-gray-500 mt-20">
-                      <p className="text-lg">No messages yet</p>
-                      <p className="text-sm">
-                        Upload a file or start recording to begin chatting with
-                        AI
+                    <div className="text-center text-gray-500 mt-20 max-w-2xl mx-auto">
+                      <div className="mb-6">
+                        <svg className="h-16 w-16 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-xl font-medium mb-2">Start a conversation</h3>
+                      <p className="text-gray-600 mb-6">
+                        Upload a file or start recording to begin chatting with AI
                       </p>
+                      
+                      {/* Quick Action Buttons */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-lg mx-auto">
+                        <button
+                          onClick={() => setInputMessage("Generate SOAP note")}
+                          className="p-4 text-left bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors"
+                        >
+                          <div className="font-medium mb-1">Generate SOAP Note</div>
+                          <div className="text-sm text-blue-600">Create complete SOAP notes</div>
+                        </button>
+                        <button
+                          onClick={() => setInputMessage("Help me improve my SOAP note")}
+                          className="p-4 text-left bg-green-50 text-green-700 rounded-lg hover:bg-green-100 border border-green-200 transition-colors"
+                        >
+                          <div className="font-medium mb-1">Improve Notes</div>
+                          <div className="text-sm text-green-600">Get enhancement suggestions</div>
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     messages.map((message) => (
@@ -662,20 +684,25 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                   )}
                   {isLoading && (
                     <div className="flex justify-start">
-                      <div className="bg-gray-100 text-gray-800 px-3 py-2 rounded-lg">
-                        <p className="text-gray-500 text-sm">
-                          AI is thinking...
-                        </p>
+                      <div className="bg-gray-100 text-gray-800 px-4 py-3 rounded-lg shadow-sm">
+                        <div className="flex items-center space-x-2">
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                          </div>
+                          <span className="text-sm text-gray-600">AI is thinking...</span>
+                        </div>
                       </div>
                     </div>
                   )}
                   <div ref={messagesEndRef} />
                 </div>
 
-                {/* Chat Input */}
-                <div className="border-t bg-white p-3 sm:p-4">
+                {/* Chat Input - Improved Layout */}
+                <div className="border-t bg-white p-4 sm:p-6">
                   {/* Chat Controls */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => {

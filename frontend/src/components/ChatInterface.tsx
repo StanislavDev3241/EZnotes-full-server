@@ -185,18 +185,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
             <MessageSquare className="h-8 w-8 text-blue-600" />
             <div>
               <h1 className="text-xl font-semibold text-gray-900">
-                ClearlyAI Chat
+                AI Dental Assistant
               </h1>
-              <p className="text-sm text-gray-500">Welcome, {user.name}</p>
+              <p className="text-sm text-gray-500">
+                {user ? `Welcome, ${user.name || user.email}` : "Guest User"}
+              </p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setShowUpload(!showUpload)}
-              className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100"
             >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Files
+              <Upload className="h-4 w-4 inline mr-2" />
+              Upload File
             </button>
             <button
               onClick={onLogout}
@@ -208,38 +210,41 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
         </div>
       </div>
 
-      {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      {/* Chat Messages - Full Height */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.length === 0 ? (
-          <div className="text-center text-gray-500 mt-20">
-            <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
-            <p className="text-sm mb-4">
+          <div className="text-center text-gray-500 mt-20 max-w-2xl mx-auto">
+            <MessageSquare className="h-20 w-20 mx-auto mb-6 text-gray-300" />
+            <h3 className="text-2xl font-medium mb-4">Start a conversation</h3>
+            <p className="text-lg mb-8 text-gray-600">
               Ask me anything about medical notes or upload files for analysis
             </p>
 
-            {/* Quick Action Buttons */}
-            <div className="space-y-2">
-              <p className="text-xs text-gray-400 mb-2">Quick actions:</p>
+            {/* Quick Action Buttons - Better Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+              <p className="text-sm text-gray-400 mb-4 col-span-full">Quick actions:</p>
               <button
                 onClick={() => setInputMessage("Generate SOAP note")}
-                className="block w-full px-4 py-2 text-sm bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 border border-blue-200"
+                className="p-6 text-left bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors"
               >
-                Generate SOAP Note
+                <div className="font-medium mb-2">Generate SOAP Note</div>
+                <div className="text-sm text-blue-600">Create a complete SOAP note from transcription</div>
               </button>
               <button
                 onClick={() => setInputMessage("Help me improve my SOAP note")}
-                className="block w-full px-4 py-2 text-sm bg-green-50 text-green-700 rounded-md hover:bg-green-100 border border-green-200"
+                className="p-6 text-left bg-green-50 text-green-700 rounded-lg hover:bg-green-100 border border-green-200 transition-colors"
               >
-                Improve SOAP Note
+                <div className="font-medium mb-2">Improve SOAP Note</div>
+                <div className="text-sm text-green-600">Get suggestions to enhance your notes</div>
               </button>
               <button
                 onClick={() =>
                   setInputMessage("What information is missing from my note?")
                 }
-                className="block w-full px-4 py-2 text-sm bg-yellow-50 text-yellow-700 rounded-md hover:bg-yellow-100 border border-yellow-200"
+                className="p-6 text-left bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 border border-yellow-200 transition-colors"
               >
-                Check Missing Information
+                <div className="font-medium mb-2">Check Missing Information</div>
+                <div className="text-sm text-yellow-600">Identify gaps in your documentation</div>
               </button>
             </div>
           </div>
@@ -252,35 +257,37 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
               }`}
             >
               <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                className={`max-w-2xl lg:max-w-4xl px-6 py-4 rounded-xl shadow-sm ${
                   message.role === "user"
                     ? "bg-blue-600 text-white"
                     : "bg-white text-gray-900 border border-gray-200"
                 }`}
               >
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                <p
-                  className={`text-xs mt-1 ${
+                <div className="prose prose-sm max-w-none">
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
+                </div>
+                <div
+                  className={`text-xs mt-3 ${
                     message.role === "user" ? "text-blue-100" : "text-gray-500"
                   }`}
                 >
                   {message.timestamp.toLocaleTimeString()}
-                </p>
+                </div>
               </div>
             </div>
           ))
         )}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-white text-gray-900 border border-gray-200 px-4 py-2 rounded-lg">
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+            <div className="bg-white text-gray-900 border border-gray-200 px-6 py-4 rounded-xl shadow-sm">
+              <div className="flex space-x-2">
+                <div className="w-3 h-3 bg-gray-400 rounded-full animate-bounce"></div>
                 <div
-                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                  className="w-3 h-3 bg-gray-400 rounded-full animate-bounce"
                   style={{ animationDelay: "0.1s" }}
                 ></div>
                 <div
-                  className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                  className="w-3 h-3 bg-gray-400 rounded-full animate-bounce"
                   style={{ animationDelay: "0.2s" }}
                 ></div>
               </div>
@@ -290,40 +297,40 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="bg-white border-t border-gray-200 px-6 py-4">
-        <form onSubmit={handleSubmit} className="flex space-x-3">
-          <div className="flex-1 flex space-x-2">
+      {/* Input Area - Better Spacing */}
+      <div className="bg-white border-t border-gray-200 px-6 py-6">
+        <form onSubmit={handleSubmit} className="flex space-x-4 max-w-4xl mx-auto">
+          <div className="flex-1 flex space-x-3">
             <input
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Type your message..."
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Type your message or ask about SOAP notes..."
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
               disabled={isLoading}
             />
             <button
               type="button"
               onClick={isRecording ? stopRecording : startRecording}
-              className={`px-3 py-2 rounded-md ${
+              className={`px-4 py-3 rounded-lg transition-colors ${
                 isRecording
                   ? "bg-red-600 text-white hover:bg-red-700"
                   : "bg-gray-600 text-white hover:bg-gray-700"
               }`}
             >
               {isRecording ? (
-                <MicOff className="h-4 w-4" />
+                <MicOff className="h-5 w-5" />
               ) : (
-                <Mic className="h-4 w-4" />
+                <Mic className="h-5 w-5" />
               )}
             </button>
           </div>
           <button
             type="submit"
             disabled={!inputMessage.trim() || isLoading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-5 w-5" />
           </button>
         </form>
       </div>
