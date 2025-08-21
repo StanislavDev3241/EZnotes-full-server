@@ -36,7 +36,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
   // Initialize media recorder
   useEffect(() => {
     let stream: MediaStream | null = null;
-    
+
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       navigator.mediaDevices
         .getUserMedia({ audio: true })
@@ -53,7 +53,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
     // Cleanup function
     return () => {
       if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
       }
       if (mediaRecorder) {
         mediaRecorder.stop();
@@ -214,9 +214,34 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
           <div className="text-center text-gray-500 mt-20">
             <MessageSquare className="h-16 w-16 mx-auto mb-4 text-gray-300" />
             <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
-            <p className="text-sm">
+            <p className="text-sm mb-4">
               Ask me anything about medical notes or upload files for analysis
             </p>
+
+            {/* Quick Action Buttons */}
+            <div className="space-y-2">
+              <p className="text-xs text-gray-400 mb-2">Quick actions:</p>
+              <button
+                onClick={() => setInputMessage("Generate SOAP note")}
+                className="block w-full px-4 py-2 text-sm bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 border border-blue-200"
+              >
+                Generate SOAP Note
+              </button>
+              <button
+                onClick={() => setInputMessage("Help me improve my SOAP note")}
+                className="block w-full px-4 py-2 text-sm bg-green-50 text-green-700 rounded-md hover:bg-green-100 border border-green-200"
+              >
+                Improve SOAP Note
+              </button>
+              <button
+                onClick={() =>
+                  setInputMessage("What information is missing from my note?")
+                }
+                className="block w-full px-4 py-2 text-sm bg-yellow-50 text-yellow-700 rounded-md hover:bg-yellow-100 border border-yellow-200"
+              >
+                Check Missing Information
+              </button>
+            </div>
           </div>
         ) : (
           messages.map((message) => (
@@ -233,7 +258,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
                     : "bg-white text-gray-900 border border-gray-200"
                 }`}
               >
-                <p className="text-sm">{message.content}</p>
+                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                 <p
                   className={`text-xs mt-1 ${
                     message.role === "user" ? "text-blue-100" : "text-gray-500"

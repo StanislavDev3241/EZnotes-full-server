@@ -25,7 +25,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Client-side validation
     if (!email.trim()) {
       setError("Email is required");
@@ -39,7 +39,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding }) => {
       setError("Name is required");
       return;
     }
-    
+
     setLoading(true);
     setError("");
 
@@ -103,7 +103,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding }) => {
         <form onSubmit={handleSubmit} className="space-y-6" noValidate>
           {!isLogin && (
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Full Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -114,7 +117,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding }) => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter your full name"
                 required
-                aria-describedby={!isLogin && !name.trim() ? "name-error" : undefined}
+                aria-describedby={
+                  !isLogin && !name.trim() ? "name-error" : undefined
+                }
               />
               {!isLogin && !name.trim() && (
                 <p id="name-error" className="mt-1 text-sm text-red-600">
@@ -125,7 +130,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding }) => {
           )}
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Email Address <span className="text-red-500">*</span>
             </label>
             <input
@@ -146,7 +154,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding }) => {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Password <span className="text-red-500">*</span>
             </label>
             <input
@@ -173,12 +184,17 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding }) => {
             aria-describedby={loading ? "loading-text" : undefined}
           >
             {loading ? (
-              <span id="loading-text" className="flex items-center justify-center">
+              <span
+                id="loading-text"
+                className="flex items-center justify-center"
+              >
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                 {isLogin ? "Signing in..." : "Creating account..."}
               </span>
+            ) : isLogin ? (
+              "Sign In"
             ) : (
-              isLogin ? "Sign In" : "Create Account"
+              "Create Account"
             )}
           </button>
         </form>
@@ -188,9 +204,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding }) => {
             type="button"
             onClick={() => setIsLogin(!isLogin)}
             className="text-blue-600 hover:text-blue-800 transition-colors"
-            aria-label={isLogin ? "Switch to create account" : "Switch to sign in"}
+            aria-label={
+              isLogin ? "Switch to create account" : "Switch to sign in"
+            }
           >
-            {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+            {isLogin
+              ? "Don't have an account? Sign up"
+              : "Already have an account? Sign in"}
           </button>
         </div>
       </div>

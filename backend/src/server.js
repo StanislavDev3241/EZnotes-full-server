@@ -107,11 +107,11 @@ app.get("/health", async (req, res) => {
       timestamp: new Date().toISOString(),
       services: {
         database: dbHealth ? "OK" : "ERROR",
-        openai: openaiHealth ? "OK" : "ERROR"
+        openai: openaiHealth ? "OK" : "ERROR",
       },
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      version: process.env.npm_package_version || "1.0.0"
+      version: process.env.npm_package_version || "1.0.0",
     });
   } catch (error) {
     console.error("Health check error:", error);
@@ -121,8 +121,8 @@ app.get("/health", async (req, res) => {
       error: error.message,
       services: {
         database: "UNKNOWN",
-        openai: "UNKNOWN"
-      }
+        openai: "UNKNOWN",
+      },
     });
   }
 });

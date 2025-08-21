@@ -27,19 +27,23 @@ interface UploadResult {
 }
 
 // Transform backend response to match MainDashboard expectations
-const transformUploadResult = (backendResult: any, fileName: string, customPrompt: string): UploadResult => {
+const transformUploadResult = (
+  backendResult: any,
+  fileName: string,
+  customPrompt: string
+): UploadResult => {
   return {
-    fileId: backendResult.file?.id || '',
-    noteId: '', // Not provided by backend
-    conversationId: '', // Not provided by backend
+    fileId: backendResult.file?.id || "",
+    noteId: "", // Not provided by backend
+    conversationId: "", // Not provided by backend
     fileName: fileName,
-    status: backendResult.file?.status || 'unknown',
-    transcription: backendResult.transcription || '',
-    notes: backendResult.notes || { soapNote: '', patientSummary: '' },
+    status: backendResult.file?.status || "unknown",
+    transcription: backendResult.transcription || "",
+    notes: backendResult.notes || { soapNote: "", patientSummary: "" },
     customPrompt: customPrompt,
     success: backendResult.success,
     error: backendResult.error,
-    message: backendResult.message
+    message: backendResult.message,
   };
 };
 
@@ -471,7 +475,11 @@ SIGNATURE PLACEHOLDER
 
       // Call the callback with the result
       onUploadComplete(
-        transformUploadResult(result, fileName, customPrompt.trim() || "Default prompt")
+        transformUploadResult(
+          result,
+          fileName,
+          customPrompt.trim() || "Default prompt"
+        )
       );
 
       // Reset form

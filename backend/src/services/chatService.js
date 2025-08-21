@@ -32,7 +32,7 @@ class ChatService {
             );
             return;
           }
-          
+
           console.log(`📨 Received message type: ${data.type}`);
 
           switch (data.type) {

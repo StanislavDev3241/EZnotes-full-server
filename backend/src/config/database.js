@@ -28,7 +28,7 @@ pool.on("error", (err) => {
 const healthCheck = async () => {
   try {
     const client = await pool.connect();
-    await client.query('SELECT 1');
+    await client.query("SELECT 1");
     client.release();
     return true;
   } catch (error) {
@@ -38,14 +38,14 @@ const healthCheck = async () => {
 };
 
 // Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('🔄 Shutting down database connections...');
+process.on("SIGINT", async () => {
+  console.log("🔄 Shutting down database connections...");
   await pool.end();
   process.exit(0);
 });
 
-process.on('SIGTERM', async () => {
-  console.log('🔄 Shutting down database connections...');
+process.on("SIGTERM", async () => {
+  console.log("🔄 Shutting down database connections...");
   await pool.end();
   process.exit(0);
 });

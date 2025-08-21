@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -10,7 +10,6 @@ import {
 import LoginPage from "./components/LoginPage";
 import MainDashboard from "./components/MainDashboard";
 import LandingPage from "./components/LandingPage";
-import AdminPage from "./components/AdminPage";
 import ErrorBoundary from "./components/ErrorBoundary";
 
 interface User {
@@ -18,27 +17,6 @@ interface User {
   email: string;
   name: string;
   role: string;
-}
-
-// Protected Route component
-function ProtectedRoute({
-  children,
-  user,
-  isUnregisteredUser,
-  redirectTo = "/",
-}: {
-  children: React.ReactNode;
-  user: User | null;
-  isUnregisteredUser: boolean;
-  redirectTo?: string;
-}) {
-  // Allow access if user is logged in OR if it's an unregistered user
-  if (user || isUnregisteredUser) {
-    return <>{children}</>;
-  }
-
-  // Redirect to specified route if not authorized
-  return <Navigate to={redirectTo} replace />;
 }
 
 // Wrapper component to handle auth state and navigation
@@ -173,49 +151,47 @@ function AppContent() {
   }
 
   return (
-    <ErrorBoundary>
-      <Router>
-        <div className="App">
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <LandingPage
-                  onGetStarted={handleGetStarted}
+    <Router>
+      <div className="App">
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <LandingPage
+                onGetStarted={handleGetStarted}
+                onShowLogin={handleShowLogin}
+              />
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              <LoginPage
+                onLogin={handleLogin}
+                onBackToLanding={handleBackToLanding}
+              />
+            }
+          />
+          <Route
+            path="/app"
+            element={
+              user || isUnregisteredUser ? (
+                <MainDashboard
+                  user={user}
+                  onLogout={handleLogout}
+                  isUnregisteredUser={isUnregisteredUser}
+                  onBackToLanding={handleBackToLanding}
                   onShowLogin={handleShowLogin}
                 />
-              }
-            />
-            <Route
-              path="/login"
-              element={
-                <LoginPage
-                  onLogin={handleLogin}
-                  onBackToLanding={handleBackToLanding}
-                />
-              }
-            />
-            <Route
-              path="/app"
-              element={
-                user || isUnregisteredUser ? (
-                  <MainDashboard
-                    user={user}
-                    onLogout={handleLogout}
-                    isUnregisteredUser={isUnregisteredUser}
-                    onBackToLanding={handleBackToLanding}
-                    onShowLogin={handleShowLogin}
-                  />
-                ) : (
-                  <Navigate to="/" replace />
-                )
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </div>
-      </Router>
-    </ErrorBoundary>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 

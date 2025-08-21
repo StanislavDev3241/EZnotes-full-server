@@ -309,7 +309,8 @@ class OpenAIService {
         customPrompt?.systemPrompt || this.getDefaultSystemPrompt();
 
       // Always include transcription in user prompt, even with custom system prompt
-      const userPrompt = customPrompt?.userPrompt || 
+      const userPrompt =
+        customPrompt?.userPrompt ||
         this.getDefaultUserPrompt(transcription, context);
 
       console.log(
@@ -368,7 +369,73 @@ class OpenAIService {
         `💬 Processing chat message: ${userMessage.length} characters`
       );
 
-      // Build system message with note context
+      // Check if user wants to generate a SOAP note
+      const soapNoteKeywords = [
+        "generate soap note",
+        "create soap note",
+        "make soap note",
+        "write soap note",
+        "produce soap note",
+        "soap note generation",
+        "generate note",
+        "create note",
+        "write note",
+      ];
+
+      const wantsSoapNote = soapNoteKeywords.some((keyword) =>
+        userMessage.toLowerCase().includes(keyword)
+      );
+
+      // If user wants SOAP note and we have transcription context, use SOAP generation
+      if (wantsSoapNote && noteContext && noteContext.transcription) {
+        console.log(
+          `🔍 User requested SOAP note generation, switching to SOAP mode`
+        );
+
+        // Use the SOAP note generation system prompt
+        const systemPrompt = this.getDefaultSystemPrompt();
+
+        // Create user prompt with transcription
+        const userPrompt = this.getDefaultUserPrompt(
+          noteContext.transcription,
+          noteContext
+        );
+
+        // Add any additional context from chat history
+        let enhancedUserPrompt = userPrompt;
+        if (conversationHistory && conversationHistory.length > 0) {
+          const chatContext = conversationHistory
+            .filter((msg) => msg.role === "user")
+            .map((msg) => msg.content)
+            .join("\n");
+          enhancedUserPrompt += `\n\nAdditional context from our conversation:\n${chatContext}`;
+        }
+
+        const completion = await this.retryWithBackoff(
+          () =>
+            this.openai.chat.completions.create({
+              model: process.env.OPENAI_MODEL || "gpt-4o",
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: enhancedUserPrompt },
+              ],
+              max_tokens: parseInt(process.env.CHAT_MAX_TOKENS) || 2000,
+              temperature: parseFloat(process.env.CHAT_TEMPERATURE) || 0.7,
+              seed: Math.floor(Math.random() * 1000000),
+            }),
+          3,
+          "SOAP note generation via chat"
+        );
+
+        const response = completion.choices[0]?.message?.content;
+        if (!response) {
+          throw new Error("No response received from OpenAI");
+        }
+
+        return response;
+      }
+
+      // Build system message with note context for regular chat
       let systemContent = `You are a dental AI assistant helping to improve dental SOAP notes and answer questions about dental procedures.
 
 Your role:
@@ -378,7 +445,9 @@ Your role:
 - Ensure compliance with dental documentation standards
 - Answer questions about dental procedures, materials, and techniques
 - Help refine and enhance dental SOAP notes
-- Follow dental-specific guidelines and best practices`;
+- Follow dental-specific guidelines and best practices
+
+IMPORTANT: If the user asks you to generate a SOAP note and you have access to transcription data, you can generate a complete SOAP note using the proper format.`;
 
       // Add note context if available
       if (noteContext && Object.keys(noteContext).length > 0) {
@@ -393,17 +462,26 @@ Your role:
 
         // Add transcription if available
         if (noteContext.transcription) {
-          systemContent += `\n- Transcription: ${noteContext.transcription.substring(0, 500)}...`;
+          systemContent += `\n- Transcription: ${noteContext.transcription.substring(
+            0,
+            500
+          )}...`;
         }
 
         // Add SOAP note if available
         if (noteContext.notes && noteContext.notes.soapNote) {
-          systemContent += `\n- SOAP Note: ${noteContext.notes.soapNote.substring(0, 500)}...`;
+          systemContent += `\n- SOAP Note: ${noteContext.notes.soapNote.substring(
+            0,
+            500
+          )}...`;
         }
 
         // Add patient summary if available
         if (noteContext.notes && noteContext.notes.patientSummary) {
-          systemContent += `\n- Patient Summary: ${noteContext.notes.patientSummary.substring(0, 300)}...`;
+          systemContent += `\n- Patient Summary: ${noteContext.notes.patientSummary.substring(
+            0,
+            300
+          )}...`;
         }
       }
 
@@ -443,8 +521,8 @@ Your role:
       console.log(`✅ Chat response generated: ${response.length} characters`);
       return response;
     } catch (error) {
-      console.error("❌ Chat API error:", error);
-      throw new Error(`Chat processing failed: ${error.message}`);
+      console.error("❌ Chat generation error:", error);
+      throw new Error(`Chat response failed: ${error.message}`);
     }
   }
 

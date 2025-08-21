@@ -7,10 +7,10 @@ const authenticateToken = async (req, res, next) => {
   const token = authHeader && authHeader.split(" ")[1];
 
   if (!token) {
-    return res.status(401).json({ 
+    return res.status(401).json({
       success: false,
       error: "Access token required",
-      message: "Authentication token is required to access this resource"
+      message: "Authentication token is required to access this resource",
     });
   }
 
@@ -27,10 +27,10 @@ const authenticateToken = async (req, res, next) => {
     );
 
     if (userResult.rows.length === 0) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
         error: "Invalid token",
-        message: "User not found"
+        message: "User not found",
       });
     }
 
@@ -38,10 +38,10 @@ const authenticateToken = async (req, res, next) => {
 
     // Check if user is active
     if (!user.is_active) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
         error: "Account deactivated",
-        message: "Your account has been deactivated. Please contact support."
+        message: "Your account has been deactivated. Please contact support.",
       });
     }
 
@@ -50,16 +50,16 @@ const authenticateToken = async (req, res, next) => {
   } catch (error) {
     console.error("Token verification error:", error);
     if (error.name === "TokenExpiredError") {
-      return res.status(401).json({ 
+      return res.status(401).json({
         success: false,
         error: "Token expired",
-        message: "Your session has expired. Please log in again."
+        message: "Your session has expired. Please log in again.",
       });
     }
-    return res.status(403).json({ 
+    return res.status(403).json({
       success: false,
       error: "Invalid token",
-      message: "Invalid authentication token"
+      message: "Invalid authentication token",
     });
   }
 };
