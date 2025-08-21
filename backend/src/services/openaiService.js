@@ -467,17 +467,19 @@ class OpenAIService {
           );
 
           // Create a summary prompt to extract medical information
-          const summaryPrompt = `Please summarize the following conversation and extract ONLY the medical/dental information that would be relevant for a SOAP note. Focus on:
-- Patient symptoms or complaints
-- Clinical findings
-- Test results
-- Treatment information
-- Recommendations
+          const summaryPrompt = `Analyze the following conversation and extract ONLY the actual medical/dental information that was provided. Focus on:
+- Patient symptoms or complaints that were mentioned
+- Clinical findings that were stated
+- Test results that were given
+- Treatment information that was provided
+- Any specific medical/dental details mentioned
+
+DO NOT make assumptions or provide generic information. Only include what was explicitly stated.
 
 Conversation:
 ${userMessages}
 
-Summary of medical information:`;
+Extract ONLY the actual medical/dental information that was provided:`;
 
           try {
             const summaryResponse = await this.retryWithBackoff(
@@ -488,12 +490,12 @@ Summary of medical information:`;
                     {
                       role: "system",
                       content:
-                        "You are a medical assistant that extracts relevant medical information from conversations. Be concise and focus only on medical/dental details.",
+                        "You are a medical assistant that extracts ONLY the actual medical information provided in conversations. Do not make assumptions or provide generic information. Only include what was explicitly stated.",
                     },
                     { role: "user", content: summaryPrompt },
                   ],
                   max_tokens: 500,
-                  temperature: 0.3,
+                  temperature: 0.1,
                 }),
               3,
               "Conversation summarization"
@@ -565,7 +567,7 @@ Summary of medical information:`;
           const soapNoteMatch = response.match(
             /<<SOAP_NOTE>>\s*([\s\S]*?)\s*<<\/SOAP_NOTE>>/
           );
-          
+
           let soapNoteContent = response;
           if (soapNoteMatch) {
             soapNoteContent = soapNoteMatch[1].trim();
@@ -603,11 +605,16 @@ Patient Summary:`;
           );
 
           patientSummary = summaryResponse.choices[0]?.message?.content || "";
-          console.log(`✅ Patient summary extracted: ${patientSummary.length} characters`);
+          console.log(
+            `✅ Patient summary extracted: ${patientSummary.length} characters`
+          );
         } catch (error) {
-          console.warn(`⚠️ Failed to extract patient summary from SOAP note: ${error.message}`);
+          console.warn(
+            `⚠️ Failed to extract patient summary from SOAP note: ${error.message}`
+          );
           // Fallback: use a simple extraction
-          patientSummary = "Patient summary could not be generated automatically. Please review the SOAP note for patient details.";
+          patientSummary =
+            "Patient summary could not be generated automatically. Please review the SOAP note for patient details.";
         }
 
         // Return both SOAP note and patient summary like the upload system
@@ -640,6 +647,63 @@ The notes have been generated using the same system as the upload functionality,
           `🔍 User requested patient summary, checking conversation history`
         );
 
+        // First, analyze the conversation to extract actual patient information
+        const userMessages = conversationHistory
+          .filter((msg) => msg.role === "user")
+          .map((msg) => msg.content)
+          .join("\n");
+
+        console.log(`🔍 Analyzing conversation for patient information: ${userMessages.length} characters`);
+
+        // Create a prompt to extract actual patient information from the conversation
+        const conversationAnalysisPrompt = `Analyze the following conversation and extract ONLY the actual patient information that was provided. Focus on:
+- Patient symptoms or complaints mentioned
+- Clinical findings that were stated
+- Test results that were given
+- Treatment information that was provided
+- Any specific medical/dental details mentioned
+
+Conversation:
+${userMessages}
+
+Extract ONLY the actual patient information that was provided (not generic statements):`;
+
+        try {
+          const analysisResponse = await this.retryWithBackoff(
+            () =>
+              this.openai.chat.completions.create({
+                model: process.env.OPENAI_MODEL || "gpt-4o",
+                messages: [
+                  {
+                    role: "system",
+                    content:
+                      "You are a medical assistant that extracts ONLY the actual patient information provided in conversations. Do not make assumptions or provide generic information. Only include what was explicitly stated.",
+                  },
+                  { role: "user", content: conversationAnalysisPrompt },
+                ],
+                max_tokens: 400,
+                temperature: 0.1,
+              }),
+            3,
+            "Conversation analysis for patient information"
+          );
+
+          const extractedInfo = analysisResponse.choices[0]?.message?.content || "";
+          console.log(`🔍 Extracted patient information: ${extractedInfo}`);
+
+          // If we found actual patient information, use it
+          if (extractedInfo && extractedInfo.trim().length > 10) {
+            return `Based on the information provided in our conversation, here's the patient summary:
+
+**Patient Summary:**
+${extractedInfo}
+
+This summary is based on the actual information you provided during our conversation.`;
+          }
+        } catch (error) {
+          console.warn(`⚠️ Failed to analyze conversation: ${error.message}`);
+        }
+
         // Look for recent SOAP note generation in conversation history
         const recentAssistantMessages = conversationHistory
           .filter((msg) => msg.role === "assistant")
@@ -665,22 +729,22 @@ ${patientSummary}
 This summary was generated based on the transcription and our conversation.`;
             }
           }
-          
+
           // Also check for SOAP notes without the "Patient Summary:" header
           if (
             msg.content &&
-            (msg.content.includes("<<SOAP_NOTE>>") || 
-             msg.content.includes("**Subjective:") ||
-             msg.content.includes("**Objective:"))
+            (msg.content.includes("<<SOAP_NOTE>>") ||
+              msg.content.includes("**Subjective:") ||
+              msg.content.includes("**Objective:"))
           ) {
             // Extract the SOAP note content and create a patient summary from it
             const soapNoteMatch = msg.content.match(
               /<<SOAP_NOTE>>\s*([\s\S]*?)\s*<<\/SOAP_NOTE>>/
             );
-            
+
             if (soapNoteMatch) {
               const soapNoteContent = soapNoteMatch[1].trim();
-              
+
               // Create a patient summary from the SOAP note content
               const summaryPrompt = `Based on the following SOAP note, create a concise patient summary that includes:
 - Patient's main concerns/complaints
@@ -713,8 +777,9 @@ Patient Summary:`;
                   "Patient summary extraction"
                 );
 
-                const extractedSummary = summaryResponse.choices[0]?.message?.content || "";
-                
+                const extractedSummary =
+                  summaryResponse.choices[0]?.message?.content || "";
+
                 return `Here's the patient summary extracted from the SOAP note:
 
 **Patient Summary:**
@@ -722,7 +787,9 @@ ${extractedSummary}
 
 This summary was generated from the SOAP note in our conversation.`;
               } catch (error) {
-                console.warn(`⚠️ Failed to extract patient summary: ${error.message}`);
+                console.warn(
+                  `⚠️ Failed to extract patient summary: ${error.message}`
+                );
               }
             }
           }
