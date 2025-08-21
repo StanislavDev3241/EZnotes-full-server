@@ -439,9 +439,7 @@ Patient Summary:`;
         console.log(
           `🔍 Natural conversation with transcription context available`
         );
-        console.log(
-          `🔍 SOAP note generation mode activated`
-        );
+        console.log(`🔍 SOAP note generation mode activated`);
 
         // First, summarize the conversation to extract additional medical information
         let conversationSummary = "";
