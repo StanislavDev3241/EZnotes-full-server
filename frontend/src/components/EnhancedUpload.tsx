@@ -9,8 +9,26 @@ import {
   Loader2,
 } from "lucide-react";
 
+interface UploadResult {
+  success: boolean;
+  file: {
+    id: string;
+    status: string;
+  };
+  notes?: {
+    soapNote: string;
+    patientSummary: string;
+  };
+  transcription?: string;
+  error?: string;
+  message?: string;
+  fileName?: string;
+  customPrompt?: string;
+  conversationId?: string;
+}
+
 interface EnhancedUploadProps {
-  onUploadComplete: (result: any) => void;
+  onUploadComplete: (result: UploadResult) => void;
   onError?: (error: string) => void;
   API_BASE_URL: string;
   isUnregisteredUser?: boolean;
@@ -407,7 +425,7 @@ SIGNATURE PLACEHOLDER
     setLocalError(null);
 
     try {
-      let result: any;
+      let result: UploadResult;
       let fileName: string;
 
       if (audioBlob) {
@@ -539,7 +557,13 @@ SIGNATURE PLACEHOLDER
       setIsRecording(false);
       if (recordingIntervalRef.current) {
         clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
       }
+      // Cleanup media recorder
+      if (mediaRecorderRef.current.stream) {
+        mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+      }
+      mediaRecorderRef.current = null;
     }
   };
 

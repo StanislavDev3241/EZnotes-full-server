@@ -132,7 +132,7 @@ function AppContent() {
     }
   };
 
-  const handleLogin = (token: string, userData: any) => {
+  const handleLogin = (token: string, userData: User) => {
     setUser(userData);
     localStorage.setItem("userToken", token);
     setIsUnregisteredUser(false);

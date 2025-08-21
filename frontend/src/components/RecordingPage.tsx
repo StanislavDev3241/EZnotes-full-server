@@ -71,6 +71,19 @@ const RecordingPage: React.FC<RecordingPageProps> = ({ user }) => {
     }
 
     return () => {
+      // Cleanup audio context and microphone
+      if (microphone.current) {
+        microphone.current.disconnect();
+        microphone.current = null;
+      }
+      if (analyser.current) {
+        analyser.current.disconnect();
+        analyser.current = null;
+      }
+      if (audioContext.current) {
+        audioContext.current.close();
+        audioContext.current = null;
+      }
       if (animationFrame.current) {
         cancelAnimationFrame(animationFrame.current);
       }

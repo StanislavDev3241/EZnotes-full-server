@@ -1,7 +1,14 @@
 import { useState } from "react";
 
+interface User {
+  id: number;
+  email: string;
+  name: string;
+  role: string;
+}
+
 interface LoginPageProps {
-  onLogin: (token: string, user: any) => void;
+  onLogin: (token: string, user: User) => void;
   onBackToLanding: () => void;
 }
 
