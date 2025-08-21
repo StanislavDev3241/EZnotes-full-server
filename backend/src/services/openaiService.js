@@ -434,7 +434,7 @@ class OpenAIService {
         "give me patient summary",
         "could you please give me patient summary",
         "patient summary please",
-        "summary please"
+        "summary please",
       ];
 
       const wantsPatientSummary = patientSummaryKeywords.some((keyword) =>
@@ -558,10 +558,62 @@ Summary of medical information:`;
           `✅ SOAP note generated via chat: ${response.length} characters`
         );
 
+        // Extract patient summary from the SOAP note
+        let patientSummary = "";
+        try {
+          // Try to extract SOAP note content first
+          const soapNoteMatch = response.match(
+            /<<SOAP_NOTE>>\s*([\s\S]*?)\s*<<\/SOAP_NOTE>>/
+          );
+          
+          let soapNoteContent = response;
+          if (soapNoteMatch) {
+            soapNoteContent = soapNoteMatch[1].trim();
+          }
+
+          // Create a patient summary from the SOAP note content
+          const summaryPrompt = `Based on the following SOAP note, create a concise patient summary that includes:
+- Patient's main concerns/complaints
+- Key clinical findings
+- Diagnosis/assessment
+- Treatment plan
+
+SOAP Note:
+${soapNoteContent}
+
+Patient Summary:`;
+
+          const summaryResponse = await this.retryWithBackoff(
+            () =>
+              this.openai.chat.completions.create({
+                model: process.env.OPENAI_MODEL || "gpt-4o",
+                messages: [
+                  {
+                    role: "system",
+                    content:
+                      "You are a dental assistant that creates concise patient summaries from SOAP notes. Focus on the key clinical information and patient status.",
+                  },
+                  { role: "user", content: summaryPrompt },
+                ],
+                max_tokens: 300,
+                temperature: 0.3,
+              }),
+            3,
+            "Patient summary extraction from SOAP"
+          );
+
+          patientSummary = summaryResponse.choices[0]?.message?.content || "";
+          console.log(`✅ Patient summary extracted: ${patientSummary.length} characters`);
+        } catch (error) {
+          console.warn(`⚠️ Failed to extract patient summary from SOAP note: ${error.message}`);
+          // Fallback: use a simple extraction
+          patientSummary = "Patient summary could not be generated automatically. Please review the SOAP note for patient details.";
+        }
+
         // Return both SOAP note and patient summary like the upload system
         const notes = {
           soapNote: response,
-          patientSummary: response,
+          patientSummary: patientSummary,
         };
 
         // Format the response to include both notes
@@ -571,7 +623,7 @@ Summary of medical information:`;
 ${response}
 
 **Patient Summary:**
-${response}
+${patientSummary}
 
 The notes have been generated using the same system as the upload functionality, incorporating all the information from our conversation.`;
 
@@ -579,18 +631,30 @@ The notes have been generated using the same system as the upload functionality,
       }
 
       // Handle patient summary requests by checking conversation history for recent SOAP notes
-      if (wantsPatientSummary && conversationHistory && conversationHistory.length > 0) {
-        console.log(`🔍 User requested patient summary, checking conversation history`);
-        
+      if (
+        wantsPatientSummary &&
+        conversationHistory &&
+        conversationHistory.length > 0
+      ) {
+        console.log(
+          `🔍 User requested patient summary, checking conversation history`
+        );
+
         // Look for recent SOAP note generation in conversation history
         const recentAssistantMessages = conversationHistory
           .filter((msg) => msg.role === "assistant")
-          .slice(-3); // Check last 3 assistant messages
-        
+          .slice(-5); // Check last 5 assistant messages
+
         for (const msg of recentAssistantMessages) {
-          if (msg.content && msg.content.includes("SOAP Note:") && msg.content.includes("Patient Summary:")) {
+          if (
+            msg.content &&
+            msg.content.includes("SOAP Note:") &&
+            msg.content.includes("Patient Summary:")
+          ) {
             // Extract just the patient summary part
-            const patientSummaryMatch = msg.content.match(/\*\*Patient Summary:\*\*\s*([\s\S]*?)(?=\n\n|$)/);
+            const patientSummaryMatch = msg.content.match(
+              /\*\*Patient Summary:\*\*\s*([\s\S]*?)(?=\n\n|$|\*\*|<<)/
+            );
             if (patientSummaryMatch) {
               const patientSummary = patientSummaryMatch[1].trim();
               return `Here's the patient summary from the recently generated notes:
@@ -601,13 +665,80 @@ ${patientSummary}
 This summary was generated based on the transcription and our conversation.`;
             }
           }
+          
+          // Also check for SOAP notes without the "Patient Summary:" header
+          if (
+            msg.content &&
+            (msg.content.includes("<<SOAP_NOTE>>") || 
+             msg.content.includes("**Subjective:") ||
+             msg.content.includes("**Objective:"))
+          ) {
+            // Extract the SOAP note content and create a patient summary from it
+            const soapNoteMatch = msg.content.match(
+              /<<SOAP_NOTE>>\s*([\s\S]*?)\s*<<\/SOAP_NOTE>>/
+            );
+            
+            if (soapNoteMatch) {
+              const soapNoteContent = soapNoteMatch[1].trim();
+              
+              // Create a patient summary from the SOAP note content
+              const summaryPrompt = `Based on the following SOAP note, create a concise patient summary that includes:
+- Patient's main concerns/complaints
+- Key clinical findings
+- Diagnosis/assessment
+- Treatment plan
+
+SOAP Note:
+${soapNoteContent}
+
+Patient Summary:`;
+
+              try {
+                const summaryResponse = await this.retryWithBackoff(
+                  () =>
+                    this.openai.chat.completions.create({
+                      model: process.env.OPENAI_MODEL || "gpt-4o",
+                      messages: [
+                        {
+                          role: "system",
+                          content:
+                            "You are a dental assistant that creates concise patient summaries from SOAP notes. Focus on the key clinical information and patient status.",
+                        },
+                        { role: "user", content: summaryPrompt },
+                      ],
+                      max_tokens: 300,
+                      temperature: 0.3,
+                    }),
+                  3,
+                  "Patient summary extraction"
+                );
+
+                const extractedSummary = summaryResponse.choices[0]?.message?.content || "";
+                
+                return `Here's the patient summary extracted from the SOAP note:
+
+**Patient Summary:**
+${extractedSummary}
+
+This summary was generated from the SOAP note in our conversation.`;
+              } catch (error) {
+                console.warn(`⚠️ Failed to extract patient summary: ${error.message}`);
+              }
+            }
+          }
         }
-        
+
         // If no recent SOAP note found, generate one
         if (noteContext && noteContext.transcription) {
-          console.log(`🔍 No recent SOAP note found, generating new one for patient summary`);
+          console.log(
+            `🔍 No recent SOAP note found, generating new one for patient summary`
+          );
           // This will trigger the SOAP generation logic above
-          return this.generateChatResponse("generate notes based on transcription", noteContext, conversationHistory);
+          return this.generateChatResponse(
+            "generate notes based on transcription",
+            noteContext,
+            conversationHistory
+          );
         }
       }
 
