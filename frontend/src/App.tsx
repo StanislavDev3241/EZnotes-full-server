@@ -151,47 +151,45 @@ function AppContent() {
   }
 
   return (
-    <Router>
-      <div className="App">
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <LandingPage
-                onGetStarted={handleGetStarted}
+    <div className="App">
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <LandingPage
+              onGetStarted={handleGetStarted}
+              onShowLogin={handleShowLogin}
+            />
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <LoginPage
+              onLogin={handleLogin}
+              onBackToLanding={handleBackToLanding}
+            />
+          }
+        />
+        <Route
+          path="/app"
+          element={
+            user || isUnregisteredUser ? (
+              <MainDashboard
+                user={user}
+                onLogout={handleLogout}
+                isUnregisteredUser={isUnregisteredUser}
+                onBackToLanding={handleBackToLanding}
                 onShowLogin={handleShowLogin}
               />
-            }
-          />
-          <Route
-            path="/login"
-            element={
-              <LoginPage
-                onLogin={handleLogin}
-                onBackToLanding={handleBackToLanding}
-              />
-            }
-          />
-          <Route
-            path="/app"
-            element={
-              user || isUnregisteredUser ? (
-                <MainDashboard
-                  user={user}
-                  onLogout={handleLogout}
-                  isUnregisteredUser={isUnregisteredUser}
-                  onBackToLanding={handleBackToLanding}
-                  onShowLogin={handleShowLogin}
-                />
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
-    </Router>
+            ) : (
+              <Navigate to="/" replace />
+            )
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </div>
   );
 }
 
