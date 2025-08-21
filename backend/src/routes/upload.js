@@ -198,7 +198,7 @@ const processFileWithOpenAI = async (
           customPrompt,
           {
             userId: userId,
-            procedureType: customPrompt.specialty || "general",
+            procedureType: "general",
           }
         );
 
