@@ -363,7 +363,7 @@ class OpenAIService {
         const soapNoteMatch = response.match(
           /<<SOAP_NOTE>>\s*([\s\S]*?)\s*<<\/SOAP_NOTE>>/
         );
-        
+
         let soapNoteContent = response;
         if (soapNoteMatch) {
           soapNoteContent = soapNoteMatch[1].trim();
@@ -401,11 +401,16 @@ Patient Summary:`;
         );
 
         patientSummary = summaryResponse.choices[0]?.message?.content || "";
-        console.log(`✅ Patient summary extracted: ${patientSummary.length} characters`);
+        console.log(
+          `✅ Patient summary extracted: ${patientSummary.length} characters`
+        );
       } catch (error) {
-        console.warn(`⚠️ Failed to extract patient summary from SOAP note: ${error.message}`);
+        console.warn(
+          `⚠️ Failed to extract patient summary from SOAP note: ${error.message}`
+        );
         // Fallback: use a simple extraction
-        patientSummary = "Patient summary could not be generated automatically. Please review the SOAP note for patient details.";
+        patientSummary =
+          "Patient summary could not be generated automatically. Please review the SOAP note for patient details.";
       }
 
       // Return both SOAP note and patient summary
@@ -433,11 +438,11 @@ Patient Summary:`;
       if (
         noteContext &&
         noteContext.transcription &&
-        (userMessage.toLowerCase().includes("soap") || 
-         userMessage.toLowerCase().includes("note") || 
-         userMessage.toLowerCase().includes("summary") ||
-         userMessage.toLowerCase().includes("generate") ||
-         userMessage.toLowerCase().includes("create"))
+        (userMessage.toLowerCase().includes("soap") ||
+          userMessage.toLowerCase().includes("note") ||
+          userMessage.toLowerCase().includes("summary") ||
+          userMessage.toLowerCase().includes("generate") ||
+          userMessage.toLowerCase().includes("create"))
       ) {
         console.log(
           `🔍 User requested SOAP note generation, switching to SOAP mode`
@@ -644,17 +649,31 @@ The notes have been generated using the same system as the upload functionality,
       }
 
       // Build system message with note context for natural conversation
-      let systemContent = `You are a dental AI assistant that helps with dental consultations, SOAP notes, and patient care.
+      let systemContent = `You are a specialized dental AI assistant that helps with dental consultations, SOAP notes, and patient care.
 
-Your capabilities:
-- Generate SOAP notes from consultation transcriptions
-- Create patient summaries
-- Answer questions about dental procedures and terminology
-- Help improve dental documentation
-- Provide dental care guidance
-- Analyze dental consultation data
+Your core capabilities:
+- Generate comprehensive SOAP notes from consultation transcriptions
+- Create concise patient summaries with key clinical information
+- Answer questions about dental procedures, terminology, and best practices
+- Help improve dental documentation quality and completeness
+- Provide dental care guidance and recommendations
+- Analyze dental consultation data for insights
 
-You work naturally like ChatGPT - understand user intent from conversation context and respond appropriately. If the user asks for SOAP notes, patient summaries, or any dental documentation, generate them using the available transcription data and conversation context.`;
+SOAP Note Generation:
+- Use the standard SOAP format: Subjective, Objective, Assessment, Plan
+- Include all relevant clinical findings from the transcription
+- Add any additional information from conversation context
+- Ensure proper dental terminology and professional language
+- Include treatment recommendations and follow-up plans
+
+Patient Summary Creation:
+- Focus on key patient concerns and complaints
+- Highlight important clinical findings and assessments
+- Include diagnosis and treatment plans
+- Keep summaries concise but comprehensive
+- Use clear, professional language
+
+You work naturally like ChatGPT - understand user intent from conversation context and respond appropriately. When users ask for SOAP notes, patient summaries, or dental documentation, generate them using the available transcription data and conversation context. Always maintain professional dental standards and terminology.`;
 
       // Add note context if available
       if (noteContext && Object.keys(noteContext).length > 0) {
