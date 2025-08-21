@@ -5,28 +5,43 @@ import {
   MicOff,
   AlertCircle,
   FileAudio,
-  CheckCircle,
   Loader2,
   X,
 } from "lucide-react";
 
 interface UploadResult {
-  success: boolean;
-  file: {
-    id: string;
-    status: string;
-  };
-  notes?: {
+  fileId: string;
+  noteId: string;
+  conversationId: string;
+  fileName: string;
+  status: string;
+  transcription: string;
+  notes: {
     soapNote: string;
     patientSummary: string;
   };
-  transcription?: string;
+  customPrompt?: string;
+  success?: boolean;
   error?: string;
   message?: string;
-  fileName?: string;
-  customPrompt?: string;
-  conversationId?: string;
 }
+
+// Transform backend response to match MainDashboard expectations
+const transformUploadResult = (backendResult: any, fileName: string, customPrompt: string): UploadResult => {
+  return {
+    fileId: backendResult.file?.id || '',
+    noteId: '', // Not provided by backend
+    conversationId: '', // Not provided by backend
+    fileName: fileName,
+    status: backendResult.file?.status || 'unknown',
+    transcription: backendResult.transcription || '',
+    notes: backendResult.notes || { soapNote: '', patientSummary: '' },
+    customPrompt: customPrompt,
+    success: backendResult.success,
+    error: backendResult.error,
+    message: backendResult.message
+  };
+};
 
 interface EnhancedUploadProps {
   onUploadComplete: (result: UploadResult) => void;
@@ -455,11 +470,9 @@ SIGNATURE PLACEHOLDER
       }
 
       // Call the callback with the result
-      onUploadComplete({
-        ...result,
-        fileName,
-        customPrompt: customPrompt.trim() || "Default prompt",
-      });
+      onUploadComplete(
+        transformUploadResult(result, fileName, customPrompt.trim() || "Default prompt")
+      );
 
       // Reset form
       setFile(null);
@@ -499,21 +512,6 @@ SIGNATURE PLACEHOLDER
       clearLocalError();
     }
   };
-
-  const handleFileDrop = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-    const droppedFile = event.dataTransfer.files[0];
-    if (droppedFile) {
-      setFile(droppedFile);
-      setAudioBlob(null);
-      setRecordingTime(0);
-      clearLocalError();
-    }
-  }, []);
-
-  const handleDragOver = useCallback((event: React.DragEvent) => {
-    event.preventDefault();
-  }, []);
 
   // Audio recording
   const startRecording = async () => {
@@ -690,7 +688,8 @@ SIGNATURE PLACEHOLDER
               aria-describedby="file-help"
             />
             <p id="file-help" className="text-sm text-gray-600">
-              Supported formats: Audio files (MP3, WAV, M4A), Text files (TXT, DOC, DOCX, PDF)
+              Supported formats: Audio files (MP3, WAV, M4A), Text files (TXT,
+              DOC, DOCX, PDF)
             </p>
           </div>
 
@@ -753,9 +752,12 @@ SIGNATURE PLACEHOLDER
                 </>
               )}
             </button>
-            
+
             {isRecording && (
-              <div id="recording-status" className="flex items-center space-x-2 text-red-600">
+              <div
+                id="recording-status"
+                className="flex items-center space-x-2 text-red-600"
+              >
                 <div className="flex space-x-1">
                   {[...Array(5)].map((_, i) => (
                     <div
@@ -780,8 +782,8 @@ SIGNATURE PLACEHOLDER
                   <div>
                     <p className="font-medium text-blue-800">Audio Recording</p>
                     <p className="text-sm text-blue-600">
-                      Duration: {formatTime(recordingTime)} | 
-                      Size: {(audioBlob.size / 1024 / 1024).toFixed(2)} MB
+                      Duration: {formatTime(recordingTime)} | Size:{" "}
+                      {(audioBlob.size / 1024 / 1024).toFixed(2)} MB
                     </p>
                   </div>
                 </div>
@@ -807,11 +809,11 @@ SIGNATURE PLACEHOLDER
           disabled={isUploading || (!file && !audioBlob)}
           className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           aria-describedby={
-            isUploading 
-              ? "upload-progress" 
-              : !file && !audioBlob 
-                ? "upload-help" 
-                : undefined
+            isUploading
+              ? "upload-progress"
+              : !file && !audioBlob
+              ? "upload-help"
+              : undefined
           }
         >
           {isUploading ? (
@@ -823,7 +825,7 @@ SIGNATURE PLACEHOLDER
             "Generate Medical Notes"
           )}
         </button>
-        
+
         {isUploading && (
           <div id="upload-progress" className="mt-4">
             <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
@@ -842,9 +844,12 @@ SIGNATURE PLACEHOLDER
             </div>
           </div>
         )}
-        
+
         {!file && !audioBlob && (
-          <p id="upload-help" className="mt-2 text-sm text-gray-500 text-center">
+          <p
+            id="upload-help"
+            className="mt-2 text-sm text-gray-500 text-center"
+          >
             Please select a file or record audio to generate medical notes
           </p>
         )}
