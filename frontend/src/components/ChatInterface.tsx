@@ -222,20 +222,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
 
             {/* Quick Action Buttons - Better Layout */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
-              <p className="text-sm text-gray-400 mb-4 col-span-full">Quick actions:</p>
+              <p className="text-sm text-gray-400 mb-4 col-span-full">
+                Quick actions:
+              </p>
               <button
                 onClick={() => setInputMessage("Generate SOAP note")}
                 className="p-6 text-left bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors"
               >
                 <div className="font-medium mb-2">Generate SOAP Note</div>
-                <div className="text-sm text-blue-600">Create a complete SOAP note from transcription</div>
+                <div className="text-sm text-blue-600">
+                  Create a complete SOAP note from transcription
+                </div>
               </button>
               <button
                 onClick={() => setInputMessage("Help me improve my SOAP note")}
                 className="p-6 text-left bg-green-50 text-green-700 rounded-lg hover:bg-green-100 border border-green-200 transition-colors"
               >
                 <div className="font-medium mb-2">Improve SOAP Note</div>
-                <div className="text-sm text-green-600">Get suggestions to enhance your notes</div>
+                <div className="text-sm text-green-600">
+                  Get suggestions to enhance your notes
+                </div>
               </button>
               <button
                 onClick={() =>
@@ -243,8 +249,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
                 }
                 className="p-6 text-left bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 border border-yellow-200 transition-colors"
               >
-                <div className="font-medium mb-2">Check Missing Information</div>
-                <div className="text-sm text-yellow-600">Identify gaps in your documentation</div>
+                <div className="font-medium mb-2">
+                  Check Missing Information
+                </div>
+                <div className="text-sm text-yellow-600">
+                  Identify gaps in your documentation
+                </div>
               </button>
             </div>
           </div>
@@ -264,7 +274,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
                 }`}
               >
                 <div className="prose prose-sm max-w-none">
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {message.content}
+                  </div>
                 </div>
                 <div
                   className={`text-xs mt-3 ${
@@ -299,7 +311,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
 
       {/* Input Area - Better Spacing */}
       <div className="bg-white border-t border-gray-200 px-6 py-6">
-        <form onSubmit={handleSubmit} className="flex space-x-4 max-w-4xl mx-auto">
+        <form
+          onSubmit={handleSubmit}
+          className="flex space-x-4 max-w-4xl mx-auto"
+        >
           <div className="flex-1 flex space-x-3">
             <input
               type="text"

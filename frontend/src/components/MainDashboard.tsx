@@ -422,7 +422,10 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
             };
           }
         } catch (parseError) {
-          console.warn("Failed to parse note content as JSON, using as string:", parseError);
+          console.warn(
+            "Failed to parse note content as JSON, using as string:",
+            parseError
+          );
           // Fallback: use the content as both SOAP note and patient summary
           parsedNotes = {
             soapNote: noteData.content || "",

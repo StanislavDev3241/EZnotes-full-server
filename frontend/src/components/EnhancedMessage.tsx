@@ -141,7 +141,9 @@ const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
     >
       <div
         className={`relative max-w-2xl lg:max-w-4xl px-6 py-4 rounded-xl shadow-sm ${
-          isOwnMessage ? "bg-blue-600 text-white" : "bg-white text-gray-900 border border-gray-200"
+          isOwnMessage
+            ? "bg-blue-600 text-white"
+            : "bg-white text-gray-900 border border-gray-200"
         }`}
       >
         {/* Message Content */}

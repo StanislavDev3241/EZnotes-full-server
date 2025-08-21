@@ -492,6 +492,18 @@ Patient Summary:`;
         "could you please give me patient summary",
         "patient summary please",
         "summary please",
+        "generate patient summary",
+        "create patient summary",
+        "make patient summary",
+        "write patient summary",
+        "produce patient summary",
+        "patient summary generation",
+        "generate summary",
+        "create summary",
+        "make summary",
+        "write summary",
+        "produce summary",
+        "summary generation",
       ];
 
       const wantsPatientSummary = patientSummaryKeywords.some((keyword) =>

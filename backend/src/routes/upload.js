@@ -221,7 +221,7 @@ const processFileWithOpenAI = async (
         );
 
         // Handle both old string format and new object format
-        if (typeof noteResult === 'string') {
+        if (typeof noteResult === "string") {
           notes = {
             soapNote: noteResult,
             patientSummary: noteResult, // Fallback for backward compatibility
@@ -265,7 +265,7 @@ const processFileWithOpenAI = async (
         );
 
         // Handle both old string format and new object format
-        if (typeof noteResult === 'string') {
+        if (typeof noteResult === "string") {
           notes = {
             soapNote: noteResult,
             patientSummary: noteResult, // Fallback for backward compatibility
