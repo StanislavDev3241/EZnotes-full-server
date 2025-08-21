@@ -434,18 +434,10 @@ Patient Summary:`;
       // Natural conversation understanding - no keyword detection needed
       console.log(`💬 Processing natural conversation: "${userMessage}"`);
 
-      // If user is asking for SOAP notes or patient summary and we have transcription context, use specialized generation
-      if (
-        noteContext &&
-        noteContext.transcription &&
-        (userMessage.toLowerCase().includes("soap") ||
-          userMessage.toLowerCase().includes("note") ||
-          userMessage.toLowerCase().includes("summary") ||
-          userMessage.toLowerCase().includes("generate") ||
-          userMessage.toLowerCase().includes("create"))
-      ) {
+      // Natural conversation - always use natural understanding
+      if (noteContext && noteContext.transcription) {
         console.log(
-          `🔍 User requested SOAP note generation, switching to SOAP mode`
+          `🔍 Natural conversation with transcription context available`
         );
         console.log(
           `🔍 SOAP note generation mode activated`
