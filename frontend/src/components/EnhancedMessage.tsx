@@ -140,7 +140,7 @@ const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
       onMouseLeave={() => setShowActions(false)}
     >
       <div
-        className={`relative max-w-2xl lg:max-w-4xl px-6 py-4 rounded-xl shadow-sm ${
+        className={`relative max-w-3xl lg:max-w-5xl px-6 py-4 rounded-xl shadow-sm ${
           isOwnMessage
             ? "bg-blue-600 text-white"
             : "bg-white text-gray-900 border border-gray-200"
@@ -148,7 +148,7 @@ const EnhancedMessage: React.FC<EnhancedMessageProps> = ({
       >
         {/* Message Content */}
         <div className="prose prose-sm max-w-none">
-          <div className="whitespace-pre-wrap text-sm leading-relaxed">
+          <div className="whitespace-pre-wrap text-base leading-relaxed">
             {message.text}
           </div>
         </div>

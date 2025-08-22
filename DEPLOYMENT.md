@@ -61,22 +61,22 @@ docker exec clearlyai-unified-postgres-1 pg_isready
 
 ### **Environment Variables**
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `OPENAI_API_KEY` | OpenAI API key | ✅ | - |
-| `JWT_SECRET` | JWT signing secret | ✅ | - |
-| `POSTGRES_PASSWORD` | Database password | ✅ | - |
-| `NODE_ENV` | Environment mode | ❌ | `production` |
-| `PORT` | Backend port | ❌ | `3001` |
+| Variable            | Description        | Required | Default      |
+| ------------------- | ------------------ | -------- | ------------ |
+| `OPENAI_API_KEY`    | OpenAI API key     | ✅       | -            |
+| `JWT_SECRET`        | JWT signing secret | ✅       | -            |
+| `POSTGRES_PASSWORD` | Database password  | ✅       | -            |
+| `NODE_ENV`          | Environment mode   | ❌       | `production` |
+| `PORT`              | Backend port       | ❌       | `3001`       |
 
 ### **Port Configuration**
 
-| Service | Port | Description |
-|---------|------|-------------|
-| Frontend | 80 | Web application |
-| Backend | 3001 | API server |
-| PostgreSQL | 5433 | Database |
-| Redis | 6380 | Cache |
+| Service    | Port | Description     |
+| ---------- | ---- | --------------- |
+| Frontend   | 80   | Web application |
+| Backend    | 3001 | API server      |
+| PostgreSQL | 5433 | Database        |
+| Redis      | 6380 | Cache           |
 
 ## 🛠️ **Management Commands**
 
@@ -129,16 +129,18 @@ docker exec -i clearlyai-unified-postgres-1 psql -U clearlyAI -d clearlyai_db < 
 ### **Common Issues**
 
 1. **Port Conflicts**
+
    ```bash
    # Check port usage
    netstat -tulpn | grep :80
    netstat -tulpn | grep :3001
-   
+
    # Stop conflicting services
    sudo systemctl stop nginx  # if using nginx
    ```
 
 2. **Permission Issues**
+
    ```bash
    # Fix upload directory permissions
    sudo chown -R 1000:1000 uploads/
@@ -146,10 +148,11 @@ docker exec -i clearlyai-unified-postgres-1 psql -U clearlyAI -d clearlyai_db < 
    ```
 
 3. **Database Connection**
+
    ```bash
    # Check PostgreSQL status
    docker-compose logs postgres
-   
+
    # Reset database
    docker-compose down -v
    docker-compose up -d
@@ -274,4 +277,4 @@ chmod +x backup.sh
 
 ---
 
-**For additional support, check the main README.md file or open an issue on GitHub.** 
+**For additional support, check the main README.md file or open an issue on GitHub.**

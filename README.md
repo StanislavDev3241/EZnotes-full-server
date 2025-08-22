@@ -5,6 +5,7 @@ A comprehensive AI-powered application for dental professionals to transcribe au
 ## 🎯 **Overview**
 
 ClearlyAI is a full-stack web application that helps dental professionals:
+
 - **Transcribe audio consultations** using OpenAI Whisper
 - **Generate SOAP notes** automatically from transcriptions
 - **Create patient summaries** with key clinical information
@@ -97,40 +98,45 @@ docker-compose logs -f
 
 ## 🐳 **Services**
 
-| Service        | Port | Description                    |
-|----------------|------|--------------------------------|
-| **Frontend**   | 80   | React application (Node.js)    |
-| **Backend**    | 3001 | Express.js API server          |
-| **PostgreSQL** | 5433 | Primary database               |
-| **Redis**      | 6380 | Caching and session storage    |
+| Service        | Port | Description                 |
+| -------------- | ---- | --------------------------- |
+| **Frontend**   | 80   | React application (Node.js) |
+| **Backend**    | 3001 | Express.js API server       |
+| **PostgreSQL** | 5433 | Primary database            |
+| **Redis**      | 6380 | Caching and session storage |
 
 ## 📱 **Features**
 
 ### **🎤 Audio Processing**
+
 - **File Upload**: Support for MP3, WAV, M4A formats
 - **Audio Recording**: Browser-based recording capability
 - **Chunked Uploads**: Large file support with progress tracking
 - **Transcription**: OpenAI Whisper integration for accurate speech-to-text
 
 ### **📝 Note Generation**
+
 - **SOAP Notes**: Structured Subjective, Objective, Assessment, Plan format
 - **Patient Summaries**: Concise clinical summaries
 - **Custom Prompts**: Tailored note generation instructions
 - **Quality Analysis**: AI-powered completeness checking
 
 ### **💬 AI Chat Interface**
+
 - **Natural Conversation**: ChatGPT-like interaction
 - **Context Awareness**: Uses transcription and note context
 - **Note Improvement**: AI suggestions for better documentation
 - **Dental Guidance**: Professional dental advice and terminology
 
 ### **🔐 Security & Compliance**
+
 - **JWT Authentication**: Secure user sessions
 - **Role-Based Access**: Admin and user permissions
 - **HIPAA Compliance**: Patient data protection
 - **File Encryption**: Secure file storage
 
 ### **📊 User Management**
+
 - **User Registration**: Email-based accounts
 - **Admin Dashboard**: User management interface
 - **Session Management**: Secure login/logout
@@ -139,21 +145,25 @@ docker-compose logs -f
 ## 🛠️ **API Endpoints**
 
 ### **Authentication**
+
 - `POST /api/auth/register` - User registration
 - `POST /api/auth/login` - User login
 - `GET /api/auth/me` - Get current user
 
 ### **File Processing**
+
 - `POST /api/upload` - Upload audio files
 - `GET /api/upload/:id` - Get upload status
 - `DELETE /api/upload/:id` - Delete upload
 
 ### **Chat & Notes**
+
 - `POST /api/chat` - Send chat message
 - `GET /api/chat/history` - Get conversation history
 - `POST /api/notes/generate` - Generate notes from transcription
 
 ### **Health & Monitoring**
+
 - `GET /health` - Service health check
 - `GET /api/status` - Application status
 
@@ -161,17 +171,18 @@ docker-compose logs -f
 
 ### **Environment Variables**
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OPENAI_API_KEY` | OpenAI API key | Required |
-| `OPENAI_MODEL` | OpenAI model to use | `gpt-4o` |
-| `JWT_SECRET` | JWT signing secret | Required |
-| `NODE_ENV` | Environment mode | `production` |
-| `PORT` | Backend port | `3001` |
+| Variable         | Description         | Default      |
+| ---------------- | ------------------- | ------------ |
+| `OPENAI_API_KEY` | OpenAI API key      | Required     |
+| `OPENAI_MODEL`   | OpenAI model to use | `gpt-4o`     |
+| `JWT_SECRET`     | JWT signing secret  | Required     |
+| `NODE_ENV`       | Environment mode    | `production` |
+| `PORT`           | Backend port        | `3001`       |
 
 ### **Database Schema**
 
 The application uses PostgreSQL with the following key tables:
+
 - `users` - User accounts and authentication
 - `uploads` - File upload records
 - `notes` - Generated SOAP notes and summaries
@@ -208,6 +219,7 @@ docker-compose -f docker-compose.dev.yml up --build
 ### **Common Issues**
 
 1. **Port Conflicts**
+
    ```bash
    # Check port usage
    netstat -tulpn | grep :80
@@ -215,6 +227,7 @@ docker-compose -f docker-compose.dev.yml up --build
    ```
 
 2. **Database Connection**
+
    ```bash
    # Check PostgreSQL status
    docker-compose logs postgres
@@ -311,4 +324,4 @@ For support and questions:
 
 **Built with ❤️ using React, Node.js, PostgreSQL, and OpenAI**
 
-*Version: 1.0.0 | Last Updated: August 2025* 
+_Version: 1.0.0 | Last Updated: August 2025_

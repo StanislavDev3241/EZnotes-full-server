@@ -624,19 +624,8 @@ The notes have been generated using the same system as the upload functionality,
         return formattedResponse;
       }
 
-      // Handle patient summary requests by checking conversation history for recent SOAP notes
-      if (
-        wantsPatientSummary &&
-        conversationHistory &&
-        conversationHistory.length > 0
-      ) {
-        console.log(
-          `🔍 User requested patient summary, checking conversation history`
-        );
-
-        // Natural conversation - let the AI understand what the user wants naturally
-        console.log(`🔍 Using natural conversation understanding`);
-      }
+      // Natural conversation - let the AI understand what the user wants naturally
+      console.log(`🔍 Using natural conversation understanding`);
 
       // Build system message with note context for natural conversation
       let systemContent = `You are a specialized dental AI assistant that helps with dental consultations, SOAP notes, and patient care.
