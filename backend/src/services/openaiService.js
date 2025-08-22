@@ -475,26 +475,17 @@ Always use the actual content from their notes when available, but GENERATE new 
 
         // Add transcription if available
         if (noteContext.transcription) {
-          systemContent += `\n- Transcription: ${noteContext.transcription.substring(
-            0,
-            500
-          )}...`;
+          systemContent += `\n- Transcription: ${noteContext.transcription}`;
         }
 
         // Add SOAP note if available
         if (noteContext.notes && noteContext.notes.soapNote) {
-          systemContent += `\n- EXISTING SOAP Note: ${noteContext.notes.soapNote.substring(
-            0,
-            500
-          )}...`;
+          systemContent += `\n- EXISTING SOAP Note: ${noteContext.notes.soapNote}`;
         }
 
         // Add patient summary if available
         if (noteContext.notes && noteContext.notes.patientSummary) {
-          systemContent += `\n- EXISTING Patient Summary: ${noteContext.notes.patientSummary.substring(
-            0,
-            300
-          )}...`;
+          systemContent += `\n- EXISTING Patient Summary: ${noteContext.notes.patientSummary}`;
         }
 
         systemContent += `\n\nINSTRUCTIONS: 
