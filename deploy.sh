@@ -1,96 +1,137 @@
 #!/bin/bash
 
-# ClearlyAI Unified Deployment Script
-# This script deploys the complete full-stack application
+# ClearlyAI Deployment Script
+# This script deploys the ClearlyAI application using Docker Compose
 
-set -e
+set -e  # Exit on any error
 
-echo "🚀 Starting ClearlyAI Unified Deployment..."
+echo "🚀 ClearlyAI Deployment Script"
+echo "================================"
 
-# Check if we're in the right directory
-if [ ! -f "docker-compose.yml" ]; then
-    echo "❌ Error: Please run this script from the clearlyai-unified directory"
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+print_status() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Check if Docker is installed
+if ! command -v docker &> /dev/null; then
+    print_error "Docker is not installed. Please install Docker first."
     exit 1
 fi
 
-# Check if required directories exist
-if [ ! -d "frontend" ] || [ ! -d "backend" ]; then
-    echo "❌ Error: Frontend or backend directory not found"
-    echo "   Expected structure:"
-    echo "   clearlyai-unified/"
-    echo "   ├── frontend/"
-    echo "   ├── backend/"
-    echo "   └── docker-compose.yml"
+# Check if Docker Compose is installed
+if ! command -v docker-compose &> /dev/null; then
+    print_error "Docker Compose is not installed. Please install Docker Compose first."
     exit 1
 fi
+
+# Check if .env file exists
+if [ ! -f .env ]; then
+    print_warning ".env file not found. Creating from template..."
+    if [ -f .env.example ]; then
+        cp .env.example .env
+        print_status "Created .env file from template. Please edit it with your configuration."
+        print_warning "You need to set OPENAI_API_KEY and JWT_SECRET before continuing."
+        exit 1
+    else
+        print_error ".env.example not found. Please create a .env file manually."
+        exit 1
+    fi
+fi
+
+# Check required environment variables
+source .env
+if [ -z "$OPENAI_API_KEY" ] || [ "$OPENAI_API_KEY" = "your_openai_api_key_here" ]; then
+    print_error "OPENAI_API_KEY not set in .env file"
+    exit 1
+fi
+
+if [ -z "$JWT_SECRET" ] || [ "$JWT_SECRET" = "your_jwt_secret_here" ]; then
+    print_error "JWT_SECRET not set in .env file"
+    exit 1
+fi
+
+print_status "Environment configuration verified"
 
 # Create necessary directories
-echo "📁 Creating necessary directories..."
+print_status "Creating necessary directories..."
 mkdir -p uploads temp logs
+chmod 755 uploads temp logs
 
-# Stop any existing containers
-echo "🔄 Stopping existing containers..."
-docker-compose down 2>/dev/null || true
+# Stop existing containers
+print_status "Stopping existing containers..."
+docker-compose down --remove-orphans
 
-# Remove old images to ensure fresh build
-echo "🧹 Cleaning up old images..."
-docker image prune -f
-
-# Build and start the full stack
-echo "🔨 Building and starting full stack..."
+# Build and start services
+print_status "Building and starting services..."
 docker-compose up -d --build
 
-# Wait for services to be ready
-echo "⏳ Waiting for services to be ready..."
-sleep 30
+# Wait for services to start
+print_status "Waiting for services to start..."
+sleep 10
 
-# Check service status
-echo "🔍 Checking service status..."
-docker-compose ps
+# Check service health
+print_status "Checking service health..."
 
-# Test the services
-echo "🧪 Testing services..."
-
-# Test frontend (served by Node.js, no Nginx required)
-echo "   Testing frontend..."
-if curl -s http://localhost > /dev/null; then
-    echo "   ✅ Frontend is running on http://localhost (Node.js serve)"
+# Check backend health
+if curl -f http://localhost:3001/health > /dev/null 2>&1; then
+    print_status "✅ Backend is healthy"
 else
-    echo "   ❌ Frontend is not responding"
+    print_error "❌ Backend health check failed"
+    docker-compose logs backend
+    exit 1
 fi
 
-# Test backend
-echo "   Testing backend..."
-if curl -s http://localhost:3001/health > /dev/null; then
-    echo "   ✅ Backend is running on http://localhost:3001"
+# Check frontend
+if curl -f http://localhost > /dev/null 2>&1; then
+    print_status "✅ Frontend is accessible"
 else
-    echo "   ❌ Backend is not responding"
+    print_warning "⚠️ Frontend health check failed (this might be normal during startup)"
 fi
 
-# Test database connection
-echo "   Testing database..."
-if docker-compose exec -T postgres pg_isready -U clearlyAI -d clearlyai_db > /dev/null 2>&1; then
-    echo "   ✅ Database is ready"
+# Check database
+if docker exec clearlyai-unified-postgres-1 pg_isready -U clearlyAI > /dev/null 2>&1; then
+    print_status "✅ Database is ready"
 else
-    echo "   ❌ Database is not ready"
+    print_error "❌ Database health check failed"
+    docker-compose logs postgres
+    exit 1
+fi
+
+# Check Redis
+if docker exec clearlyai-unified-redis-1 redis-cli ping > /dev/null 2>&1; then
+    print_status "✅ Redis is ready"
+else
+    print_error "❌ Redis health check failed"
+    docker-compose logs redis
+    exit 1
 fi
 
 echo ""
-echo "✅ Deployment completed!"
+echo "🎉 Deployment completed successfully!"
+echo "================================"
+echo "📱 Frontend: http://localhost"
+echo "🔧 Backend API: http://localhost:3001"
+echo "📊 Health Check: http://localhost:3001/health"
 echo ""
-echo "🌐 Access your application:"
-echo "   Frontend: http://localhost (or your VPS IP) - Served by Node.js"
-echo "   Backend API: http://localhost:3001"
-echo "   Health Check: http://localhost:3001/health"
+echo "📋 Useful commands:"
+echo "  View logs: docker-compose logs -f"
+echo "  Stop services: docker-compose down"
+echo "  Restart services: docker-compose restart"
+echo "  Check status: docker-compose ps"
 echo ""
-echo "🔧 Useful commands:"
-echo "   View logs: docker-compose logs -f"
-echo "   Restart: docker-compose restart"
-echo "   Stop: docker-compose down"
-echo "   Status: docker-compose ps"
-echo ""
-echo "📊 Monitor containers:"
-echo "   docker stats"
-echo "   docker-compose top"
-echo ""
-echo "💡 Note: Frontend is served by Node.js (no Nginx required)" 
+echo "🔍 For troubleshooting, check the DEPLOYMENT.md file" 
