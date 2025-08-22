@@ -610,8 +610,8 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
           <div className="flex flex-col lg:flex-row h-full gap-6 px-6 pb-6">
             {/* Chat Interface - Left Side */}
             <div className="flex-1 flex flex-col bg-white rounded-lg shadow-sm min-h-0">
-              {/* Chat History Manager */}
-              <div className="p-4 border-b border-gray-200">
+              {/* Chat History Manager - Smaller footprint */}
+              <div className="p-2 border-b border-gray-200">
                 <ChatHistoryManager
                   userId={user?.id || 0}
                   onContinueFromHistory={handleContinueFromHistory}
@@ -621,11 +621,11 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                 />
               </div>
 
-              {/* Chat Interface */}
+              {/* Chat Interface - More space for conversation */}
               <div className="flex-1 flex flex-col min-h-0">
-                {/* Current Note Context Display */}
+                {/* Current Note Context Display - Compact */}
                 {currentNote && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mx-4 mt-4 mb-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mx-3 mt-2 mb-2">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <div className="flex items-center space-x-2">
                         <FileText className="w-4 h-4 text-blue-600" />
@@ -663,7 +663,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                           <h4 className="font-semibold text-gray-900 mb-2">
                             Transcription:
                           </h4>
-                          <div className="text-xs text-gray-800 max-h-40 overflow-y-auto p-2 bg-gray-50 rounded">
+                          <div className="text-xs text-gray-800 max-h-24 overflow-y-auto p-2 bg-gray-50 rounded">
                             <pre className="whitespace-pre-wrap">
                               {currentNote.transcription}
                             </pre>
@@ -677,7 +677,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                           <h4 className="font-semibold text-blue-900 mb-2">
                             SOAP Note:
                           </h4>
-                          <div className="text-xs text-blue-800 max-h-48 overflow-y-auto p-2 bg-blue-50 rounded">
+                          <div className="text-xs text-blue-800 max-h-32 overflow-y-auto p-2 bg-blue-50 rounded">
                             <pre className="whitespace-pre-wrap">
                               {currentNote.notes.soapNote}
                             </pre>
@@ -691,7 +691,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                             <h4 className="font-semibold text-green-900 mb-2">
                               Patient Summary:
                             </h4>
-                            <div className="text-xs text-green-800 max-h-32 overflow-y-auto p-2 bg-green-50 rounded">
+                            <div className="text-xs text-green-800 max-h-20 overflow-y-auto p-2 bg-green-50 rounded">
                               <pre className="whitespace-pre-wrap">
                                 {currentNote.notes.patientSummary}
                               </pre>
@@ -737,8 +737,8 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                   </div>
                 )}
 
-                {/* Chat Messages - Improved Layout */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 min-h-0">
+                {/* Chat Messages - Improved Layout with more space */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 min-h-[400px]">
                   {messages.length === 0 ? (
                     <div className="text-center text-gray-500 mt-20 max-w-2xl mx-auto">
                       <div className="mb-6">

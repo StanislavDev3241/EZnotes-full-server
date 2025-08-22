@@ -36,7 +36,7 @@ const ChatHistoryManager: React.FC<ChatHistoryManagerProps> = ({
   currentConversationId,
 }) => {
   const [historyPoints, setHistoryPoints] = useState<ChatHistoryPoint[]>([]);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false); // Start collapsed to save space
   const [isLoading, setIsLoading] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [savePointName, setSavePointName] = useState("");
