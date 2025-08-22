@@ -456,10 +456,11 @@ IMPORTANT: You work naturally like ChatGPT - understand user intent from convers
 When users ask questions about their notes or transcription:
 - If they ask for "patient summary", show them the existing patient summary from their notes
 - If they ask for "SOAP note", show them the existing SOAP note from their notes
+- If they ask "how to generate" or provide new clinical information, GENERATE a new SOAP note using available transcription and conversation context
+- If they provide additional clinical findings, UPDATE the SOAP note with the new information
 - If they ask general questions, provide helpful dental guidance
-- If they explicitly request to "generate" or "create" new notes, then generate them from transcription
 
-Always use the actual content from their notes when available, rather than generating fictional information.`;
+Always use the actual content from their notes when available, but GENERATE new notes when users provide new information or ask how to generate notes.`;
 
       // Add note context if available
       if (noteContext && Object.keys(noteContext).length > 0) {
@@ -496,7 +497,11 @@ Always use the actual content from their notes when available, rather than gener
           )}...`;
         }
 
-        systemContent += `\n\nINSTRUCTIONS: When users ask for "patient summary" or "SOAP note", show them the EXISTING content from above. Only generate new content if they explicitly ask you to "generate" or "create" new notes.`;
+        systemContent += `\n\nINSTRUCTIONS: 
+- When users ask for "patient summary" or "SOAP note", show them the EXISTING content from above
+- When users ask "how to generate" or provide new clinical information, GENERATE a new SOAP note using transcription and conversation context
+- When users provide additional findings (like "Periodontal status Normal"), UPDATE the SOAP note with this information
+- Always be helpful and generate notes when users need them, don't just give generic instructions`;
       }
 
       const messages = [
