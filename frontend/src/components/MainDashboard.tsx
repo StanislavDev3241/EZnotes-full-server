@@ -659,10 +659,16 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                         {currentNote.fileName.split(".").pop() || "Unknown"}
                       </p>
                       {currentNote.transcription && (
-                        <p>
-                          <strong>Transcription:</strong>{" "}
-                          {currentNote.transcription.substring(0, 100)}...
-                        </p>
+                        <div className="mt-2 p-3 bg-white rounded border border-gray-300">
+                          <h4 className="font-semibold text-gray-900 mb-2">
+                            Transcription:
+                          </h4>
+                          <div className="text-xs text-gray-800 max-h-40 overflow-y-auto p-2 bg-gray-50 rounded">
+                            <pre className="whitespace-pre-wrap">
+                              {currentNote.transcription}
+                            </pre>
+                          </div>
+                        </div>
                       )}
 
                       {/* Show SOAP Note and Patient Summary */}
@@ -671,9 +677,10 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                           <h4 className="font-semibold text-blue-900 mb-2">
                             SOAP Note:
                           </h4>
-                          <div className="text-xs text-blue-800 max-h-32 overflow-y-auto">
-                            {currentNote.notes.soapNote.substring(0, 300)}
-                            {currentNote.notes.soapNote.length > 300 && "..."}
+                          <div className="text-xs text-blue-800 max-h-48 overflow-y-auto p-2 bg-blue-50 rounded">
+                            <pre className="whitespace-pre-wrap">
+                              {currentNote.notes.soapNote}
+                            </pre>
                           </div>
                         </div>
                       )}
@@ -684,13 +691,10 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                             <h4 className="font-semibold text-green-900 mb-2">
                               Patient Summary:
                             </h4>
-                            <div className="text-xs text-green-800 max-h-24 overflow-y-auto">
-                              {currentNote.notes.patientSummary.substring(
-                                0,
-                                200
-                              )}
-                              {currentNote.notes.patientSummary.length > 200 &&
-                                "..."}
+                            <div className="text-xs text-green-800 max-h-32 overflow-y-auto p-2 bg-green-50 rounded">
+                              <pre className="whitespace-pre-wrap">
+                                {currentNote.notes.patientSummary}
+                              </pre>
                             </div>
                           </div>
                         )}
@@ -707,7 +711,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                               <h5 className="font-medium text-blue-900 mb-2">
                                 Full SOAP Note:
                               </h5>
-                              <div className="text-xs text-gray-800 max-h-64 overflow-y-auto p-3 bg-gray-50 rounded border">
+                              <div className="text-xs text-gray-800 max-h-96 overflow-y-auto p-3 bg-gray-50 rounded border">
                                 <pre className="whitespace-pre-wrap">
                                   {currentNote.notes.soapNote}
                                 </pre>
@@ -720,7 +724,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                               <h5 className="font-medium text-green-900 mb-2">
                                 Full Patient Summary:
                               </h5>
-                              <div className="text-xs text-gray-800 max-h-32 overflow-y-auto p-3 bg-gray-50 rounded border">
+                              <div className="text-xs text-gray-800 max-h-64 overflow-y-auto p-3 bg-gray-50 rounded border">
                                 <pre className="whitespace-pre-wrap">
                                   {currentNote.notes.patientSummary}
                                 </pre>
@@ -902,8 +906,8 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                       onChange={(e) => setInputMessage(e.target.value)}
                       onKeyPress={handleKeyPress}
                       placeholder="Ask me about the uploaded content or request improvements..."
-                      className="w-full resize-none border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base min-h-[80px]"
-                      rows={3}
+                      className="w-full resize-none border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base min-h-[120px]"
+                      rows={5}
                     />
                     <div className="flex justify-between items-center">
                       <div className="text-xs text-gray-500">
@@ -933,27 +937,40 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                     <h4 className="font-medium text-gray-900 mb-2 text-sm sm:text-base">
                       File: {currentNote.fileName}
                     </h4>
-                    <p className="text-xs sm:text-sm text-gray-600 mb-2">
-                      <strong>Custom Prompt:</strong> {currentNote.customPrompt}
-                    </p>
+                    {currentNote.customPrompt && (
+                      <div className="mb-3">
+                        <h5 className="font-medium text-gray-900 mb-2 text-sm">
+                          Custom Prompt:
+                        </h5>
+                        <div className="text-xs text-gray-700 max-h-32 overflow-y-auto p-2 bg-gray-50 rounded border">
+                          <pre className="whitespace-pre-wrap">
+                            {currentNote.customPrompt}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm">
                     <h4 className="font-medium text-gray-900 mb-2 text-sm sm:text-base">
                       SOAP Note
                     </h4>
-                    <p className="text-xs sm:text-sm text-gray-700 whitespace-pre-wrap">
-                      {currentNote.notes.soapNote.substring(0, 300)}...
-                    </p>
+                    <div className="text-xs sm:text-sm text-gray-700 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded border">
+                      <pre className="whitespace-pre-wrap">
+                        {currentNote.notes.soapNote}
+                      </pre>
+                    </div>
                   </div>
 
                   <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm">
                     <h4 className="font-medium text-gray-900 mb-2 text-sm sm:text-base">
                       Patient Summary
                     </h4>
-                    <p className="text-xs sm:text-sm text-gray-700 whitespace-pre-wrap">
-                      {currentNote.notes.patientSummary.substring(0, 200)}...
-                    </p>
+                    <div className="text-xs sm:text-sm text-gray-700 max-h-32 overflow-y-auto p-2 bg-gray-50 rounded border">
+                      <pre className="whitespace-pre-wrap">
+                        {currentNote.notes.patientSummary}
+                      </pre>
+                    </div>
                   </div>
 
                   <button
