@@ -30,8 +30,17 @@ interface UploadResult {
 const transformUploadResult = (
   backendResult: any,
   fileName: string,
-  customPrompt: string
+  customPrompt: string,
+  selectedNoteType: "soap" | "summary"
 ): UploadResult => {
+  const notes = backendResult.notes || { soapNote: "", patientSummary: "" };
+  
+  // Only return the selected note type
+  const filteredNotes = {
+    soapNote: selectedNoteType === "soap" ? notes.soapNote : "",
+    patientSummary: selectedNoteType === "summary" ? notes.patientSummary : "",
+  };
+
   return {
     fileId: backendResult.file?.id || "",
     noteId: "", // Not provided by backend
@@ -39,7 +48,7 @@ const transformUploadResult = (
     fileName: fileName,
     status: backendResult.file?.status || "unknown",
     transcription: backendResult.transcription || "",
-    notes: backendResult.notes || { soapNote: "", patientSummary: "" },
+    notes: filteredNotes,
     customPrompt: customPrompt,
     success: backendResult.success,
     error: backendResult.error,
@@ -82,6 +91,7 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
   const [recordingTime, setRecordingTime] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [selectedNoteType, setSelectedNoteType] = useState<"soap" | "summary" | null>(null);
   const [customPrompt, setCustomPrompt] = useState<string>(
     `ClearlyAI - SOAP note generator update; SYSTEM PROMPT — Dental SOAP Note Generator (Compact, <8k)
 
@@ -473,6 +483,11 @@ END.`
       return;
     }
 
+    if (!selectedNoteType) {
+      setLocalError("Please select a note type (SOAP Note or Visit Summary)");
+      return;
+    }
+
     setIsUploading(true);
     setLocalError(null);
 
@@ -510,7 +525,8 @@ END.`
         transformUploadResult(
           result,
           fileName,
-          customPrompt.trim() || "Default prompt"
+          customPrompt.trim() || "Default prompt",
+          selectedNoteType
         )
       );
 
@@ -673,7 +689,8 @@ END.`
         </label>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <button
-            onClick={() =>
+            onClick={() => {
+              setSelectedNoteType("soap");
               setCustomPrompt(`ClearlyAI - SOAP note generator update; SYSTEM PROMPT — Dental SOAP Note Generator (Compact, <8k)
 
 ROLE
@@ -734,9 +751,13 @@ COMPLIANCE GUARDRAILS
 • Do not include any content after Plan except the required signature line.
 • If transcript indicates no procedure requiring anesthesia (e.g., hygiene/check‑up), do not ask for anesthesia.
 
-END.`)
-            }
-            className="p-4 text-left bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors"
+END.`);
+            }}
+            className={`p-4 text-left rounded-lg border transition-colors ${
+              selectedNoteType === "soap"
+                ? "bg-blue-100 text-blue-800 border-blue-300"
+                : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+            }`}
           >
             <div className="font-medium mb-1">SOAP Note</div>
             <div className="text-sm text-blue-600">
@@ -745,7 +766,8 @@ END.`)
           </button>
 
           <button
-            onClick={() =>
+            onClick={() => {
+              setSelectedNoteType("summary");
               setCustomPrompt(`ClearlyAI - Patient Visit Summary Generator
 
 ROLE
@@ -801,9 +823,13 @@ COMPLIANCE
 - Ensure accuracy and completeness
 - Make information accessible to patients
 
-END.`)
-            }
-            className="p-4 text-left bg-green-50 text-green-700 rounded-lg hover:bg-green-100 border border-green-200 transition-colors"
+END.`);
+            }}
+            className={`p-4 text-left rounded-lg border transition-colors ${
+              selectedNoteType === "summary"
+                ? "bg-green-100 text-green-800 border-green-300"
+                : "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+            }`}
           >
             <div className="font-medium mb-1">Visit Summary</div>
             <div className="text-sm text-green-600">

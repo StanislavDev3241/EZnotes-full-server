@@ -10,7 +10,7 @@ import {
 
 interface LandingPageProps {
   onGetStarted: () => void;
-  onShowLogin?: () => void;
+  onShowLogin?: (mode?: "login" | "signup") => void;
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({
@@ -57,7 +57,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                     onClick={() => {
                       setShowMenu(false);
                       if (onShowLogin) {
-                        onShowLogin();
+                        onShowLogin("login");
                       }
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -68,7 +68,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                     onClick={() => {
                       setShowMenu(false);
                       if (onShowLogin) {
-                        onShowLogin();
+                        onShowLogin("signup");
                       }
                     }}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

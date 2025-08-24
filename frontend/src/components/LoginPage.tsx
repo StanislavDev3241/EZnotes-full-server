@@ -10,10 +10,11 @@ interface User {
 interface LoginPageProps {
   onLogin: (token: string, user: User) => void;
   onBackToLanding: () => void;
+  initialMode?: "login" | "signup";
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding }) => {
-  const [isLogin, setIsLogin] = useState(true);
+const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding, initialMode = "login" }) => {
+  const [isLogin, setIsLogin] = useState(initialMode === "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");

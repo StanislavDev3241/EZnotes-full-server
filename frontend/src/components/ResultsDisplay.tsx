@@ -35,7 +35,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     "soap" | "summary" | "transcription"
   >("soap");
   const [copied, setCopied] = useState<string | null>(null);
-  const [showEHRCopy, setShowEHRCopy] = useState(false);
+
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
@@ -210,13 +210,6 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                 </h3>
                 <div className="flex space-x-2">
                   <button
-                    onClick={() => setShowEHRCopy(!showEHRCopy)}
-                    className="flex items-center px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
-                  >
-                    <Clipboard className="w-4 h-4 mr-1" />
-                    {showEHRCopy ? "Hide EHR Copy" : "Show EHR Copy"}
-                  </button>
-                  <button
                     onClick={() =>
                       copyToClipboard(
                         getCleanSOAPNote(result.notes!.soapNote),
@@ -259,35 +252,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                 </div>
               </div>
 
-              {/* EHR Copy Section */}
-              {showEHRCopy && (
-                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-green-900">
-                      Clean SOAP Note for EHR
-                    </h4>
-                    <button
-                      onClick={() =>
-                        copyToClipboard(
-                          getCleanSOAPNote(result.notes!.soapNote),
-                          "ehr"
-                        )
-                      }
-                      className="flex items-center px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                    >
-                      <Copy className="w-3 h-3 mr-1" />
-                      {copied === "ehr" ? "Copied!" : "Copy to EHR"}
-                    </button>
-                  </div>
-                  <div className="bg-white p-3 rounded border border-green-300 whitespace-pre-wrap text-sm text-gray-800 font-mono">
-                    {getCleanSOAPNote(result.notes!.soapNote)}
-                  </div>
-                  <p className="text-xs text-green-700 mt-2">
-                    This clean version is ready to paste directly into your EHR
-                    system.
-                  </p>
-                </div>
-              )}
+
 
               {/* Full SOAP Note Display */}
               <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap text-gray-800 select-all border border-gray-200">

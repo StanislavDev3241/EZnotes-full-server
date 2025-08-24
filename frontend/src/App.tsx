@@ -135,7 +135,10 @@ function AppContent() {
     navigateTo("/");
   };
 
-  const handleShowLogin = () => {
+  const [loginMode, setLoginMode] = useState<"login" | "signup">("login");
+
+  const handleShowLogin = (mode?: "login" | "signup") => {
+    setLoginMode(mode || "login");
     navigateTo("/login");
   };
 
@@ -168,6 +171,7 @@ function AppContent() {
             <LoginPage
               onLogin={handleLogin}
               onBackToLanding={handleBackToLanding}
+              initialMode={loginMode}
             />
           }
         />
