@@ -21,6 +21,7 @@ interface ResultsDisplayProps {
     };
     transcription?: string;
     error?: string;
+    selectedNoteType?: "soap" | "summary";
   };
   onClose: () => void;
   onNextToChat?: () => void; // Add callback for chat navigation
