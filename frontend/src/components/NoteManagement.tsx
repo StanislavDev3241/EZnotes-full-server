@@ -9,8 +9,6 @@ interface SavedNote {
   updated_at: string;
   file_id?: number;
   conversation_id?: number;
-  is_generated?: boolean;
-  content?: string;
 }
 
 interface NoteManagementProps {
@@ -41,58 +39,30 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
   const loadSavedNotes = async () => {
     setIsLoading(true);
     try {
-      // Load both generated notes and saved notes
-      const [generatedResponse, savedResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/notes/user/${userId}`, {
+      // Load saved notes (which now include generated notes)
+      const response = await fetch(
+        `${API_BASE_URL}/api/notes/saved/${userId}`,
+        {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("userToken")}`,
           },
-        }),
-        fetch(`${API_BASE_URL}/api/notes/saved/${userId}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("userToken")}`,
-          },
-        })
-      ]);
+        }
+      );
 
-      let allNotes: SavedNote[] = [];
-
-      // Load generated notes
-      if (generatedResponse.ok) {
-        const generatedData = await generatedResponse.json();
-        const generatedNotes = generatedData.notes || [];
+      if (response.ok) {
+        const data = await response.json();
+        const notes = data.notes || [];
         
-        // Convert generated notes to SavedNote format
-        const convertedGeneratedNotes = generatedNotes.map((note: any) => ({
-          id: note.id,
-          note_name: `${note.note_type === 'soap_note' ? 'SOAP Note' : 'Patient Summary'} - ${note.filename || 'Generated Note'}`,
-          note_type: note.note_type,
-          created_at: note.created_at,
-          updated_at: note.updated_at,
-          file_id: note.file_id,
-          conversation_id: null,
-          is_generated: true,
-          content: note.content
-        }));
+        // Sort by creation date (newest first)
+        notes.sort(
+          (a: any, b: any) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
         
-        allNotes = [...convertedGeneratedNotes];
+        setSavedNotes(notes);
       }
-
-      // Load saved notes
-      if (savedResponse.ok) {
-        const savedData = await savedResponse.json();
-        const savedNotes = savedData.notes || [];
-        
-        // Add saved notes
-        allNotes = [...allNotes, ...savedNotes];
-      }
-
-      // Sort by creation date (newest first)
-      allNotes.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
-      setSavedNotes(allNotes);
     } catch (error) {
-      console.error("Failed to load notes:", error);
+      console.error("Failed to load saved notes:", error);
     } finally {
       setIsLoading(false);
     }
@@ -100,28 +70,20 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
 
   const handleViewNote = async (note: SavedNote) => {
     try {
-      if (note.is_generated && note.content) {
-        // For generated notes, use the content directly
-        setNoteContent(note.content);
+      const response = await fetch(
+        `${API_BASE_URL}/api/notes/saved/content/${note.id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setNoteContent(data.content);
         setSelectedNote(note);
         setShowNoteContent(true);
-      } else {
-        // For saved notes, fetch content from API
-        const response = await fetch(
-          `${API_BASE_URL}/api/notes/saved/content/${note.id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("userToken")}`,
-            },
-          }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          setNoteContent(data.content);
-          setSelectedNote(note);
-          setShowNoteContent(true);
-        }
       }
     } catch (error) {
       console.error("Failed to load note content:", error);
@@ -131,35 +93,15 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
   const handleDeleteNote = async (noteId: number) => {
     if (window.confirm("Are you sure you want to delete this note?")) {
       try {
-        const note = savedNotes.find(n => n.id === noteId);
-        let response;
-
-        if (note?.is_generated) {
-          // Delete generated note from notes table
-          response = await fetch(
-            `${API_BASE_URL}/api/notes/${noteId}`,
-            {
-              method: "DELETE",
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("userToken")}`,
-              },
-            }
-          );
-        } else {
-          // Delete saved note from encrypted_saved_notes table
-          response = await fetch(
-            `${API_BASE_URL}/api/notes/saved/${noteId}`,
-            {
-              method: "DELETE",
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("userToken")}`,
-              },
-            }
-          );
-        }
+        const response = await fetch(`${API_BASE_URL}/api/notes/saved/${noteId}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+          },
+        });
 
         if (response.ok) {
-          setSavedNotes(prev => prev.filter(note => note.id !== noteId));
+          setSavedNotes((prev) => prev.filter((note) => note.id !== noteId));
           if (selectedNote?.id === noteId) {
             setSelectedNote(null);
             setShowNoteContent(false);
@@ -243,7 +185,7 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
                       {getNoteTypeLabel(note.note_type)}
                     </span>
                   </div>
-                  
+
                   <div className="flex items-center space-x-4 text-xs text-gray-500">
                     <span>Created: {formatDate(note.created_at)}</span>
                     {note.updated_at !== note.created_at && (
@@ -309,7 +251,7 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
                 ✕
               </button>
             </div>
-            
+
             <div className="bg-gray-50 p-4 rounded-lg">
               <pre className="whitespace-pre-wrap text-sm text-gray-800 font-mono">
                 {noteContent}
@@ -342,4 +284,4 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
   );
 };
 
-export default NoteManagement; 
+export default NoteManagement;

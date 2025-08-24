@@ -18,6 +18,7 @@ const fs = require("fs"); // Regular fs for createReadStream
 const fsPromises = require("fs").promises; // Promises for async operations
 const openaiService = require("../services/openaiService");
 const fsSync = require("fs"); // For createWriteStream
+const encryptionUtils = require("../../encryption-utils");
 
 const router = express.Router();
 
@@ -285,10 +286,13 @@ const processFileWithOpenAI = async (
     }
 
     // Save notes to database - save separate notes for SOAP and patient summary
+    let soapNoteId = null;
+    let patientSummaryId = null;
+
     if (notes.soapNote) {
-      await pool.query(
+      const soapResult = await pool.query(
         `INSERT INTO notes (file_id, note_type, content, user_id, prompt_used, ai_model, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+         VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id`,
         [
           fileId,
           "soap_note",
@@ -298,12 +302,13 @@ const processFileWithOpenAI = async (
           process.env.OPENAI_MODEL || "gpt-4o",
         ]
       );
+      soapNoteId = soapResult.rows[0].id;
     }
 
     if (notes.patientSummary) {
-      await pool.query(
+      const summaryResult = await pool.query(
         `INSERT INTO notes (file_id, note_type, content, user_id, prompt_used, ai_model, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+         VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING id`,
         [
           fileId,
           "patient_summary",
@@ -311,6 +316,52 @@ const processFileWithOpenAI = async (
           userId,
           customPrompt ? JSON.stringify(customPrompt) : "default",
           process.env.OPENAI_MODEL || "gpt-4o",
+        ]
+      );
+      patientSummaryId = summaryResult.rows[0].id;
+    }
+
+    // Also create "Saved Notes" entries for the generated notes
+    if (userId && notes.soapNote) {
+      const encrypted = encryptionUtils.encryptData(notes.soapNote, userId);
+      const contentHash = encryptionUtils.hashData(notes.soapNote);
+      
+      await pool.query(
+        `INSERT INTO encrypted_saved_notes 
+         (user_id, note_type, note_name, encrypted_content, encryption_iv, 
+          content_hash, file_id, conversation_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          userId,
+          "soap_note",
+          `SOAP Note - ${fileInfo.originalName}`,
+          encrypted.encryptedData,
+          encrypted.iv,
+          contentHash,
+          fileId,
+          null,
+        ]
+      );
+    }
+
+    if (userId && notes.patientSummary) {
+      const encrypted = encryptionUtils.encryptData(notes.patientSummary, userId);
+      const contentHash = encryptionUtils.hashData(notes.patientSummary);
+      
+      await pool.query(
+        `INSERT INTO encrypted_saved_notes 
+         (user_id, note_type, note_name, encrypted_content, encryption_iv, 
+          content_hash, file_id, conversation_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
+          userId,
+          "patient_summary",
+          `Patient Summary - ${fileInfo.originalName}`,
+          encrypted.encryptedData,
+          encrypted.iv,
+          contentHash,
+          fileId,
+          null,
         ]
       );
     }

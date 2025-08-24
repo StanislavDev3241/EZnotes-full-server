@@ -616,10 +616,9 @@ router.delete("/:noteId", authenticateToken, async (req, res) => {
     const userId = req.user.userId;
 
     // Check if the note exists
-    const note = await pool.query(
-      `SELECT * FROM notes WHERE id = $1`,
-      [noteId]
-    );
+    const note = await pool.query(`SELECT * FROM notes WHERE id = $1`, [
+      noteId,
+    ]);
 
     if (note.rows.length === 0) {
       return res.status(404).json({
@@ -629,10 +628,7 @@ router.delete("/:noteId", authenticateToken, async (req, res) => {
     }
 
     // Verify user can delete this note
-    if (
-      req.user.role !== "admin" &&
-      req.user.userId !== note.rows[0].user_id
-    ) {
+    if (req.user.role !== "admin" && req.user.userId !== note.rows[0].user_id) {
       return res.status(403).json({
         success: false,
         message: "Access denied",
