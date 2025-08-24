@@ -1,7 +1,10 @@
--- Add missing tables to existing database
+-- Fix audit_logs table structure to match backend code expectations
 
--- Create audit logs table
-CREATE TABLE IF NOT EXISTS audit_logs (
+-- Drop the existing audit_logs table if it exists
+DROP TABLE IF EXISTS audit_logs;
+
+-- Recreate the audit_logs table with correct column names
+CREATE TABLE audit_logs (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id),
   action_type VARCHAR(100) NOT NULL,
@@ -14,7 +17,12 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create chat history checkpoints table
+-- Add indexes for better performance
+CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX idx_audit_logs_action_type ON audit_logs(action_type);
+CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
+
+-- Create chat history checkpoints table if it doesn't exist
 CREATE TABLE IF NOT EXISTS chat_history_checkpoints (
   id SERIAL PRIMARY KEY,
   conversation_id INTEGER REFERENCES chat_conversations(id),
@@ -24,11 +32,7 @@ CREATE TABLE IF NOT EXISTS chat_history_checkpoints (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Add indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
-
+-- Add indexes for chat history checkpoints
 CREATE INDEX IF NOT EXISTS idx_chat_history_checkpoints_user_id ON chat_history_checkpoints(user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_history_checkpoints_conversation_id ON chat_history_checkpoints(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_chat_history_checkpoints_created_at ON chat_history_checkpoints(created_at); 

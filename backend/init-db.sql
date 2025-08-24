@@ -113,10 +113,11 @@ CREATE TABLE IF NOT EXISTS note_improvements (
 CREATE TABLE IF NOT EXISTS audit_logs (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id),
-  action VARCHAR(100) NOT NULL,
+  action_type VARCHAR(100) NOT NULL,
   resource_type VARCHAR(50),
   resource_id INTEGER,
-  details JSONB,
+  encrypted_details TEXT,
+  encryption_iv TEXT,
   ip_address INET,
   user_agent TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
