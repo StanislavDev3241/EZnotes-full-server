@@ -32,9 +32,23 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   onClose,
   onNextToChat,
 }) => {
+  // Set default tab based on selected note types
+  const getDefaultTab = () => {
+    if (result.selectedNoteTypes?.includes("summary") && result.notes?.patientSummary) {
+      return "summary";
+    }
+    if (result.selectedNoteTypes?.includes("soap") && result.notes?.soapNote) {
+      return "soap";
+    }
+    if (result.transcription) {
+      return "transcription";
+    }
+    return "soap"; // fallback
+  };
+
   const [activeTab, setActiveTab] = useState<
     "soap" | "summary" | "transcription"
-  >("soap");
+  >(getDefaultTab());
   const [copied, setCopied] = useState<string | null>(null);
 
   const copyToClipboard = async (text: string, type: string) => {

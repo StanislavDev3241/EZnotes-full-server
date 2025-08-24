@@ -374,7 +374,12 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
       // Set current conversation ID
       setCurrentConversationId(conversationId);
 
-      // Convert history messages to our Message format
+      // If we have a note ID from the conversation, load the note context first
+      if (conversationData.note_id) {
+        await loadNoteContext(conversationData.note_id);
+      }
+
+      // Convert history messages to our Message format with proper note context
       const convertedMessages = historyMessages.map((msg) => ({
         id: msg.id.toString(),
         text:
@@ -383,15 +388,10 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
             : msg.ai_response || msg.message_text,
         sender: msg.sender_type === "user" ? "user" : ("ai" as "user" | "ai"),
         timestamp: new Date(msg.created_at),
-        noteContext: currentNote,
+        noteContext: currentNote, // This will be updated after loadNoteContext
       }));
 
       setMessages(convertedMessages);
-
-      // If we have a note ID from the conversation, load the note context
-      if (conversationData.note_id) {
-        await loadNoteContext(conversationData.note_id);
-      }
 
       // Switch to chat section
       setActiveSectionWithGuard("chat");
@@ -435,15 +435,30 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
           };
         }
 
+        // Determine selected note types based on note type
+        let selectedNoteTypes: ("soap" | "summary")[] = [];
+        if (noteData.note_type?.toLowerCase().includes("soap")) {
+          selectedNoteTypes.push("soap");
+        }
+        if (noteData.note_type?.toLowerCase().includes("patient") || 
+            noteData.note_type?.toLowerCase().includes("summary")) {
+          selectedNoteTypes.push("summary");
+        }
+        // If no specific type detected, assume both
+        if (selectedNoteTypes.length === 0) {
+          selectedNoteTypes = ["soap", "summary"];
+        }
+
         // Create a note context object that matches our UploadResult interface
         const noteContext = {
           fileId: noteData.file_id?.toString() || "",
           noteId: noteData.id?.toString() || "",
           conversationId: currentConversationId || "",
-          fileName: `Note ${noteData.id}`,
+          fileName: noteData.filename || `Note ${noteData.id}`,
           status: "completed",
           transcription: noteData.transcription || "",
           notes: parsedNotes,
+          selectedNoteTypes: selectedNoteTypes,
         };
 
         console.log("Loaded note context:", noteContext);
@@ -675,20 +690,23 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                       )}
 
                       {/* Show only selected note types */}
-                      {currentNote.selectedNoteTypes?.includes("soap") && currentNote.notes && currentNote.notes.soapNote && (
-                        <div className="mt-3 p-3 bg-white rounded border border-blue-300">
-                          <h4 className="font-semibold text-blue-900 mb-2">
-                            SOAP Note:
-                          </h4>
-                          <div className="text-xs text-blue-800 max-h-32 overflow-y-auto p-2 bg-blue-50 rounded">
-                            <pre className="whitespace-pre-wrap">
-                              {currentNote.notes.soapNote}
-                            </pre>
+                      {currentNote.selectedNoteTypes?.includes("soap") &&
+                        currentNote.notes &&
+                        currentNote.notes.soapNote && (
+                          <div className="mt-3 p-3 bg-white rounded border border-blue-300">
+                            <h4 className="font-semibold text-blue-900 mb-2">
+                              SOAP Note:
+                            </h4>
+                            <div className="text-xs text-blue-800 max-h-32 overflow-y-auto p-2 bg-blue-50 rounded">
+                              <pre className="whitespace-pre-wrap">
+                                {currentNote.notes.soapNote}
+                              </pre>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {currentNote.selectedNoteTypes?.includes("summary") && currentNote.notes &&
+                      {currentNote.selectedNoteTypes?.includes("summary") &&
+                        currentNote.notes &&
                         currentNote.notes.patientSummary && (
                           <div className="mt-2 p-3 bg-white rounded border border-green-300">
                             <h4 className="font-semibold text-green-900 mb-2">
@@ -709,31 +727,33 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                             Complete Notes:
                           </h4>
 
-                          {currentNote.selectedNoteTypes?.includes("soap") && currentNote.notes.soapNote && (
-                            <div className="mb-4">
-                              <h5 className="font-medium text-blue-900 mb-2">
-                                Full SOAP Note:
-                              </h5>
-                              <div className="text-xs text-gray-800 max-h-96 overflow-y-auto p-3 bg-gray-50 rounded border">
-                                <pre className="whitespace-pre-wrap">
-                                  {currentNote.notes.soapNote}
-                                </pre>
+                          {currentNote.selectedNoteTypes?.includes("soap") &&
+                            currentNote.notes.soapNote && (
+                              <div className="mb-4">
+                                <h5 className="font-medium text-blue-900 mb-2">
+                                  Full SOAP Note:
+                                </h5>
+                                <div className="text-xs text-gray-800 max-h-96 overflow-y-auto p-3 bg-gray-50 rounded border">
+                                  <pre className="whitespace-pre-wrap">
+                                    {currentNote.notes.soapNote}
+                                  </pre>
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
 
-                          {currentNote.selectedNoteTypes?.includes("summary") && currentNote.notes.patientSummary && (
-                            <div>
-                              <h5 className="font-medium text-green-900 mb-2">
-                                Full Patient Summary:
-                              </h5>
-                              <div className="text-xs text-gray-800 max-h-64 overflow-y-auto p-3 bg-gray-50 rounded border">
-                                <pre className="whitespace-pre-wrap">
-                                  {currentNote.notes.patientSummary}
-                                </pre>
+                          {currentNote.selectedNoteTypes?.includes("summary") &&
+                            currentNote.notes.patientSummary && (
+                              <div>
+                                <h5 className="font-medium text-green-900 mb-2">
+                                  Full Patient Summary:
+                                </h5>
+                                <div className="text-xs text-gray-800 max-h-64 overflow-y-auto p-3 bg-gray-50 rounded border">
+                                  <pre className="whitespace-pre-wrap">
+                                    {currentNote.notes.patientSummary}
+                                  </pre>
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
                         </div>
                       )}
                     </div>
@@ -771,7 +791,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-lg mx-auto">
                         {currentNote?.selectedNoteTypes?.includes("soap") && (
                           <button
-                            onClick={() => setInputMessage("Generate SOAP note")}
+                            onClick={() =>
+                              setInputMessage("Generate SOAP note")
+                            }
                             className="p-4 text-left bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors"
                           >
                             <div className="font-medium mb-1">
@@ -782,9 +804,13 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                             </div>
                           </button>
                         )}
-                        {currentNote?.selectedNoteTypes?.includes("summary") && (
+                        {currentNote?.selectedNoteTypes?.includes(
+                          "summary"
+                        ) && (
                           <button
-                            onClick={() => setInputMessage("Generate patient summary")}
+                            onClick={() =>
+                              setInputMessage("Generate patient summary")
+                            }
                             className="p-4 text-left bg-green-50 text-green-700 rounded-lg hover:bg-green-100 border border-green-200 transition-colors"
                           >
                             <div className="font-medium mb-1">
@@ -795,14 +821,19 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                             </div>
                           </button>
                         )}
-                        {(currentNote?.selectedNoteTypes?.includes("soap") || currentNote?.selectedNoteTypes?.includes("summary")) && (
+                        {(currentNote?.selectedNoteTypes?.includes("soap") ||
+                          currentNote?.selectedNoteTypes?.includes(
+                            "summary"
+                          )) && (
                           <button
                             onClick={() =>
                               setInputMessage("Help me improve my notes")
                             }
                             className="p-4 text-left bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 border border-yellow-200 transition-colors"
                           >
-                            <div className="font-medium mb-1">Improve Notes</div>
+                            <div className="font-medium mb-1">
+                              Improve Notes
+                            </div>
                             <div className="text-sm text-yellow-600">
                               Get enhancement suggestions
                             </div>
@@ -811,7 +842,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                         {!currentNote && (
                           <>
                             <button
-                              onClick={() => setInputMessage("Generate SOAP note")}
+                              onClick={() =>
+                                setInputMessage("Generate SOAP note")
+                              }
                               className="p-4 text-left bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors"
                             >
                               <div className="font-medium mb-1">
@@ -822,7 +855,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                               </div>
                             </button>
                             <button
-                              onClick={() => setInputMessage("Generate patient summary")}
+                              onClick={() =>
+                                setInputMessage("Generate patient summary")
+                              }
                               className="p-4 text-left bg-green-50 text-green-700 rounded-lg hover:bg-green-100 border border-green-200 transition-colors"
                             >
                               <div className="font-medium mb-1">
@@ -1148,8 +1183,11 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
             setActiveSectionWithGuard("chat");
             // Add the AI's response based on selected note types
             const messages: Message[] = [];
-            
-            if (currentNote.selectedNoteTypes?.includes("soap") && currentNote.notes?.soapNote) {
+
+            if (
+              currentNote.selectedNoteTypes?.includes("soap") &&
+              currentNote.notes?.soapNote
+            ) {
               messages.push({
                 id: Date.now().toString(),
                 text: currentNote.notes.soapNote,
@@ -1158,8 +1196,11 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                 noteContext: currentNote,
               });
             }
-            
-            if (currentNote.selectedNoteTypes?.includes("summary") && currentNote.notes?.patientSummary) {
+
+            if (
+              currentNote.selectedNoteTypes?.includes("summary") &&
+              currentNote.notes?.patientSummary
+            ) {
               messages.push({
                 id: (Date.now() + 1).toString(),
                 text: currentNote.notes.patientSummary,
@@ -1168,7 +1209,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                 noteContext: currentNote,
               });
             }
-            
+
             if (messages.length > 0) {
               setMessages(messages);
             }
