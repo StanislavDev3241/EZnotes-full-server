@@ -24,7 +24,7 @@ class EncryptionUtils {
       const userKey = this.generateUserKey(userId);
       const iv = crypto.randomBytes(16); // Initialization vector
 
-      const cipher = crypto.createCipher("aes-256-cbc", userKey);
+      const cipher = crypto.createCipheriv("aes-256-cbc", userKey, iv);
       let encrypted = cipher.update(data, "utf8", "hex");
       encrypted += cipher.final("hex");
 
@@ -43,7 +43,8 @@ class EncryptionUtils {
   decryptData(encryptedData, iv, userId) {
     try {
       const userKey = this.generateUserKey(userId);
-      const decipher = crypto.createDecipher("aes-256-cbc", userKey);
+      const ivBuffer = Buffer.from(iv, "hex");
+      const decipher = crypto.createDecipheriv("aes-256-cbc", userKey, ivBuffer);
 
       let decrypted = decipher.update(encryptedData, "hex", "utf8");
       decrypted += decipher.final("utf8");
