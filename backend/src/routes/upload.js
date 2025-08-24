@@ -323,14 +323,16 @@ const processFileWithOpenAI = async (
 
     // Also create "Saved Notes" entries for the generated notes
     if (userId && notes.soapNote) {
+      console.log(`🔐 Creating saved SOAP note for user ${userId}, file ${fileId}`);
       const encrypted = encryptionUtils.encryptData(notes.soapNote, userId);
       const contentHash = encryptionUtils.hashData(notes.soapNote);
 
-      await pool.query(
+      const savedNoteResult = await pool.query(
         `INSERT INTO encrypted_saved_notes 
          (user_id, note_type, note_name, encrypted_content, encryption_iv, 
           content_hash, file_id, conversation_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING id`,
         [
           userId,
           "soap_note",
@@ -342,20 +344,23 @@ const processFileWithOpenAI = async (
           null,
         ]
       );
+      console.log(`✅ Saved SOAP note created with ID: ${savedNoteResult.rows[0].id}`);
     }
 
     if (userId && notes.patientSummary) {
+      console.log(`🔐 Creating saved Patient Summary for user ${userId}, file ${fileId}`);
       const encrypted = encryptionUtils.encryptData(
         notes.patientSummary,
         userId
       );
       const contentHash = encryptionUtils.hashData(notes.patientSummary);
 
-      await pool.query(
+      const savedSummaryResult = await pool.query(
         `INSERT INTO encrypted_saved_notes 
          (user_id, note_type, note_name, encrypted_content, encryption_iv, 
           content_hash, file_id, conversation_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING id`,
         [
           userId,
           "patient_summary",
@@ -367,6 +372,7 @@ const processFileWithOpenAI = async (
           null,
         ]
       );
+      console.log(`✅ Saved Patient Summary created with ID: ${savedSummaryResult.rows[0].id}`);
     }
 
     console.log(`✅ Notes generated and saved successfully`);

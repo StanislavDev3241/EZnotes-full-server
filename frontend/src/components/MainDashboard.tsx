@@ -537,11 +537,11 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
 
       const data = await response.json();
       const notes = data.notes || [];
-      
+
       if (notes.length > 0) {
         // Create a note context from the first note
         const firstNote = notes[0];
-        
+
         // Parse the note content to extract SOAP note and patient summary
         let parsedNotes = { soapNote: "", patientSummary: "" };
         try {
@@ -585,7 +585,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
         // Set the current note and show results
         setCurrentNote(noteContext);
         setShowResults(true);
-        
+
         // Switch to chat section to show the notes
         setActiveSectionWithGuard("chat");
       } else {

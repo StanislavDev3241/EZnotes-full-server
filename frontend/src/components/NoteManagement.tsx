@@ -39,6 +39,8 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
   const loadSavedNotes = async () => {
     setIsLoading(true);
     try {
+      console.log("Loading saved notes for user:", userId);
+      
       // Load saved notes (which now include generated notes)
       const response = await fetch(
         `${API_BASE_URL}/api/notes/saved/${userId}`,
@@ -49,9 +51,14 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
         }
       );
 
+      console.log("Response status:", response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log("Saved notes data:", data);
+        
         const notes = data.notes || [];
+        console.log("Notes array:", notes);
 
         // Sort by creation date (newest first)
         notes.sort(
@@ -59,7 +66,12 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
 
+        console.log("Sorted notes:", notes);
         setSavedNotes(notes);
+      } else {
+        console.error("Failed to load saved notes, status:", response.status);
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
       }
     } catch (error) {
       console.error("Failed to load saved notes:", error);

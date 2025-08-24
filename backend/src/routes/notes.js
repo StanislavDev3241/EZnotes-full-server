@@ -406,9 +406,11 @@ router.post("/save", authenticateToken, async (req, res) => {
 router.get("/saved/:userId", authenticateToken, async (req, res) => {
   try {
     const { userId } = req.params;
+    console.log(`🔍 Loading saved notes for user: ${userId}`);
 
     // Verify user can access their saved notes
     if (req.user.role !== "admin" && req.user.userId !== parseInt(userId)) {
+      console.log(`❌ Access denied: req.user.userId=${req.user.userId}, requested userId=${userId}`);
       return res.status(403).json({
         success: false,
         message: "Access denied",
@@ -417,12 +419,15 @@ router.get("/saved/:userId", authenticateToken, async (req, res) => {
 
     const savedNotes = await pool.query(
       `SELECT 
-        id, note_type, content_hash, file_id, conversation_id, created_at, updated_at
+        id, note_type, note_name, content_hash, file_id, conversation_id, created_at, updated_at
       FROM encrypted_saved_notes
       WHERE user_id = $1
       ORDER BY created_at DESC`,
       [userId]
     );
+
+    console.log(`📊 Found ${savedNotes.rows.length} saved notes for user ${userId}`);
+    console.log(`📋 Saved notes:`, savedNotes.rows);
 
     // Log data access
     await auditService.logDataAccess(
