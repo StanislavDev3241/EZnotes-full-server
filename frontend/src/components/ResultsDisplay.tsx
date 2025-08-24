@@ -40,11 +40,43 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
-      await navigator.clipboard.writeText(text);
-      setCopied(type);
-      setTimeout(() => setCopied(null), 2000);
+      // First try the modern clipboard API
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        setCopied(type);
+        setTimeout(() => setCopied(null), 2000);
+        return;
+      }
+      
+      // Fallback for older browsers or non-secure contexts
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.left = "-999999px";
+      textArea.style.top = "-999999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        const successful = document.execCommand("copy");
+        if (successful) {
+          setCopied(type);
+          setTimeout(() => setCopied(null), 2000);
+        } else {
+          throw new Error("Copy command failed");
+        }
+      } catch (err) {
+        console.error("Fallback copy failed:", err);
+        // Show user-friendly error
+        alert("Copy failed. Please manually select and copy the text.");
+      } finally {
+        document.body.removeChild(textArea);
+      }
     } catch (err) {
       console.error("Failed to copy text: ", err);
+      // Show user-friendly error
+      alert("Copy failed. Please manually select and copy the text.");
     }
   };
 
@@ -209,6 +241,22 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                     <Download className="w-4 h-4 mr-1" />
                     Download
                   </button>
+                  <button
+                    onClick={() => {
+                      const textArea = document.createElement("textarea");
+                      textArea.value = getCleanSOAPNote(result.notes!.soapNote);
+                      document.body.appendChild(textArea);
+                      textArea.select();
+                      document.execCommand("copy");
+                      document.body.removeChild(textArea);
+                      setCopied("soap");
+                      setTimeout(() => setCopied(null), 2000);
+                    }}
+                    className="flex items-center px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors"
+                  >
+                    <Clipboard className="w-4 h-4 mr-1" />
+                    Select All
+                  </button>
                 </div>
               </div>
 
@@ -243,8 +291,11 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
               )}
 
               {/* Full SOAP Note Display */}
-              <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap text-gray-800">
-                {result.notes.soapNote}
+              <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap text-gray-800 select-all border border-gray-200">
+                <div className="text-xs text-gray-500 mb-2 font-medium">Click and drag to select text, or use the buttons above to copy</div>
+                <pre className="whitespace-pre-wrap text-gray-800 font-sans text-sm leading-relaxed cursor-text">
+                  {result.notes.soapNote}
+                </pre>
               </div>
             </div>
           )}
@@ -280,10 +331,29 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                     <Download className="w-4 h-4 mr-1" />
                     Download
                   </button>
+                  <button
+                    onClick={() => {
+                      const textArea = document.createElement("textarea");
+                      textArea.value = getCleanPatientSummary(result.notes!.patientSummary);
+                      document.body.appendChild(textArea);
+                      textArea.select();
+                      document.execCommand("copy");
+                      document.body.removeChild(textArea);
+                      setCopied("summary");
+                      setTimeout(() => setCopied(null), 2000);
+                    }}
+                    className="flex items-center px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors"
+                  >
+                    <Clipboard className="w-4 h-4 mr-1" />
+                    Select All
+                  </button>
                 </div>
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap text-gray-800">
-                {result.notes.patientSummary}
+              <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap text-gray-800 select-all border border-gray-200">
+                <div className="text-xs text-gray-500 mb-2 font-medium">Click and drag to select text, or use the buttons above to copy</div>
+                <pre className="whitespace-pre-wrap text-gray-800 font-sans text-sm leading-relaxed cursor-text">
+                  {result.notes.patientSummary}
+                </pre>
               </div>
             </div>
           )}
@@ -313,10 +383,29 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                     <Download className="w-4 h-4 mr-1" />
                     Download
                   </button>
+                  <button
+                    onClick={() => {
+                      const textArea = document.createElement("textarea");
+                      textArea.value = result.transcription!;
+                      document.body.appendChild(textArea);
+                      textArea.select();
+                      document.execCommand("copy");
+                      document.body.removeChild(textArea);
+                      setCopied("transcription");
+                      setTimeout(() => setCopied(null), 2000);
+                    }}
+                    className="flex items-center px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors"
+                  >
+                    <Clipboard className="w-4 h-4 mr-1" />
+                    Select All
+                  </button>
                 </div>
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap text-gray-800">
-                {result.transcription}
+              <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap text-gray-800 select-all border border-gray-200">
+                <div className="text-xs text-gray-500 mb-2 font-medium">Click and drag to select text, or use the buttons above to copy</div>
+                <pre className="whitespace-pre-wrap text-gray-800 font-sans text-sm leading-relaxed cursor-text">
+                  {result.transcription}
+                </pre>
               </div>
             </div>
           )}
