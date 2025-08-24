@@ -549,4 +549,64 @@ router.get("/file/:fileId", authenticateToken, async (req, res) => {
   }
 });
 
+// Delete a saved note
+router.delete("/saved/:noteId", authenticateToken, async (req, res) => {
+  try {
+    const { noteId } = req.params;
+    const userId = req.user.userId;
+
+    // Check if the saved note exists
+    const savedNote = await pool.query(
+      `SELECT * FROM encrypted_saved_notes WHERE id = $1`,
+      [noteId]
+    );
+
+    if (savedNote.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Saved note not found",
+      });
+    }
+
+    // Verify user can delete this note
+    if (
+      req.user.role !== "admin" &&
+      req.user.userId !== savedNote.rows[0].user_id
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
+    }
+
+    // Delete the saved note
+    const deletedNote = await pool.query(
+      "DELETE FROM encrypted_saved_notes WHERE id = $1 RETURNING *",
+      [noteId]
+    );
+
+    // Log the deletion
+    await auditService.logDataModify(
+      req.user.userId,
+      "encrypted_saved_notes",
+      noteId,
+      "delete",
+      savedNote.rows[0].note_type,
+      null
+    );
+
+    res.json({
+      success: true,
+      message: "Saved note deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete saved note error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete saved note",
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;
