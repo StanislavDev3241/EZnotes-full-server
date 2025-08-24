@@ -36,8 +36,12 @@ const transformUploadResult = (
 ): UploadResult => {
   const notes = backendResult.notes || { soapNote: "", patientSummary: "" };
 
-  // Always return both note types since the backend generates both
-  // The selectedNoteType is used for UI feedback but doesn't filter the results
+  // Only return the selected note type
+  const filteredNotes = {
+    soapNote: selectedNoteType === "soap" ? notes.soapNote : "",
+    patientSummary: selectedNoteType === "summary" ? notes.patientSummary : "",
+  };
+
   return {
     fileId: backendResult.file?.id || "",
     noteId: "", // Not provided by backend
@@ -45,7 +49,7 @@ const transformUploadResult = (
     fileName: fileName,
     status: backendResult.file?.status || "unknown",
     transcription: backendResult.transcription || "",
-    notes: notes, // Return both SOAP note and patient summary
+    notes: filteredNotes, // Return only the selected note type
     customPrompt: customPrompt,
     success: backendResult.success,
     error: backendResult.error,
