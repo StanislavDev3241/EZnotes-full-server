@@ -500,39 +500,41 @@ router.get("/saved/content/:noteId", authenticateToken, async (req, res) => {
         decryptError.message
       );
 
-              // Try to get the content from the regular notes table as a fallback
-        try {
-          // First try to find notes with the same file_id and user_id, regardless of note_type
-          const fallbackNote = await pool.query(
-            `SELECT content, note_type FROM notes WHERE file_id = $1 AND user_id = $2 ORDER BY created_at DESC LIMIT 1`,
+      // Try to get the content from the regular notes table as a fallback
+      try {
+        // First try to find notes with the same file_id and user_id, regardless of note_type
+        const fallbackNote = await pool.query(
+          `SELECT content, note_type FROM notes WHERE file_id = $1 AND user_id = $2 ORDER BY created_at DESC LIMIT 1`,
+          [savedNote.rows[0].file_id, savedNote.rows[0].user_id]
+        );
+
+        if (fallbackNote.rows.length > 0) {
+          decryptedContent = fallbackNote.rows[0].content;
+          console.log(
+            `Retrieved content from fallback notes table for note ${noteId}, note_type: ${fallbackNote.rows[0].note_type}`
+          );
+        } else {
+          // If no notes found, try to get from files table transcription
+          const fileNote = await pool.query(
+            `SELECT transcription FROM files WHERE id = $1 AND user_id = $2`,
             [savedNote.rows[0].file_id, savedNote.rows[0].user_id]
           );
 
-          if (fallbackNote.rows.length > 0) {
-            decryptedContent = fallbackNote.rows[0].content;
+          if (fileNote.rows.length > 0 && fileNote.rows[0].transcription) {
+            decryptedContent = fileNote.rows[0].transcription;
             console.log(
-              `Retrieved content from fallback notes table for note ${noteId}, note_type: ${fallbackNote.rows[0].note_type}`
+              `Retrieved transcription from files table for note ${noteId}`
             );
           } else {
-            // If no notes found, try to get from files table transcription
-            const fileNote = await pool.query(
-              `SELECT transcription FROM files WHERE id = $1 AND user_id = $2`,
-              [savedNote.rows[0].file_id, savedNote.rows[0].user_id]
-            );
-            
-            if (fileNote.rows.length > 0 && fileNote.rows[0].transcription) {
-              decryptedContent = fileNote.rows[0].transcription;
-              console.log(`Retrieved transcription from files table for note ${noteId}`);
-            } else {
-              decryptedContent =
-                "[Note content could not be decrypted. This may be due to encryption key changes.]";
-            }
+            decryptedContent =
+              "[Note content could not be decrypted. This may be due to encryption key changes.]";
           }
-        } catch (fallbackError) {
-          console.error("Fallback retrieval also failed:", fallbackError.message);
-          decryptedContent =
-            "[Note content could not be decrypted. This may be due to encryption key changes.]";
         }
+      } catch (fallbackError) {
+        console.error("Fallback retrieval also failed:", fallbackError.message);
+        decryptedContent =
+          "[Note content could not be decrypted. This may be due to encryption key changes.]";
+      }
     }
 
     // Log data access
