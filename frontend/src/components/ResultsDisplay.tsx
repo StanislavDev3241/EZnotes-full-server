@@ -9,7 +9,6 @@ import {
   AlertCircle,
   X,
   Clipboard,
-  ExternalLink,
 } from "lucide-react";
 
 interface ResultsDisplayProps {
@@ -47,7 +46,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         setTimeout(() => setCopied(null), 2000);
         return;
       }
-      
+
       // Fallback for older browsers or non-secure contexts
       const textArea = document.createElement("textarea");
       textArea.value = text;
@@ -57,7 +56,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
       document.body.appendChild(textArea);
       textArea.focus();
       textArea.select();
-      
+
       try {
         const successful = document.execCommand("copy");
         if (successful) {
@@ -292,7 +291,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
               {/* Full SOAP Note Display */}
               <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap text-gray-800 select-all border border-gray-200">
-                <div className="text-xs text-gray-500 mb-2 font-medium">Click and drag to select text, or use the buttons above to copy</div>
+                <div className="text-xs text-gray-500 mb-2 font-medium">
+                  Click and drag to select text, or use the buttons above to
+                  copy
+                </div>
                 <pre className="whitespace-pre-wrap text-gray-800 font-sans text-sm leading-relaxed cursor-text">
                   {result.notes.soapNote}
                 </pre>
@@ -334,7 +336,9 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                   <button
                     onClick={() => {
                       const textArea = document.createElement("textarea");
-                      textArea.value = getCleanPatientSummary(result.notes!.patientSummary);
+                      textArea.value = getCleanPatientSummary(
+                        result.notes!.patientSummary
+                      );
                       document.body.appendChild(textArea);
                       textArea.select();
                       document.execCommand("copy");
@@ -350,7 +354,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                 </div>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap text-gray-800 select-all border border-gray-200">
-                <div className="text-xs text-gray-500 mb-2 font-medium">Click and drag to select text, or use the buttons above to copy</div>
+                <div className="text-xs text-gray-500 mb-2 font-medium">
+                  Click and drag to select text, or use the buttons above to
+                  copy
+                </div>
                 <pre className="whitespace-pre-wrap text-gray-800 font-sans text-sm leading-relaxed cursor-text">
                   {result.notes.patientSummary}
                 </pre>
@@ -402,7 +409,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                 </div>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap text-gray-800 select-all border border-gray-200">
-                <div className="text-xs text-gray-500 mb-2 font-medium">Click and drag to select text, or use the buttons above to copy</div>
+                <div className="text-xs text-gray-500 mb-2 font-medium">
+                  Click and drag to select text, or use the buttons above to
+                  copy
+                </div>
                 <pre className="whitespace-pre-wrap text-gray-800 font-sans text-sm leading-relaxed cursor-text">
                   {result.transcription}
                 </pre>
