@@ -24,7 +24,7 @@ interface UploadResult {
   success?: boolean;
   error?: string;
   message?: string;
-  selectedNoteType?: "soap" | "summary";
+  selectedNoteTypes?: ("soap" | "summary")[];
 }
 
 // Transform backend response to match MainDashboard expectations
@@ -32,14 +32,16 @@ const transformUploadResult = (
   backendResult: any,
   fileName: string,
   customPrompt: string,
-  selectedNoteType: "soap" | "summary"
+  selectedNoteTypes: Set<"soap" | "summary">
 ): UploadResult => {
   const notes = backendResult.notes || { soapNote: "", patientSummary: "" };
 
-  // Only return the selected note type
+  // Return only the selected note types
   const filteredNotes = {
-    soapNote: selectedNoteType === "soap" ? notes.soapNote : "",
-    patientSummary: selectedNoteType === "summary" ? notes.patientSummary : "",
+    soapNote: selectedNoteTypes.has("soap") ? notes.soapNote : "",
+    patientSummary: selectedNoteTypes.has("summary")
+      ? notes.patientSummary
+      : "",
   };
 
   return {
@@ -49,12 +51,12 @@ const transformUploadResult = (
     fileName: fileName,
     status: backendResult.file?.status || "unknown",
     transcription: backendResult.transcription || "",
-    notes: filteredNotes, // Return only the selected note type
+    notes: filteredNotes, // Return only the selected note types
     customPrompt: customPrompt,
     success: backendResult.success,
     error: backendResult.error,
     message: backendResult.message,
-    selectedNoteType: selectedNoteType,
+    selectedNoteTypes: Array.from(selectedNoteTypes),
   };
 };
 
@@ -93,9 +95,9 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
   const [recordingTime, setRecordingTime] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [selectedNoteType, setSelectedNoteType] = useState<
-    "soap" | "summary" | null
-  >(null);
+  const [selectedNoteTypes, setSelectedNoteTypes] = useState<
+    Set<"soap" | "summary">
+  >(new Set());
   const [customPrompt, setCustomPrompt] = useState<string>(
     `ClearlyAI - SOAP note generator update; SYSTEM PROMPT — Dental SOAP Note Generator (Compact, <8k)
 
@@ -487,8 +489,10 @@ END.`
       return;
     }
 
-    if (!selectedNoteType) {
-      setLocalError("Please select a note type (SOAP Note or Visit Summary)");
+    if (selectedNoteTypes.size === 0) {
+      setLocalError(
+        "Please select at least one note type (SOAP Note or Visit Summary)"
+      );
       return;
     }
 
@@ -530,7 +534,7 @@ END.`
           result,
           fileName,
           customPrompt.trim() || "Default prompt",
-          selectedNoteType
+          selectedNoteTypes
         )
       );
 
@@ -694,7 +698,13 @@ END.`
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <button
             onClick={() => {
-              setSelectedNoteType("soap");
+              const newSelectedTypes = new Set(selectedNoteTypes);
+              if (newSelectedTypes.has("soap")) {
+                newSelectedTypes.delete("soap");
+              } else {
+                newSelectedTypes.add("soap");
+              }
+              setSelectedNoteTypes(newSelectedTypes);
               setCustomPrompt(`ClearlyAI - SOAP note generator update; SYSTEM PROMPT — Dental SOAP Note Generator (Compact, <8k)
 
 ROLE
@@ -758,7 +768,7 @@ COMPLIANCE GUARDRAILS
 END.`);
             }}
             className={`p-4 text-left rounded-lg border transition-colors ${
-              selectedNoteType === "soap"
+              selectedNoteTypes.has("soap")
                 ? "bg-blue-100 text-blue-800 border-blue-300"
                 : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
             }`}
@@ -771,7 +781,13 @@ END.`);
 
           <button
             onClick={() => {
-              setSelectedNoteType("summary");
+              const newSelectedTypes = new Set(selectedNoteTypes);
+              if (newSelectedTypes.has("summary")) {
+                newSelectedTypes.delete("summary");
+              } else {
+                newSelectedTypes.add("summary");
+              }
+              setSelectedNoteTypes(newSelectedTypes);
               setCustomPrompt(`ClearlyAI - Patient Visit Summary Generator
 
 ROLE
@@ -830,7 +846,7 @@ COMPLIANCE
 END.`);
             }}
             className={`p-4 text-left rounded-lg border transition-colors ${
-              selectedNoteType === "summary"
+              selectedNoteTypes.has("summary")
                 ? "bg-green-100 text-green-800 border-green-300"
                 : "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
             }`}

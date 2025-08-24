@@ -109,6 +109,29 @@ CREATE TABLE IF NOT EXISTS note_improvements (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create audit logs table
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id),
+  action VARCHAR(100) NOT NULL,
+  resource_type VARCHAR(50),
+  resource_id INTEGER,
+  details JSONB,
+  ip_address INET,
+  user_agent TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create chat history checkpoints table
+CREATE TABLE IF NOT EXISTS chat_history_checkpoints (
+  id SERIAL PRIMARY KEY,
+  conversation_id INTEGER REFERENCES chat_conversations(id),
+  user_id INTEGER REFERENCES users(id),
+  name VARCHAR(200) NOT NULL,
+  messages JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create admin user with updated credentials
 -- Email: cmesmile50@gmail.com
 -- Password: clearly2025

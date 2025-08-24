@@ -21,7 +21,7 @@ interface ResultsDisplayProps {
     };
     transcription?: string;
     error?: string;
-    selectedNoteType?: "soap" | "summary";
+    selectedNoteTypes?: ("soap" | "summary")[];
   };
   onClose: () => void;
   onNextToChat?: () => void; // Add callback for chat navigation
@@ -163,32 +163,34 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
         {/* Tabs */}
         <div className="flex border-b border-gray-200">
-          {result.notes?.soapNote && result.selectedNoteType === "soap" && (
-            <button
-              onClick={() => setActiveTab("soap")}
-              className={`flex items-center px-6 py-3 border-b-2 transition-colors ${
-                activeTab === "soap"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              SOAP Note
-            </button>
-          )}
-          {result.notes?.patientSummary && result.selectedNoteType === "summary" && (
-            <button
-              onClick={() => setActiveTab("summary")}
-              className={`flex items-center px-6 py-3 border-b-2 transition-colors ${
-                activeTab === "summary"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Patient Summary
-            </button>
-          )}
+          {result.notes?.soapNote &&
+            result.selectedNoteTypes?.includes("soap") && (
+              <button
+                onClick={() => setActiveTab("soap")}
+                className={`flex items-center px-6 py-3 border-b-2 transition-colors ${
+                  activeTab === "soap"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                SOAP Note
+              </button>
+            )}
+          {result.notes?.patientSummary &&
+            result.selectedNoteTypes?.includes("summary") && (
+              <button
+                onClick={() => setActiveTab("summary")}
+                className={`flex items-center px-6 py-3 border-b-2 transition-colors ${
+                  activeTab === "summary"
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Patient Summary
+              </button>
+            )}
           {result.transcription && (
             <button
               onClick={() => setActiveTab("transcription")}

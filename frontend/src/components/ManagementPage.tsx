@@ -9,6 +9,7 @@ import {
   Search,
   Calendar,
   User,
+  Trash2,
 } from "lucide-react";
 
 interface User {
@@ -216,6 +217,90 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
     setShowChatModal(true);
   };
 
+  const deleteConversation = async (conversationId: number) => {
+    if (!window.confirm("Are you sure you want to delete this conversation?")) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("userToken");
+      const response = await fetch(
+        `${API_BASE_URL}/api/chat/conversation/${conversationId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.ok) {
+        console.log(`Conversation ${conversationId} deleted`);
+        // Reload data
+        loadData();
+      } else {
+        throw new Error("Failed to delete conversation");
+      }
+    } catch (error) {
+      console.error("Failed to delete conversation:", error);
+      alert("Failed to delete conversation. Please try again.");
+    }
+  };
+
+  const deleteNote = async (noteId: number) => {
+    if (!window.confirm("Are you sure you want to delete this note?")) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("userToken");
+      const response = await fetch(
+        `${API_BASE_URL}/api/notes/${noteId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.ok) {
+        console.log(`Note ${noteId} deleted`);
+        // Reload data
+        loadData();
+      } else {
+        throw new Error("Failed to delete note");
+      }
+    } catch (error) {
+      console.error("Failed to delete note:", error);
+      alert("Failed to delete note. Please try again.");
+    }
+  };
+
+  const deleteFile = async (fileId: number) => {
+    if (!window.confirm("Are you sure you want to delete this file?")) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("userToken");
+      const response = await fetch(
+        `${API_BASE_URL}/api/files/${fileId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.ok) {
+        console.log(`File ${fileId} deleted`);
+        // Reload data
+        loadData();
+      } else {
+        throw new Error("Failed to delete file");
+      }
+    } catch (error) {
+      console.error("Failed to delete file:", error);
+      alert("Failed to delete file. Please try again.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -348,6 +433,13 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                               <Eye className="w-3 h-3 inline mr-1" />
                               View
                             </button>
+                            <button
+                              onClick={() => deleteConversation(conversation.id)}
+                              className="px-3 py-1 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3 inline mr-1" />
+                              Delete
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -397,11 +489,20 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                         <p className="text-sm text-gray-600 mb-2">
                           {note.content.substring(0, 200)}...
                         </p>
-                        <div className="flex items-center justify-between text-xs text-gray-500">
-                          <span>
-                            Prompt: {note.prompt_used.substring(0, 50)}...
-                          </span>
-                          <span>Created: {formatDate(note.created_at)}</span>
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs text-gray-500">
+                            <span>
+                              Prompt: {note.prompt_used.substring(0, 50)}...
+                            </span>
+                            <span className="ml-4">Created: {formatDate(note.created_at)}</span>
+                          </div>
+                          <button
+                            onClick={() => deleteNote(note.id)}
+                            className="px-3 py-1 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3 inline mr-1" />
+                            Delete
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -460,6 +561,13 @@ const ManagementPage: React.FC<ManagementPageProps> = ({
                                 Download
                               </button>
                             )}
+                            <button
+                              onClick={() => deleteFile(file.id)}
+                              className="px-3 py-1 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3 inline mr-1" />
+                              Delete
+                            </button>
                           </div>
                         </div>
                         {file.transcription && (

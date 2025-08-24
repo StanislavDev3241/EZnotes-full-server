@@ -34,6 +34,7 @@ interface UploadResult {
     patientSummary: string;
   };
   customPrompt?: string;
+  selectedNoteTypes?: ("soap" | "summary")[];
 }
 
 interface MainDashboardProps {
@@ -483,7 +484,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
   const handleDeleteHistoryPoint = async (pointId: string) => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/chat/checkpoint/${pointId}`,
+        `${API_BASE_URL}/api/chat/conversation/${pointId}`,
         {
           method: "DELETE",
           headers: {
@@ -493,13 +494,15 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
       );
 
       if (response.ok) {
-        console.log(`Chat point ${pointId} deleted`);
+        console.log(`Chat conversation ${pointId} deleted`);
+        // Refresh the chat history by triggering a reload
+        // The ChatHistoryManager will reload when expanded
       } else {
-        throw new Error("Failed to delete chat point");
+        throw new Error("Failed to delete chat conversation");
       }
     } catch (error) {
-      console.error("Failed to delete chat point:", error);
-      alert("Failed to delete chat point. Please try again.");
+      console.error("Failed to delete chat conversation:", error);
+      alert("Failed to delete chat conversation. Please try again.");
     }
   };
 
@@ -1100,16 +1103,31 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
           onNextToChat={() => {
             setShowResults(false);
             setActiveSectionWithGuard("chat");
-            // Add the AI's clarification question as the first message
-            if (currentNote.notes?.soapNote) {
-              const aiMessage: Message = {
+            // Add the AI's response based on selected note types
+            const messages: Message[] = [];
+            
+            if (currentNote.selectedNoteTypes?.includes("soap") && currentNote.notes?.soapNote) {
+              messages.push({
                 id: Date.now().toString(),
                 text: currentNote.notes.soapNote,
                 sender: "ai",
                 timestamp: new Date(),
                 noteContext: currentNote,
-              };
-              setMessages([aiMessage]);
+              });
+            }
+            
+            if (currentNote.selectedNoteTypes?.includes("summary") && currentNote.notes?.patientSummary) {
+              messages.push({
+                id: (Date.now() + 1).toString(),
+                text: currentNote.notes.patientSummary,
+                sender: "ai",
+                timestamp: new Date(),
+                noteContext: currentNote,
+              });
+            }
+            
+            if (messages.length > 0) {
+              setMessages(messages);
             }
           }}
         />
@@ -1191,8 +1209,12 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                     id="noteTypeSelect"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
                   >
-                    <option value="soap_note">SOAP Note</option>
-                    <option value="patient_summary">Patient Summary</option>
+                    {currentNote?.selectedNoteTypes?.includes("soap") && (
+                      <option value="soap_note">SOAP Note</option>
+                    )}
+                    {currentNote?.selectedNoteTypes?.includes("summary") && (
+                      <option value="patient_summary">Patient Summary</option>
+                    )}
                     <option value="complete_conversation">
                       Complete Conversation
                     </option>
