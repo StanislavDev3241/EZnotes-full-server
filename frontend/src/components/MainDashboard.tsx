@@ -440,8 +440,10 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
         if (noteData.note_type?.toLowerCase().includes("soap")) {
           selectedNoteTypes.push("soap");
         }
-        if (noteData.note_type?.toLowerCase().includes("patient") || 
-            noteData.note_type?.toLowerCase().includes("summary")) {
+        if (
+          noteData.note_type?.toLowerCase().includes("patient") ||
+          noteData.note_type?.toLowerCase().includes("summary")
+        ) {
           selectedNoteTypes.push("summary");
         }
         // If no specific type detected, assume both

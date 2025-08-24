@@ -284,20 +284,36 @@ const processFileWithOpenAI = async (
       }
     }
 
-    // Save notes to database
-    const noteContent = JSON.stringify(notes);
-    await pool.query(
-      `INSERT INTO notes (file_id, note_type, content, user_id, prompt_used, ai_model, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
-      [
-        fileId,
-        "ai_generated",
-        noteContent,
-        userId,
-        customPrompt ? JSON.stringify(customPrompt) : "default",
-        process.env.OPENAI_MODEL || "gpt-4o",
-      ]
-    );
+    // Save notes to database - save separate notes for SOAP and patient summary
+    if (notes.soapNote) {
+      await pool.query(
+        `INSERT INTO notes (file_id, note_type, content, user_id, prompt_used, ai_model, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+        [
+          fileId,
+          "soap_note",
+          notes.soapNote,
+          userId,
+          customPrompt ? JSON.stringify(customPrompt) : "default",
+          process.env.OPENAI_MODEL || "gpt-4o",
+        ]
+      );
+    }
+
+    if (notes.patientSummary) {
+      await pool.query(
+        `INSERT INTO notes (file_id, note_type, content, user_id, prompt_used, ai_model, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+        [
+          fileId,
+          "patient_summary",
+          notes.patientSummary,
+          userId,
+          customPrompt ? JSON.stringify(customPrompt) : "default",
+          process.env.OPENAI_MODEL || "gpt-4o",
+        ]
+      );
+    }
 
     console.log(`✅ Notes generated and saved successfully`);
 

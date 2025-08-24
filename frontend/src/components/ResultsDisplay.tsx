@@ -34,7 +34,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 }) => {
   // Set default tab based on selected note types
   const getDefaultTab = () => {
-    if (result.selectedNoteTypes?.includes("summary") && result.notes?.patientSummary) {
+    if (
+      result.selectedNoteTypes?.includes("summary") &&
+      result.notes?.patientSummary
+    ) {
       return "summary";
     }
     if (result.selectedNoteTypes?.includes("soap") && result.notes?.soapNote) {

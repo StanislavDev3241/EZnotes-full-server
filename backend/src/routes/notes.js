@@ -609,4 +609,64 @@ router.delete("/saved/:noteId", authenticateToken, async (req, res) => {
   }
 });
 
+// Delete a generated note
+router.delete("/:noteId", authenticateToken, async (req, res) => {
+  try {
+    const { noteId } = req.params;
+    const userId = req.user.userId;
+
+    // Check if the note exists
+    const note = await pool.query(
+      `SELECT * FROM notes WHERE id = $1`,
+      [noteId]
+    );
+
+    if (note.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Note not found",
+      });
+    }
+
+    // Verify user can delete this note
+    if (
+      req.user.role !== "admin" &&
+      req.user.userId !== note.rows[0].user_id
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
+    }
+
+    // Delete the note
+    const deletedNote = await pool.query(
+      "DELETE FROM notes WHERE id = $1 RETURNING *",
+      [noteId]
+    );
+
+    // Log the deletion
+    await auditService.logDataModify(
+      req.user.userId,
+      "notes",
+      noteId,
+      "delete",
+      note.rows[0].note_type,
+      null
+    );
+
+    res.json({
+      success: true,
+      message: "Note deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete note error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete note",
+      error: error.message,
+    });
+  }
+});
+
 module.exports = router;

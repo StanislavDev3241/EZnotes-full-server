@@ -9,6 +9,8 @@ interface SavedNote {
   updated_at: string;
   file_id?: number;
   conversation_id?: number;
+  is_generated?: boolean;
+  content?: string;
 }
 
 interface NoteManagementProps {
@@ -39,21 +41,58 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
   const loadSavedNotes = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/notes/saved/${userId}`,
-        {
+      // Load both generated notes and saved notes
+      const [generatedResponse, savedResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/notes/user/${userId}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("userToken")}`,
           },
-        }
-      );
+        }),
+        fetch(`${API_BASE_URL}/api/notes/saved/${userId}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+          },
+        })
+      ]);
 
-      if (response.ok) {
-        const data = await response.json();
-        setSavedNotes(data.notes || []);
+      let allNotes: SavedNote[] = [];
+
+      // Load generated notes
+      if (generatedResponse.ok) {
+        const generatedData = await generatedResponse.json();
+        const generatedNotes = generatedData.notes || [];
+        
+        // Convert generated notes to SavedNote format
+        const convertedGeneratedNotes = generatedNotes.map((note: any) => ({
+          id: note.id,
+          note_name: `${note.note_type === 'soap_note' ? 'SOAP Note' : 'Patient Summary'} - ${note.filename || 'Generated Note'}`,
+          note_type: note.note_type,
+          created_at: note.created_at,
+          updated_at: note.updated_at,
+          file_id: note.file_id,
+          conversation_id: null,
+          is_generated: true,
+          content: note.content
+        }));
+        
+        allNotes = [...convertedGeneratedNotes];
       }
+
+      // Load saved notes
+      if (savedResponse.ok) {
+        const savedData = await savedResponse.json();
+        const savedNotes = savedData.notes || [];
+        
+        // Add saved notes
+        allNotes = [...allNotes, ...savedNotes];
+      }
+
+      // Sort by creation date (newest first)
+      allNotes.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      setSavedNotes(allNotes);
     } catch (error) {
-      console.error("Failed to load saved notes:", error);
+      console.error("Failed to load notes:", error);
     } finally {
       setIsLoading(false);
     }
@@ -61,20 +100,28 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
 
   const handleViewNote = async (note: SavedNote) => {
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/notes/saved/content/${note.id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("userToken")}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setNoteContent(data.content);
+      if (note.is_generated && note.content) {
+        // For generated notes, use the content directly
+        setNoteContent(note.content);
         setSelectedNote(note);
         setShowNoteContent(true);
+      } else {
+        // For saved notes, fetch content from API
+        const response = await fetch(
+          `${API_BASE_URL}/api/notes/saved/content/${note.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          setNoteContent(data.content);
+          setSelectedNote(note);
+          setShowNoteContent(true);
+        }
       }
     } catch (error) {
       console.error("Failed to load note content:", error);
@@ -84,15 +131,32 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
   const handleDeleteNote = async (noteId: number) => {
     if (window.confirm("Are you sure you want to delete this note?")) {
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/api/notes/saved/${noteId}`,
-          {
-            method: "DELETE",
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("userToken")}`,
-            },
-          }
-        );
+        const note = savedNotes.find(n => n.id === noteId);
+        let response;
+
+        if (note?.is_generated) {
+          // Delete generated note from notes table
+          response = await fetch(
+            `${API_BASE_URL}/api/notes/${noteId}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+              },
+            }
+          );
+        } else {
+          // Delete saved note from encrypted_saved_notes table
+          response = await fetch(
+            `${API_BASE_URL}/api/notes/saved/${noteId}`,
+            {
+              method: "DELETE",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+              },
+            }
+          );
+        }
 
         if (response.ok) {
           setSavedNotes(prev => prev.filter(note => note.id !== noteId));
@@ -124,6 +188,7 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
       patient_summary: "Patient Summary",
       complete_conversation: "Complete Conversation",
       custom_note: "Custom Note",
+      ai_generated: "AI Generated",
     };
     return labels[type] || type;
   };
