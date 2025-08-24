@@ -44,7 +44,11 @@ class EncryptionUtils {
     try {
       const userKey = this.generateUserKey(userId);
       const ivBuffer = Buffer.from(iv, "hex");
-      const decipher = crypto.createDecipheriv("aes-256-cbc", userKey, ivBuffer);
+      const decipher = crypto.createDecipheriv(
+        "aes-256-cbc",
+        userKey,
+        ivBuffer
+      );
 
       let decrypted = decipher.update(encryptedData, "hex", "utf8");
       decrypted += decipher.final("utf8");
