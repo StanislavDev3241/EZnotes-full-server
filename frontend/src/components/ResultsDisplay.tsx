@@ -36,7 +36,6 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   >("soap");
   const [copied, setCopied] = useState<string | null>(null);
 
-
   const copyToClipboard = async (text: string, type: string) => {
     try {
       // First try the modern clipboard API
@@ -163,28 +162,42 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
         {/* Tabs */}
         <div className="flex border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab("soap")}
-            className={`flex items-center px-6 py-3 border-b-2 transition-colors ${
-              activeTab === "soap"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            <FileText className="w-4 h-4 mr-2" />
-            SOAP Note
-          </button>
-          <button
-            onClick={() => setActiveTab("summary")}
-            className={`flex items-center px-6 py-3 border-b-2 transition-colors ${
-              activeTab === "summary"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            <MessageSquare className="w-4 h-4 mr-2" />
-            Patient Summary
-          </button>
+          {result.notes?.soapNote && (
+            <button
+              onClick={() => setActiveTab("soap")}
+              className={`flex items-center px-6 py-3 border-b-2 transition-colors ${
+                activeTab === "soap"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              SOAP Note
+              {result.selectedNoteType === "soap" && (
+                <span className="ml-2 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">
+                  Selected
+                </span>
+              )}
+            </button>
+          )}
+          {result.notes?.patientSummary && (
+            <button
+              onClick={() => setActiveTab("summary")}
+              className={`flex items-center px-6 py-3 border-b-2 transition-colors ${
+                activeTab === "summary"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Patient Summary
+              {result.selectedNoteType === "summary" && (
+                <span className="ml-2 px-2 py-0.5 text-xs bg-green-100 text-green-700 rounded-full">
+                  Selected
+                </span>
+              )}
+            </button>
+          )}
           {result.transcription && (
             <button
               onClick={() => setActiveTab("transcription")}
@@ -251,8 +264,6 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                   </button>
                 </div>
               </div>
-
-
 
               {/* Full SOAP Note Display */}
               <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap text-gray-800 select-all border border-gray-200">

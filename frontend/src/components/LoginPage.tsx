@@ -13,7 +13,11 @@ interface LoginPageProps {
   initialMode?: "login" | "signup";
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBackToLanding, initialMode = "login" }) => {
+const LoginPage: React.FC<LoginPageProps> = ({
+  onLogin,
+  onBackToLanding,
+  initialMode = "login",
+}) => {
   const [isLogin, setIsLogin] = useState(initialMode === "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

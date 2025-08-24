@@ -24,6 +24,7 @@ interface UploadResult {
   success?: boolean;
   error?: string;
   message?: string;
+  selectedNoteType?: "soap" | "summary";
 }
 
 // Transform backend response to match MainDashboard expectations
@@ -34,13 +35,9 @@ const transformUploadResult = (
   selectedNoteType: "soap" | "summary"
 ): UploadResult => {
   const notes = backendResult.notes || { soapNote: "", patientSummary: "" };
-  
-  // Only return the selected note type
-  const filteredNotes = {
-    soapNote: selectedNoteType === "soap" ? notes.soapNote : "",
-    patientSummary: selectedNoteType === "summary" ? notes.patientSummary : "",
-  };
 
+  // Always return both note types since the backend generates both
+  // The selectedNoteType is used for UI feedback but doesn't filter the results
   return {
     fileId: backendResult.file?.id || "",
     noteId: "", // Not provided by backend
@@ -48,11 +45,12 @@ const transformUploadResult = (
     fileName: fileName,
     status: backendResult.file?.status || "unknown",
     transcription: backendResult.transcription || "",
-    notes: filteredNotes,
+    notes: notes, // Return both SOAP note and patient summary
     customPrompt: customPrompt,
     success: backendResult.success,
     error: backendResult.error,
     message: backendResult.message,
+    selectedNoteType: selectedNoteType,
   };
 };
 
@@ -91,7 +89,9 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
   const [recordingTime, setRecordingTime] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [selectedNoteType, setSelectedNoteType] = useState<"soap" | "summary" | null>(null);
+  const [selectedNoteType, setSelectedNoteType] = useState<
+    "soap" | "summary" | null
+  >(null);
   const [customPrompt, setCustomPrompt] = useState<string>(
     `ClearlyAI - SOAP note generator update; SYSTEM PROMPT — Dental SOAP Note Generator (Compact, <8k)
 
