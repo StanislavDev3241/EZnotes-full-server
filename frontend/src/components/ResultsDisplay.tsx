@@ -8,6 +8,8 @@ import {
   CheckCircle,
   AlertCircle,
   X,
+  Clipboard,
+  ExternalLink,
 } from "lucide-react";
 
 interface ResultsDisplayProps {
@@ -34,6 +36,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     "soap" | "summary" | "transcription"
   >("soap");
   const [copied, setCopied] = useState<string | null>(null);
+  const [showEHRCopy, setShowEHRCopy] = useState(false);
 
   const copyToClipboard = async (text: string, type: string) => {
     try {
@@ -55,6 +58,30 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  // Clean SOAP note for EHR copying (remove metadata and formatting)
+  const getCleanSOAPNote = (soapNote: string) => {
+    // Remove metadata JSON blocks
+    let cleanNote = soapNote.replace(
+      /<<META_JSON>>[\s\S]*?<<END_META_JSON>>/g,
+      ""
+    );
+
+    // Remove SOAP note delimiters
+    cleanNote = cleanNote
+      .replace(/<<SOAP_NOTE>>/g, "")
+      .replace(/<<\/SOAP_NOTE>>/g, "");
+
+    // Clean up extra whitespace
+    cleanNote = cleanNote.trim();
+
+    return cleanNote;
+  };
+
+  // Get clean patient summary
+  const getCleanPatientSummary = (summary: string) => {
+    return summary.trim();
   };
 
   if (result.status === "failed") {
@@ -83,14 +110,14 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center">
             <CheckCircle className="w-8 h-8 text-green-500 mr-3" />
             <div>
               <h2 className="text-xl font-bold text-gray-800">
-                AI Processing Complete
+                ClearlyAI - AI Processing Complete
               </h2>
               <p className="text-sm text-gray-600">File ID: {result.fileId}</p>
             </div>
@@ -148,12 +175,22 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">
-                  SOAP Note
+                  SOAP Note - Ready for EHR
                 </h3>
                 <div className="flex space-x-2">
                   <button
+                    onClick={() => setShowEHRCopy(!showEHRCopy)}
+                    className="flex items-center px-3 py-1 text-sm bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                  >
+                    <Clipboard className="w-4 h-4 mr-1" />
+                    {showEHRCopy ? "Hide EHR Copy" : "Show EHR Copy"}
+                  </button>
+                  <button
                     onClick={() =>
-                      copyToClipboard(result.notes!.soapNote, "soap")
+                      copyToClipboard(
+                        getCleanSOAPNote(result.notes!.soapNote),
+                        "soap"
+                      )
                     }
                     className="flex items-center px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
                   >
@@ -162,7 +199,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                   </button>
                   <button
                     onClick={() =>
-                      downloadAsText(result.notes!.soapNote, "soap_note.txt")
+                      downloadAsText(
+                        getCleanSOAPNote(result.notes!.soapNote),
+                        "soap_note.txt"
+                      )
                     }
                     className="flex items-center px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
                   >
@@ -171,6 +211,38 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                   </button>
                 </div>
               </div>
+
+              {/* EHR Copy Section */}
+              {showEHRCopy && (
+                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-medium text-green-900">
+                      Clean SOAP Note for EHR
+                    </h4>
+                    <button
+                      onClick={() =>
+                        copyToClipboard(
+                          getCleanSOAPNote(result.notes!.soapNote),
+                          "ehr"
+                        )
+                      }
+                      className="flex items-center px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                    >
+                      <Copy className="w-3 h-3 mr-1" />
+                      {copied === "ehr" ? "Copied!" : "Copy to EHR"}
+                    </button>
+                  </div>
+                  <div className="bg-white p-3 rounded border border-green-300 whitespace-pre-wrap text-sm text-gray-800 font-mono">
+                    {getCleanSOAPNote(result.notes!.soapNote)}
+                  </div>
+                  <p className="text-xs text-green-700 mt-2">
+                    This clean version is ready to paste directly into your EHR
+                    system.
+                  </p>
+                </div>
+              )}
+
+              {/* Full SOAP Note Display */}
               <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap text-gray-800">
                 {result.notes.soapNote}
               </div>
@@ -186,7 +258,10 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                 <div className="flex space-x-2">
                   <button
                     onClick={() =>
-                      copyToClipboard(result.notes!.patientSummary, "summary")
+                      copyToClipboard(
+                        getCleanPatientSummary(result.notes!.patientSummary),
+                        "summary"
+                      )
                     }
                     className="flex items-center px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
                   >
@@ -196,7 +271,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
                   <button
                     onClick={() =>
                       downloadAsText(
-                        result.notes!.patientSummary,
+                        getCleanPatientSummary(result.notes!.patientSummary),
                         "patient_summary.txt"
                       )
                     }
@@ -251,16 +326,16 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
         <div className="p-6 border-t border-gray-200 bg-gray-50">
           <div className="flex justify-between items-center">
             <p className="text-sm text-gray-600">
-              Generated with OpenAI GPT-4 and Whisper AI
+              Generated with ClearlyAI - Ready for your EHR
             </p>
             {/* Action Buttons */}
-            <div className="flex justify-end space-x-3 mt-6">
+            <div className="flex justify-end space-x-3">
               {onNextToChat && (
                 <button
                   onClick={onNextToChat}
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
                 >
-                  Next to Chat
+                  Continue Chat
                 </button>
               )}
               <button

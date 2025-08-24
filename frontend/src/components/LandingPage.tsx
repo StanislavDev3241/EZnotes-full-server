@@ -39,7 +39,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <h1 className="text-2xl font-bold text-blue-900">Clearly AI</h1>
+                <h1 className="text-2xl font-bold text-blue-900">ClearlyAI</h1>
               </div>
             </div>
             <div className="flex items-center space-x-4 relative menu-container">
@@ -96,10 +96,10 @@ const LandingPage: React.FC<LandingPageProps> = ({
       <main className="w-full px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-4xl tracking-tight font-extrabold text-blue-900 sm:text-5xl md:text-6xl">
-            Generate SOAP notes & patient scripts with AI
+            Generate SOAP notes & patient summaries with AI
           </h1>
           <p className="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
-            Upload your transcription and receive easy-to-read in seconds
+            Upload your transcription and receive easy-to-read notes in seconds
           </p>
           <div className="mt-8">
             <button
@@ -130,8 +130,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                   <Upload className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Upload audio or text transcript at the end of the patient
-                  visit
+                  Upload audio or text transcript from your patient visit
                 </h3>
               </div>
 
@@ -161,7 +160,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
                   <Monitor className="h-8 w-8" />
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Review or save the note in your HR to complete the chart
+                  Review or save the note in your EHR to complete the chart
                 </h3>
               </div>
             </div>
