@@ -674,8 +674,8 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                         </div>
                       )}
 
-                      {/* Show SOAP Note and Patient Summary */}
-                      {currentNote.notes && currentNote.notes.soapNote && (
+                      {/* Show only selected note types */}
+                      {currentNote.selectedNoteTypes?.includes("soap") && currentNote.notes && currentNote.notes.soapNote && (
                         <div className="mt-3 p-3 bg-white rounded border border-blue-300">
                           <h4 className="font-semibold text-blue-900 mb-2">
                             SOAP Note:
@@ -688,7 +688,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                         </div>
                       )}
 
-                      {currentNote.notes &&
+                      {currentNote.selectedNoteTypes?.includes("summary") && currentNote.notes &&
                         currentNote.notes.patientSummary && (
                           <div className="mt-2 p-3 bg-white rounded border border-green-300">
                             <h4 className="font-semibold text-green-900 mb-2">
@@ -709,7 +709,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                             Complete Notes:
                           </h4>
 
-                          {currentNote.notes.soapNote && (
+                          {currentNote.selectedNoteTypes?.includes("soap") && currentNote.notes.soapNote && (
                             <div className="mb-4">
                               <h5 className="font-medium text-blue-900 mb-2">
                                 Full SOAP Note:
@@ -722,7 +722,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                             </div>
                           )}
 
-                          {currentNote.notes.patientSummary && (
+                          {currentNote.selectedNoteTypes?.includes("summary") && currentNote.notes.patientSummary && (
                             <div>
                               <h5 className="font-medium text-green-900 mb-2">
                                 Full Patient Summary:
@@ -767,30 +767,73 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                         AI
                       </p>
 
-                      {/* Quick Action Buttons */}
+                      {/* Quick Action Buttons - Dynamic based on note context */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-lg mx-auto">
-                        <button
-                          onClick={() => setInputMessage("Generate SOAP note")}
-                          className="p-4 text-left bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors"
-                        >
-                          <div className="font-medium mb-1">
-                            Generate SOAP Note
-                          </div>
-                          <div className="text-sm text-blue-600">
-                            Create complete SOAP notes
-                          </div>
-                        </button>
-                        <button
-                          onClick={() =>
-                            setInputMessage("Help me improve my SOAP note")
-                          }
-                          className="p-4 text-left bg-green-50 text-green-700 rounded-lg hover:bg-green-100 border border-green-200 transition-colors"
-                        >
-                          <div className="font-medium mb-1">Improve Notes</div>
-                          <div className="text-sm text-green-600">
-                            Get enhancement suggestions
-                          </div>
-                        </button>
+                        {currentNote?.selectedNoteTypes?.includes("soap") && (
+                          <button
+                            onClick={() => setInputMessage("Generate SOAP note")}
+                            className="p-4 text-left bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors"
+                          >
+                            <div className="font-medium mb-1">
+                              Generate SOAP Note
+                            </div>
+                            <div className="text-sm text-blue-600">
+                              Create complete SOAP notes
+                            </div>
+                          </button>
+                        )}
+                        {currentNote?.selectedNoteTypes?.includes("summary") && (
+                          <button
+                            onClick={() => setInputMessage("Generate patient summary")}
+                            className="p-4 text-left bg-green-50 text-green-700 rounded-lg hover:bg-green-100 border border-green-200 transition-colors"
+                          >
+                            <div className="font-medium mb-1">
+                              Generate Patient Summary
+                            </div>
+                            <div className="text-sm text-green-600">
+                              Create patient-friendly summary
+                            </div>
+                          </button>
+                        )}
+                        {(currentNote?.selectedNoteTypes?.includes("soap") || currentNote?.selectedNoteTypes?.includes("summary")) && (
+                          <button
+                            onClick={() =>
+                              setInputMessage("Help me improve my notes")
+                            }
+                            className="p-4 text-left bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 border border-yellow-200 transition-colors"
+                          >
+                            <div className="font-medium mb-1">Improve Notes</div>
+                            <div className="text-sm text-yellow-600">
+                              Get enhancement suggestions
+                            </div>
+                          </button>
+                        )}
+                        {!currentNote && (
+                          <>
+                            <button
+                              onClick={() => setInputMessage("Generate SOAP note")}
+                              className="p-4 text-left bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors"
+                            >
+                              <div className="font-medium mb-1">
+                                Generate SOAP Note
+                              </div>
+                              <div className="text-sm text-blue-600">
+                                Create complete SOAP notes
+                              </div>
+                            </button>
+                            <button
+                              onClick={() => setInputMessage("Generate patient summary")}
+                              className="p-4 text-left bg-green-50 text-green-700 rounded-lg hover:bg-green-100 border border-green-200 transition-colors"
+                            >
+                              <div className="font-medium mb-1">
+                                Generate Patient Summary
+                              </div>
+                              <div className="text-sm text-green-600">
+                                Create patient-friendly summary
+                              </div>
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ) : (
