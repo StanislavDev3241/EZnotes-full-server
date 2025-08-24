@@ -52,13 +52,13 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
       if (response.ok) {
         const data = await response.json();
         const notes = data.notes || [];
-        
+
         // Sort by creation date (newest first)
         notes.sort(
           (a: any, b: any) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
-        
+
         setSavedNotes(notes);
       }
     } catch (error) {
@@ -93,12 +93,15 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
   const handleDeleteNote = async (noteId: number) => {
     if (window.confirm("Are you sure you want to delete this note?")) {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/notes/saved/${noteId}`, {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("userToken")}`,
-          },
-        });
+        const response = await fetch(
+          `${API_BASE_URL}/api/notes/saved/${noteId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+            },
+          }
+        );
 
         if (response.ok) {
           setSavedNotes((prev) => prev.filter((note) => note.id !== noteId));

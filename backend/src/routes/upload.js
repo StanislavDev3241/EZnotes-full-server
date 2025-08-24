@@ -325,7 +325,7 @@ const processFileWithOpenAI = async (
     if (userId && notes.soapNote) {
       const encrypted = encryptionUtils.encryptData(notes.soapNote, userId);
       const contentHash = encryptionUtils.hashData(notes.soapNote);
-      
+
       await pool.query(
         `INSERT INTO encrypted_saved_notes 
          (user_id, note_type, note_name, encrypted_content, encryption_iv, 
@@ -345,9 +345,12 @@ const processFileWithOpenAI = async (
     }
 
     if (userId && notes.patientSummary) {
-      const encrypted = encryptionUtils.encryptData(notes.patientSummary, userId);
+      const encrypted = encryptionUtils.encryptData(
+        notes.patientSummary,
+        userId
+      );
       const contentHash = encryptionUtils.hashData(notes.patientSummary);
-      
+
       await pool.query(
         `INSERT INTO encrypted_saved_notes 
          (user_id, note_type, note_name, encrypted_content, encryption_iv, 

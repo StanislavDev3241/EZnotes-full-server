@@ -692,8 +692,13 @@ END.`
 
       {/* Note Type Selection */}
       <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
-          Note Type
+        <label className="block text-sm font-medium text-gray-700 flex items-center justify-between">
+          <span>Note Type</span>
+          {selectedNoteTypes.size > 0 && (
+            <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+              {selectedNoteTypes.size} selected
+            </span>
+          )}
         </label>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <button
@@ -767,10 +772,10 @@ COMPLIANCE GUARDRAILS
 
 END.`);
             }}
-            className={`p-4 text-left rounded-lg border transition-colors ${
+            className={`p-4 text-left rounded-lg border-2 transition-all ${
               selectedNoteTypes.has("soap")
-                ? "bg-blue-100 text-blue-800 border-blue-300"
-                : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                ? "bg-blue-100 text-blue-800 border-blue-400 shadow-md scale-105"
+                : "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:border-blue-300"
             }`}
           >
             <div className="font-medium mb-1">SOAP Note</div>
@@ -845,10 +850,10 @@ COMPLIANCE
 
 END.`);
             }}
-            className={`p-4 text-left rounded-lg border transition-colors ${
+            className={`p-4 text-left rounded-lg border-2 transition-all ${
               selectedNoteTypes.has("summary")
-                ? "bg-green-100 text-green-800 border-green-300"
-                : "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                ? "bg-green-100 text-green-800 border-green-400 shadow-md scale-105"
+                : "bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:border-green-300"
             }`}
           >
             <div className="font-medium mb-1">Visit Summary</div>

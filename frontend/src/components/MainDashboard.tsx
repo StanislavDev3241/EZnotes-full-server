@@ -535,11 +535,62 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
         throw new Error("Failed to load file notes");
       }
 
-      const notes = await response.json();
-      // Assuming notes is an array of { id, name, content, type, fileId, conversationId }
-      // For now, we'll just log it or update state if needed
-      console.log("Loaded notes for file:", notes);
-      // Example: setCurrentNote(notes[0]); // If you want to display a specific note
+      const data = await response.json();
+      const notes = data.notes || [];
+      
+      if (notes.length > 0) {
+        // Create a note context from the first note
+        const firstNote = notes[0];
+        
+        // Parse the note content to extract SOAP note and patient summary
+        let parsedNotes = { soapNote: "", patientSummary: "" };
+        try {
+          if (firstNote.content) {
+            const contentObj = JSON.parse(firstNote.content);
+            parsedNotes = {
+              soapNote: contentObj.soapNote || firstNote.content,
+              patientSummary: contentObj.patientSummary || firstNote.content,
+            };
+          }
+        } catch (parseError) {
+          // If parsing fails, use the content as is
+          parsedNotes = {
+            soapNote: firstNote.content || "",
+            patientSummary: firstNote.content || "",
+          };
+        }
+
+        // Determine selected note types based on the notes
+        const selectedNoteTypes: ("soap" | "summary")[] = [];
+        notes.forEach((note: any) => {
+          if (note.note_type === "soap_note") {
+            selectedNoteTypes.push("soap");
+          } else if (note.note_type === "patient_summary") {
+            selectedNoteTypes.push("summary");
+          }
+        });
+
+        // Create a note context object
+        const noteContext = {
+          fileId: fileId,
+          noteId: firstNote.id?.toString() || "",
+          conversationId: "",
+          fileName: firstNote.filename || `File ${fileId}`,
+          status: "completed",
+          transcription: firstNote.transcription || "",
+          notes: parsedNotes,
+          selectedNoteTypes: selectedNoteTypes,
+        };
+
+        // Set the current note and show results
+        setCurrentNote(noteContext);
+        setShowResults(true);
+        
+        // Switch to chat section to show the notes
+        setActiveSectionWithGuard("chat");
+      } else {
+        alert("No notes found for this file.");
+      }
     } catch (error) {
       console.error("Failed to load file notes:", error);
       alert("Failed to load file notes. Please try again.");
