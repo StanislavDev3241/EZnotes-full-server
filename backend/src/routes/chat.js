@@ -690,6 +690,85 @@ router.delete(
   }
 );
 
+// Delete chat conversation
+router.delete("/conversation/:conversationId", authenticateToken, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const userId = req.user.userId;
+
+    // Get current conversation to check permissions
+    const currentConversation = await pool.query(
+      "SELECT * FROM chat_conversations WHERE id = $1",
+      [conversationId]
+    );
+
+    if (currentConversation.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Chat conversation not found",
+      });
+    }
+
+    // Verify user can delete this conversation
+    if (
+      req.user.role !== "admin" &&
+      req.user.userId !== currentConversation.rows[0].user_id
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
+    }
+
+    // Delete related data first (due to foreign key constraints)
+    // Delete chat messages
+    await pool.query(
+      "DELETE FROM chat_messages WHERE conversation_id = $1",
+      [conversationId]
+    );
+
+    // Delete chat history checkpoints
+    await pool.query(
+      "DELETE FROM chat_history_checkpoints WHERE conversation_id = $1",
+      [conversationId]
+    );
+
+    // Delete note improvements
+    await pool.query(
+      "DELETE FROM note_improvements WHERE conversation_id = $1",
+      [conversationId]
+    );
+
+    // Finally delete the conversation
+    const deletedConversation = await pool.query(
+      "DELETE FROM chat_conversations WHERE id = $1 RETURNING *",
+      [conversationId]
+    );
+
+    // Log data modification
+    await auditService.logDataModify(
+      req.user.userId,
+      "chat_conversations",
+      conversationId,
+      "delete",
+      `Conversation: ${currentConversation.rows[0].title || 'Untitled'}`,
+      null
+    );
+
+    res.json({
+      success: true,
+      message: "Chat conversation deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete chat conversation error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete chat conversation",
+      error: error.message,
+    });
+  }
+});
+
 // Edit chat message (new endpoint)
 router.put("/message/:messageId", authenticateToken, async (req, res) => {
   try {

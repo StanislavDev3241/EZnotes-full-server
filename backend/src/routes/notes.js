@@ -502,8 +502,10 @@ router.get("/saved/content/:noteId", authenticateToken, async (req, res) => {
 
       // Try to get the content from the regular notes table as a fallback
       try {
-        console.log(`Attempting fallback for note ${noteId}, file_id: ${savedNote.rows[0].file_id}, user_id: ${savedNote.rows[0].user_id}`);
-        
+        console.log(
+          `Attempting fallback for note ${noteId}, file_id: ${savedNote.rows[0].file_id}, user_id: ${savedNote.rows[0].user_id}`
+        );
+
         // First try to find notes with the same file_id and user_id, regardless of note_type
         if (savedNote.rows[0].file_id) {
           const fallbackNote = await pool.query(
