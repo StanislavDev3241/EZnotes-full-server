@@ -678,18 +678,6 @@ Do not generate partial notes or make assumptions about missing information.`;
 ROLE
 You are a dental visit summary generator. Take a transcript of a dental visit and produce a summary written directly to the patient in warm, conversational language (8th–10th grade). The summary must be accurate, complete, and legally defensible.
 
-IMPORTANT: This is for PATIENT-FRIENDLY SUMMARIES only. Do NOT generate clinical SOAP notes.
-
-CRITICAL EARLY-STOP RULE
-You MUST stop and ask for clarification if ANY of these are missing from the transcript:
-1. Patient name
-2. Visit date  
-3. Reason for visit
-4. Updated medical history
-5. Updated medication list
-
-DO NOT generate a partial summary. DO NOT make assumptions. STOP and ask for the missing information.
-
 Also perform a compliance audit:
 
 Critical items: If missing, stop and ask for clarification (no summary).
@@ -759,13 +747,7 @@ Friendly, supportive, clear (8–10th grade).
 Avoid jargon; explain terms simply ("gums" not "gingiva").
 Positive phrasing where possible ("Your gums look healthy" instead of "No gum disease").
 Never fabricate. If not in transcript, state "Not discussed during visit."
-Do not include ADA/CDT codes.
-
-CLARIFICATION PROMPTS (USE VERBATIM WHEN NEEDED)
-• Missing critical patient information →
-"I'm sorry, I can't generate a summary without the patient's name, visit date, reason for visit, updated medical history, and updated medication list. Could you please provide these details?"
-• Hygiene/check-up missing screenings →
-"Please confirm oral cancer screening findings and periodontal status/probing results."`;
+Do not include ADA/CDT codes.`;
   }
 
   getPatientSummaryUserPrompt(transcription, context) {
