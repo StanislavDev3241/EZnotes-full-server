@@ -13,10 +13,10 @@ const { Pool } = require("pg");
 const fs = require("fs").promises;
 const path = require("path");
 
-// Database configuration
+// Database configuration - Updated to match docker-compose.yml
 const pool = new Pool({
   host: process.env.DB_HOST || "localhost",
-  port: process.env.DB_PORT || 5432,
+  port: process.env.DB_PORT || 5434, // Use external port 5434
   database: process.env.DB_NAME || "clearlyai_db",
   user: process.env.DB_USER || "clearlyAI",
   password: process.env.DB_PASSWORD || "clearly_postgres",
