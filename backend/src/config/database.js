@@ -131,12 +131,9 @@ const initDatabase = async () => {
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id),
         name VARCHAR(200) NOT NULL,
-        description TEXT,
-        prompt_text TEXT NOT NULL,
-        specialty VARCHAR(100),
-        is_public BOOLEAN DEFAULT false,
-        usage_count INTEGER DEFAULT 0,
-        success_rate DECIMAL(5,2),
+        system_prompt TEXT NOT NULL,
+        user_prompt TEXT,
+        note_type VARCHAR(20) DEFAULT 'both' CHECK (note_type IN ('soap', 'summary', 'both')),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
