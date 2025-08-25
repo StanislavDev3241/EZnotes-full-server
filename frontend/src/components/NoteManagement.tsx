@@ -82,6 +82,7 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
 
   const handleViewNote = async (note: SavedNote) => {
     try {
+      console.log("Loading note content for note ID:", note.id);
       const response = await fetch(
         `${API_BASE_URL}/api/notes/saved/content/${note.id}`,
         {
@@ -91,11 +92,20 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
         }
       );
 
+      console.log("Response status:", response.status);
       if (response.ok) {
         const data = await response.json();
-        setNoteContent(data.content);
-        setSelectedNote(note);
-        setShowNoteContent(true);
+        console.log("Response data:", data);
+        if (data.success && data.note) {
+          console.log("Setting note content:", data.note.content);
+          setNoteContent(data.note.content);
+          setSelectedNote(note);
+          setShowNoteContent(true);
+        } else {
+          console.error("Invalid response format:", data);
+        }
+      } else {
+        console.error("Response not ok:", response.status, response.statusText);
       }
     } catch (error) {
       console.error("Failed to load note content:", error);
