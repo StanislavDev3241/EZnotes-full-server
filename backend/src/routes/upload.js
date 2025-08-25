@@ -210,11 +210,17 @@ const processFileWithOpenAI = async (
     notes = { soapNote: "", patientSummary: "" };
 
     // Check if custom prompt has specific note type restrictions
-    const shouldGenerateSoap = selectedNoteTypes.includes("soap") && 
-      (!customPrompt?.noteType || customPrompt.noteType === "soap" || customPrompt.noteType === "both");
-    
-    const shouldGenerateSummary = selectedNoteTypes.includes("summary") && 
-      (!customPrompt?.noteType || customPrompt.noteType === "summary" || customPrompt.noteType === "both");
+    const shouldGenerateSoap =
+      selectedNoteTypes.includes("soap") &&
+      (!customPrompt?.noteType ||
+        customPrompt.noteType === "soap" ||
+        customPrompt.noteType === "both");
+
+    const shouldGenerateSummary =
+      selectedNoteTypes.includes("summary") &&
+      (!customPrompt?.noteType ||
+        customPrompt.noteType === "summary" ||
+        customPrompt.noteType === "both");
 
     if (shouldGenerateSoap) {
       console.log(`📝 Generating SOAP note...`);
@@ -268,6 +274,7 @@ const processFileWithOpenAI = async (
           {
             userId: userId,
             procedureType: "general",
+            customPrompt: customPrompt, // ✅ NEW: Pass custom prompt to patient summary generation
           }
         );
         notes.patientSummary = patientSummaryResult;
@@ -544,7 +551,7 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
 
       // ✅ NEW: Handle both custom prompt text and custom prompt ID
       let customPrompt = null;
-      
+
       if (req.body.customPromptId) {
         // User selected a saved custom prompt
         const savedPrompt = await getCustomPrompt(req.body.customPromptId);
@@ -556,14 +563,16 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
           };
           console.log(`✅ Using saved custom prompt: ${savedPrompt.name}`);
         } else {
-          console.warn(`⚠️ Custom prompt not found or access denied: ${req.body.customPromptId}`);
+          console.warn(
+            `⚠️ Custom prompt not found or access denied: ${req.body.customPromptId}`
+          );
         }
       } else if (req.body.customPrompt) {
         // User provided custom prompt text
-        customPrompt = { 
-          systemPrompt: req.body.customPrompt, 
+        customPrompt = {
+          systemPrompt: req.body.customPrompt,
           userPrompt: null,
-          noteType: "both"
+          noteType: "both",
         };
       }
 

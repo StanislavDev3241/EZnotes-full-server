@@ -305,13 +305,26 @@ class OpenAIService {
         );
       }
 
-      const systemPrompt =
-        customPrompt?.systemPrompt || this.getDefaultSystemPrompt();
+      // ✅ NEW: Use custom prompt directly if provided, bypassing Early-Stop rules
+      let systemPrompt, userPrompt;
+      
+      if (customPrompt && customPrompt.systemPrompt) {
+        // Use custom prompt - NO Early-Stop rules
+        systemPrompt = customPrompt.systemPrompt;
+        userPrompt = customPrompt.userPrompt || `Based on the following dental transcript, generate notes according to your custom instructions:
 
-      // Always include transcription in user prompt, even with custom system prompt
-      const userPrompt =
-        customPrompt?.userPrompt ||
-        this.getDefaultUserPrompt(transcription, context);
+Dental Transcript:
+${transcription}
+
+Please follow your custom system prompt instructions.`;
+        
+        console.log(`✅ Using custom prompt - Early-Stop rules DISABLED`);
+      } else {
+        // Use default prompt with Early-Stop rules
+        systemPrompt = this.getDefaultSystemPrompt();
+        userPrompt = this.getDefaultUserPrompt(transcription, context);
+        console.log(`✅ Using default prompt - Early-Stop rules ENABLED`);
+      }
 
       console.log(
         `🔍 Final system prompt length: ${systemPrompt.length} characters`
@@ -785,11 +798,28 @@ IMPORTANT: You are generating a PATIENT-FRIENDLY SUMMARY for the patient. This i
       console.log(`📝 Generating patient visit summary...`);
       console.log(`🔍 Context:`, context);
 
-      const systemPrompt = this.getPatientSummarySystemPrompt();
-      const userPrompt = this.getPatientSummaryUserPrompt(
-        transcription,
-        context
-      );
+      // ✅ NEW: Check if custom prompt is provided in context
+      const customPrompt = context.customPrompt;
+      
+      let systemPrompt, userPrompt;
+      
+      if (customPrompt && customPrompt.systemPrompt) {
+        // Use custom prompt - NO Early-Stop rules
+        systemPrompt = customPrompt.systemPrompt;
+        userPrompt = customPrompt.userPrompt || `Based on the following dental transcript, generate a patient summary according to your custom instructions:
+
+Dental Transcript:
+${transcription}
+
+Please follow your custom system prompt instructions.`;
+        
+        console.log(`✅ Using custom prompt for patient summary - Early-Stop rules DISABLED`);
+      } else {
+        // Use default patient summary prompt with Early-Stop rules
+        systemPrompt = this.getPatientSummarySystemPrompt();
+        userPrompt = this.getPatientSummaryUserPrompt(transcription, context);
+        console.log(`✅ Using default patient summary prompt - Early-Stop rules ENABLED`);
+      }
 
       const response = await this.retryWithBackoff(
         () =>
