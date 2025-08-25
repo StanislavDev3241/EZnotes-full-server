@@ -410,6 +410,98 @@ router.post("/", authenticateToken, async (req, res) => {
   }
 });
 
+// Create conversation with initial AI messages from note generation
+router.post("/create-from-notes", authenticateToken, async (req, res) => {
+  try {
+    const { noteContext, messages } = req.body;
+    const userId = req.user.userId;
+
+    if (!noteContext || !messages || messages.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Note context and messages are required",
+      });
+    }
+
+    console.log("🔍 Creating conversation from notes:", {
+      noteId: noteContext.noteId,
+      fileName: noteContext.fileName,
+      messageCount: messages.length,
+    });
+
+    // Create conversation with clinical context
+    const clinicalContext = {
+      transcription: noteContext.transcription,
+      notes: noteContext.notes,
+      fileName: noteContext.fileName,
+      noteType: noteContext.noteType,
+      fileId: noteContext.fileId,
+      status: "completed",
+    };
+
+    const convResult = await pool.query(
+      `INSERT INTO chat_conversations (user_id, note_id, title, clinical_context, transcription, file_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id`,
+      [
+        userId,
+        noteContext.noteId,
+        `Chat for ${noteContext.fileName || "Note"}`,
+        JSON.stringify(clinicalContext),
+        noteContext.transcription,
+        noteContext.fileId,
+      ]
+    );
+
+    const conversationId = convResult.rows[0].id;
+    console.log(`✅ Created conversation ${conversationId} from notes`);
+
+    // Save all AI messages to the conversation
+    const savedMessageIds = [];
+    for (const message of messages) {
+      if (message.sender === "ai") {
+        const messageResult = await pool.query(
+          `INSERT INTO chat_messages (conversation_id, sender_type, message_text, ai_response)
+           VALUES ($1, $2, $3, $4)
+           RETURNING id`,
+          [
+            conversationId,
+            "ai",
+            "",
+            message.text,
+          ]
+        );
+        savedMessageIds.push(messageResult.rows[0].id);
+        console.log(`✅ Saved AI message: ${message.text.substring(0, 50)}...`);
+      }
+    }
+
+    // Log data modification
+    await auditService.logDataModify(
+      userId,
+      "chat_conversations",
+      conversationId,
+      "create",
+      null,
+      `Created from notes: ${noteContext.fileName}`
+    );
+
+    res.json({
+      success: true,
+      conversationId: conversationId,
+      message: "Conversation created successfully with initial AI messages",
+      savedMessageCount: savedMessageIds.length,
+    });
+  } catch (error) {
+    console.error("❌ Create conversation from notes error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to create conversation from notes",
+      error: error.message,
+    });
+  }
+});
+
 // Get chat history for a user
 router.get("/history/:userId", authenticateToken, async (req, res) => {
   try {

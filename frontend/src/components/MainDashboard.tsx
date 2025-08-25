@@ -1241,9 +1241,10 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
         <ResultsDisplay
           result={currentNote}
           onClose={() => setShowResults(false)}
-          onNextToChat={() => {
+          onNextToChat={async () => {
             setShowResults(false);
             setActiveSectionWithGuard("chat");
+            
             // Add the AI's response based on selected note types
             const messages: Message[] = [];
 
@@ -1275,6 +1276,31 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
 
             if (messages.length > 0) {
               setMessages(messages);
+              
+              // ✅ NEW: Create conversation in database with initial AI messages
+              try {
+                const response = await fetch(`${API_BASE_URL}/api/chat/create-from-notes`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+                  },
+                  body: JSON.stringify({
+                    noteContext: currentNote,
+                    messages: messages,
+                  }),
+                });
+
+                if (response.ok) {
+                  const data = await response.json();
+                  setCurrentConversationId(data.conversationId);
+                  console.log(`✅ Created conversation ${data.conversationId} with ${data.savedMessageCount} AI messages`);
+                } else {
+                  console.error("Failed to create conversation from notes:", response.statusText);
+                }
+              } catch (error) {
+                console.error("Error creating conversation from notes:", error);
+              }
             }
           }}
         />

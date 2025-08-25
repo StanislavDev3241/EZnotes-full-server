@@ -289,10 +289,6 @@ const processFileWithOpenAI = async (
     let soapNoteId = null;
     let patientSummaryId = null;
 
-    // ✅ NEW: Create conversation for note generation and save AI responses
-    let conversationId = null;
-    let noteGenerationMessages = [];
-
     if (notes.soapNote) {
       const soapResult = await pool.query(
         `INSERT INTO notes (file_id, note_type, content, user_id, prompt_used, ai_model, created_at)
@@ -308,49 +304,8 @@ const processFileWithOpenAI = async (
       );
       soapNoteId = soapResult.rows[0].id;
 
-      // ✅ NEW: Create conversation for this note generation
-      if (userId) {
-        const convResult = await pool.query(
-          `INSERT INTO chat_conversations (user_id, note_id, title, clinical_context, transcription, file_id)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           RETURNING id`,
-          [
-            userId,
-            soapNoteId,
-            `Note Generation - ${fileInfo.originalName}`,
-            JSON.stringify({
-              transcription: transcription,
-              notes: notes,
-              fileName: fileInfo.originalName,
-              noteType: "soap_note",
-              fileId: fileId,
-              status: "completed",
-            }),
-            transcription,
-            fileId,
-          ]
-        );
-        conversationId = convResult.rows[0].id;
-
-        // ✅ NEW: Save the note generation as AI message
-        const aiMessageResult = await pool.query(
-          `INSERT INTO chat_messages (conversation_id, sender_type, message_text, ai_response)
-           VALUES ($1, $2, $3, $4)
-           RETURNING id`,
-          [
-            conversationId,
-            "ai",
-            "",
-            `Generated SOAP Note:\n\n${notes.soapNote}`,
-          ]
-        );
-        noteGenerationMessages.push(aiMessageResult.rows[0].id);
-
-        console.log(
-          `✅ Created conversation ${conversationId} for note generation`
-        );
-        console.log(`✅ Saved SOAP note generation as AI message`);
-      }
+      // ✅ REMOVED: Conversation creation moved to when user clicks "Continue Chat"
+      // This ensures conversation is only created when user actually wants to chat
     }
 
     if (notes.patientSummary) {
@@ -368,25 +323,7 @@ const processFileWithOpenAI = async (
       );
       patientSummaryId = summaryResult.rows[0].id;
 
-      // ✅ NEW: If we already have a conversation, add patient summary to it
-      if (conversationId && userId) {
-        const aiMessageResult = await pool.query(
-          `INSERT INTO chat_messages (conversation_id, sender_type, message_text, ai_response)
-           VALUES ($1, $2, $3, $4)
-           RETURNING id`,
-          [
-            conversationId,
-            "ai",
-            "",
-            `Generated Patient Summary:\n\n${notes.patientSummary}`,
-          ]
-        );
-        noteGenerationMessages.push(aiMessageResult.rows[0].id);
-
-        console.log(
-          `✅ Added patient summary to conversation ${conversationId}`
-        );
-      }
+      // ✅ REMOVED: Patient summary message creation moved to when user clicks "Continue Chat"
     }
 
     // Also create "Saved Notes" entries for the generated notes
@@ -457,7 +394,6 @@ const processFileWithOpenAI = async (
       success: true,
       notes: notes,
       transcription: transcription,
-      conversationId: conversationId, // ✅ NEW: Include conversation ID
     };
   } catch (error) {
     console.error("❌ OpenAI processing error:", error);
