@@ -19,12 +19,7 @@ router.get("/", authenticateToken, async (req, res) => {
     );
 
     // Log data access
-    await auditService.logDataAccess(
-      userId,
-      "custom_prompts",
-      null,
-      "api"
-    );
+    await auditService.logDataAccess(userId, "custom_prompts", null, "api");
 
     res.json({
       success: true,
@@ -61,12 +56,7 @@ router.get("/:promptId", authenticateToken, async (req, res) => {
     }
 
     // Log data access
-    await auditService.logDataAccess(
-      userId,
-      "custom_prompts",
-      promptId,
-      "api"
-    );
+    await auditService.logDataAccess(userId, "custom_prompts", promptId, "api");
 
     res.json({
       success: true,
@@ -89,10 +79,10 @@ router.post("/", authenticateToken, async (req, res) => {
     const userId = req.user.userId;
 
     // Validate required fields
-    if (!name || !systemPrompt) {
+    if (!name) {
       return res.status(400).json({
         success: false,
-        message: "Name and system prompt are required",
+        message: "Name is required",
       });
     }
 
@@ -104,8 +94,32 @@ router.post("/", authenticateToken, async (req, res) => {
       });
     }
 
+    // ✅ NEW: Initialize with default prompt if systemPrompt is not provided
+    let finalSystemPrompt = systemPrompt;
+    let finalUserPrompt = userPrompt;
+    
+    if (!systemPrompt) {
+      const openaiService = require("../services/openaiService");
+      
+      if (noteType === "soap") {
+        // Initialize with SOAP note default prompt
+        finalSystemPrompt = openaiService.getDefaultSystemPrompt();
+        finalUserPrompt = openaiService.getDefaultUserPrompt("", {});
+      } else if (noteType === "summary") {
+        // Initialize with patient summary default prompt
+        finalSystemPrompt = openaiService.getPatientSummarySystemPrompt();
+        finalUserPrompt = openaiService.getPatientSummaryUserPrompt("", {});
+      } else {
+        // Initialize with SOAP note default prompt for "both" or unspecified
+        finalSystemPrompt = openaiService.getDefaultSystemPrompt();
+        finalUserPrompt = openaiService.getDefaultUserPrompt("", {});
+      }
+      
+      console.log(`✅ Initialized custom prompt with default ${noteType || 'soap'} prompt`);
+    }
+
     // Validate prompt length
-    if (systemPrompt.length > 10000) {
+    if (finalSystemPrompt.length > 10000) {
       return res.status(400).json({
         success: false,
         message: "System prompt must be less than 10,000 characters",
@@ -116,7 +130,7 @@ router.post("/", authenticateToken, async (req, res) => {
       `INSERT INTO custom_prompts (user_id, name, system_prompt, user_prompt, note_type, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
        RETURNING id, name, system_prompt, user_prompt, note_type, created_at, updated_at`,
-      [userId, name, systemPrompt, userPrompt || null, noteType || "both"]
+      [userId, name, finalSystemPrompt, finalUserPrompt || null, noteType || "both"]
     );
 
     const newPrompt = result.rows[0];
@@ -195,7 +209,14 @@ router.put("/:promptId", authenticateToken, async (req, res) => {
        SET name = $1, system_prompt = $2, user_prompt = $3, note_type = $4, updated_at = NOW()
        WHERE id = $5 AND user_id = $6
        RETURNING id, name, system_prompt, user_prompt, note_type, created_at, updated_at`,
-      [name, systemPrompt, userPrompt || null, noteType || "both", promptId, userId]
+      [
+        name,
+        systemPrompt,
+        userPrompt || null,
+        noteType || "both",
+        promptId,
+        userId,
+      ]
     );
 
     const updatedPrompt = result.rows[0];
