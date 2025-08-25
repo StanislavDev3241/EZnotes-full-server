@@ -40,7 +40,7 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
     setIsLoading(true);
     try {
       console.log("Loading saved notes for user:", userId);
-      
+
       // Load saved notes (which now include generated notes)
       const response = await fetch(
         `${API_BASE_URL}/api/notes/saved/${userId}`,
@@ -52,11 +52,11 @@ const NoteManagement: React.FC<NoteManagementProps> = ({
       );
 
       console.log("Response status:", response.status);
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log("Saved notes data:", data);
-        
+
         const notes = data.notes || [];
         console.log("Notes array:", notes);
 
