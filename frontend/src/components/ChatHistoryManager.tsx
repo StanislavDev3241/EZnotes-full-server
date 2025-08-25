@@ -26,7 +26,6 @@ interface ChatHistoryManagerProps {
   onSaveHistoryPoint: (name: string, messages: any[]) => void;
   onDeleteHistoryPoint: (pointId: string) => void;
   currentConversationId?: string;
-  refreshTrigger?: number; // Add refresh trigger prop
 }
 
 const ChatHistoryManager: React.FC<ChatHistoryManagerProps> = ({
@@ -35,7 +34,6 @@ const ChatHistoryManager: React.FC<ChatHistoryManagerProps> = ({
   onSaveHistoryPoint,
   onDeleteHistoryPoint,
   currentConversationId,
-  refreshTrigger,
 }) => {
   const [historyPoints, setHistoryPoints] = useState<ChatHistoryPoint[]>([]);
   const [isExpanded, setIsExpanded] = useState(false); // Start collapsed to save space
@@ -51,7 +49,7 @@ const ChatHistoryManager: React.FC<ChatHistoryManagerProps> = ({
     if (isExpanded) {
       loadHistoryPoints();
     }
-  }, [isExpanded, refreshTrigger]); // Add refreshTrigger to dependencies
+  }, [isExpanded]); // Remove refreshTrigger dependency
 
   const loadHistoryPoints = async () => {
     setIsLoading(true);

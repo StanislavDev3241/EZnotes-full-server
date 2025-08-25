@@ -115,7 +115,9 @@ router.post("/", authenticateToken, async (req, res) => {
         conversationId = noteContext.conversationId;
         console.log(`✅ Using existing conversation: ${conversationId}`);
       } else {
-        console.log(`❌ Conversation ${noteContext.conversationId} not found, will create new one`);
+        console.log(
+          `❌ Conversation ${noteContext.conversationId} not found, will create new one`
+        );
       }
     }
 
@@ -128,7 +130,9 @@ router.post("/", authenticateToken, async (req, res) => {
 
       if (convResult.rows.length > 0) {
         conversationId = convResult.rows[0].id;
-        console.log(`✅ Found existing conversation by note ID: ${conversationId}`);
+        console.log(
+          `✅ Found existing conversation by note ID: ${conversationId}`
+        );
       } else {
         // Create new conversation for this note
         const newConvResult = await pool.query(
@@ -165,7 +169,9 @@ router.post("/", authenticateToken, async (req, res) => {
     );
 
     const userMessageId = userMessageResult.rows[0].id;
-    console.log(`💬 Saved user message to conversation ${conversationId}, message ID: ${userMessageId}`);
+    console.log(
+      `💬 Saved user message to conversation ${conversationId}, message ID: ${userMessageId}`
+    );
 
     // Get conversation history for context
     const historyResult = await pool.query(
@@ -267,9 +273,15 @@ router.post("/", authenticateToken, async (req, res) => {
        RETURNING id`,
       [conversationId, "ai", "", aiResponse]
     );
-    
-    console.log(`🤖 Saved AI response to conversation ${conversationId}, message ID: ${aiMessageResult.rows[0].id}`);
-    console.log(`📊 Total messages in conversation ${conversationId}: ${historyResult.rows.length + 2}`);
+
+    console.log(
+      `🤖 Saved AI response to conversation ${conversationId}, message ID: ${aiMessageResult.rows[0].id}`
+    );
+    console.log(
+      `📊 Total messages in conversation ${conversationId}: ${
+        historyResult.rows.length + 2
+      }`
+    );
 
     // Update conversation title if it's generic
     const convTitleResult = await pool.query(

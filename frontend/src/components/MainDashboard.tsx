@@ -92,7 +92,6 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
   >(null);
   const [showSaveNotesDialog, setShowSaveNotesDialog] = useState(false);
   const [showFullNotes, setShowFullNotes] = useState(false);
-  const [chatHistoryRefreshTrigger, setChatHistoryRefreshTrigger] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const API_BASE_URL =
