@@ -88,6 +88,7 @@ app.use("/api/files", require("./routes/files"));
 app.use("/api/messages", require("./routes/messages"));
 app.use("/api/admin", require("./routes/admin"));
 app.use("/api/queue", require("./routes/queue"));
+app.use("/api/custom-prompts", require("./routes/customPrompts"));
 
 // Health check
 app.get("/health", async (req, res) => {
