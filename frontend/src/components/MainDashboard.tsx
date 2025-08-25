@@ -464,7 +464,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
         // Create a note context object that matches our UploadResult interface
         const noteContext = {
           fileId: noteData.file_id?.toString() || "",
-          noteId: noteData.id?.toString() || "",
+          noteId: noteData.id || null, // Keep as number for backend
           conversationId: currentConversationId || "",
           fileName: noteData.filename || `Note ${noteData.id}`,
           status: "completed",

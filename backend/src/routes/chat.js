@@ -121,6 +121,40 @@ router.post("/", authenticateToken, async (req, res) => {
       }
     }
 
+    // If we have a conversationId but no noteId, try to find the note associated with the file
+    if (
+      conversationId &&
+      noteContext &&
+      noteContext.fileName &&
+      !noteContext.noteId
+    ) {
+      try {
+        console.log(
+          `🔍 Looking for note associated with file: ${noteContext.fileName}`
+        );
+        const noteResult = await pool.query(
+          `SELECT n.id FROM notes n
+           JOIN files f ON n.file_id = f.id
+           WHERE f.file_name = $1 AND n.user_id = $2
+           ORDER BY n.created_at DESC
+           LIMIT 1`,
+          [noteContext.fileName, userId]
+        );
+
+        if (noteResult.rows.length > 0) {
+          noteContext.noteId = noteResult.rows[0].id;
+          console.log(
+            `✅ Found note ID ${noteContext.noteId} for file ${noteContext.fileName}`
+          );
+        }
+      } catch (error) {
+        console.warn(
+          `⚠️ Could not find note for file ${noteContext.fileName}:`,
+          error.message
+        );
+      }
+    }
+
     if (!conversationId && noteContext && noteContext.noteId) {
       // Find conversation by note ID
       const convResult = await pool.query(
@@ -148,7 +182,7 @@ router.post("/", authenticateToken, async (req, res) => {
         conversationId = newConvResult.rows[0].id;
         console.log(`🆕 Created new conversation for note: ${conversationId}`);
       }
-    } else {
+    } else if (!conversationId) {
       // Create new general conversation
       const newConvResult = await pool.query(
         `INSERT INTO chat_conversations (user_id, title)
@@ -192,7 +226,10 @@ router.post("/", authenticateToken, async (req, res) => {
     }));
 
     console.log(`📚 Conversation history: ${formattedHistory.length} messages`);
-    console.log(`📚 History content:`, formattedHistory.map(h => `${h.role}: ${h.content.substring(0, 50)}...`));
+    console.log(
+      `📚 History content:`,
+      formattedHistory.map((h) => `${h.role}: ${h.content.substring(0, 50)}...`)
+    );
 
     // Enhanced note context: Fetch actual note content if noteId is provided
     let enhancedNoteContext = noteContext;
