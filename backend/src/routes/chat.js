@@ -464,12 +464,7 @@ router.post("/create-from-notes", authenticateToken, async (req, res) => {
           `INSERT INTO chat_messages (conversation_id, sender_type, message_text, ai_response)
            VALUES ($1, $2, $3, $4)
            RETURNING id`,
-          [
-            conversationId,
-            "ai",
-            "",
-            message.text,
-          ]
+          [conversationId, "ai", "", message.text]
         );
         savedMessageIds.push(messageResult.rows[0].id);
         console.log(`✅ Saved AI message: ${message.text.substring(0, 50)}...`);
