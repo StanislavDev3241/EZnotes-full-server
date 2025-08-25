@@ -8,6 +8,7 @@ import {
   Loader2,
   X,
 } from "lucide-react";
+import CustomPromptManager from "./CustomPromptManager";
 
 interface UploadResult {
   fileId: string;
@@ -99,6 +100,9 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
     Set<"soap" | "summary">
   >(new Set());
   const [customPrompt, setCustomPrompt] = useState<string>("");
+  const [customPromptId, setCustomPromptId] = useState<number | null>(null);
+  const [savedPrompts, setSavedPrompts] = useState<any[]>([]);
+  const [showCustomPromptManager, setShowCustomPromptManager] = useState(false);
 
   // Chunk upload state
   const [chunkUploadState, setChunkUploadState] =
@@ -116,6 +120,31 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<number | null>(null);
+
+  // Load saved custom prompts
+  const loadSavedPrompts = async () => {
+    if (isUnregisteredUser) return;
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/custom-prompts`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSavedPrompts(data.prompts || []);
+      }
+    } catch (error) {
+      console.error("Failed to load saved prompts:", error);
+    }
+  };
+
+  // Load prompts on component mount
+  React.useEffect(() => {
+    loadSavedPrompts();
+  }, [isUnregisteredUser]);
 
   // Generate unique file ID for chunked uploads
   const generateFileId = () => {
@@ -219,6 +248,7 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
           fileType,
           fileSize,
           totalChunks,
+          customPromptId: customPromptId || undefined,
           customPrompt: customPrompt.trim() || undefined,
           selectedNoteTypes: Array.from(selectedNoteTypes),
         }),
@@ -380,7 +410,10 @@ const EnhancedUpload: React.FC<EnhancedUploadProps> = ({
     const uploadData = new FormData();
     uploadData.append("file", file);
 
-    if (customPrompt.trim()) {
+    // ✅ NEW: Send custom prompt ID if selected, otherwise send custom prompt text
+    if (customPromptId) {
+      uploadData.append("customPromptId", customPromptId.toString());
+    } else if (customPrompt.trim()) {
       uploadData.append("customPrompt", customPrompt.trim());
     }
 
@@ -811,7 +844,7 @@ END.`);
         </div>
       </div>
 
-      {/* Custom Prompt Input */}
+      {/* Custom Prompt Selection */}
       <div className="space-y-2">
         <label className="block text-sm font-medium text-gray-700">
           Custom Instructions
@@ -831,16 +864,50 @@ END.`);
           </div>
         ) : (
           <>
-            <textarea
-              value={customPrompt}
-              onChange={(e) => setCustomPrompt(e.target.value)}
-              placeholder="Enter custom instructions for note generation..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              rows={6}
-            />
+            <div className="flex space-x-2">
+              <select
+                value={customPromptId || ""}
+                onChange={(e) => {
+                  const promptId = e.target.value ? parseInt(e.target.value) : null;
+                  setCustomPromptId(promptId);
+                  
+                  if (promptId) {
+                    const selectedPrompt = savedPrompts.find(p => p.id === promptId);
+                    if (selectedPrompt) {
+                      setCustomPrompt(selectedPrompt.system_prompt);
+                    }
+                  } else {
+                    setCustomPrompt("");
+                  }
+                }}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Use default prompts</option>
+                {savedPrompts.map((prompt) => (
+                  <option key={prompt.id} value={prompt.id}>
+                    {prompt.name} ({prompt.note_type})
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowCustomPromptManager(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Manage
+              </button>
+            </div>
+            
+            {customPromptId && (
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <p className="text-sm text-blue-800">
+                  Using custom prompt: {savedPrompts.find(p => p.id === customPromptId)?.name}
+                </p>
+              </div>
+            )}
+            
             <p className="text-xs text-gray-500">
-              These instructions will guide the AI in generating your notes.
-              Choose a note type above or customize the instructions.
+              Select a saved custom prompt or use default prompts. Click "Manage" to create, edit, or delete custom prompts.
             </p>
           </>
         )}
@@ -1094,6 +1161,36 @@ END.`);
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Custom Prompt Manager Modal */}
+      {showCustomPromptManager && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Manage Custom Prompts</h2>
+              <button
+                onClick={() => {
+                  setShowCustomPromptManager(false);
+                  loadSavedPrompts(); // Refresh prompts after closing
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <CustomPromptManager
+              API_BASE_URL={API_BASE_URL}
+              onPromptSelect={(prompt) => {
+                setCustomPromptId(prompt.id);
+                setCustomPrompt(prompt.system_prompt);
+                setShowCustomPromptManager(false);
+              }}
+              selectedPromptId={customPromptId || undefined}
+              isUnregisteredUser={isUnregisteredUser}
+            />
+          </div>
         </div>
       )}
     </div>
