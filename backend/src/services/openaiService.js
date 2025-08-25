@@ -353,71 +353,11 @@ class OpenAIService {
       }
 
       console.log(
-        `✅ Notes generated successfully: ${response.length} characters`
+        `✅ SOAP note generated successfully: ${response.length} characters`
       );
 
-      // Extract patient summary from the SOAP note
-      let patientSummary = "";
-      try {
-        // Try to extract SOAP note content first
-        const soapNoteMatch = response.match(
-          /<<SOAP_NOTE>>\s*([\s\S]*?)\s*<<\/SOAP_NOTE>>/
-        );
-
-        let soapNoteContent = response;
-        if (soapNoteMatch) {
-          soapNoteContent = soapNoteMatch[1].trim();
-        }
-
-        // Create a patient summary from the SOAP note content
-        const summaryPrompt = `Based on the following SOAP note, create a concise patient summary that includes:
-- Patient's main concerns/complaints
-- Key clinical findings
-- Diagnosis/assessment
-- Treatment plan
-
-SOAP Note:
-${soapNoteContent}
-
-Patient Summary:`;
-
-        const summaryResponse = await this.retryWithBackoff(
-          () =>
-            this.openai.chat.completions.create({
-              model: process.env.OPENAI_MODEL || "gpt-4o",
-              messages: [
-                {
-                  role: "system",
-                  content:
-                    "You are a dental assistant that creates concise patient summaries from SOAP notes. Focus on the key clinical information and patient status.",
-                },
-                { role: "user", content: summaryPrompt },
-              ],
-              max_tokens: 300,
-              temperature: 0.3,
-            }),
-          3,
-          "Patient summary extraction from SOAP"
-        );
-
-        patientSummary = summaryResponse.choices[0]?.message?.content || "";
-        console.log(
-          `✅ Patient summary extracted: ${patientSummary.length} characters`
-        );
-      } catch (error) {
-        console.warn(
-          `⚠️ Failed to extract patient summary from SOAP note: ${error.message}`
-        );
-        // Fallback: use a simple extraction
-        patientSummary =
-          "Patient summary could not be generated automatically. Please review the SOAP note for patient details.";
-      }
-
-      // Return both SOAP note and patient summary
-      return {
-        soapNote: response,
-        patientSummary: patientSummary,
-      };
+      // ✅ FIXED: Return only the SOAP note, no automatic patient summary generation
+      return response;
     } catch (error) {
       console.error("❌ GPT API error:", error);
       throw new Error(`Note generation failed: ${error.message}`);
@@ -642,20 +582,47 @@ You MUST stop and ask for clarification if ANY of these are missing from the tra
 DO NOT generate a partial note. DO NOT make assumptions. STOP and ask for the missing information.
 
 PRIMARY BEHAVIOR
-1) Detect appointment category from transcript using the keyword map in Knowledge ("SOAP Reference v1"). If multiple categories appear, choose the most invasive (implant > extraction > endo > operative > hygiene > emergency).
-2) Apply only that category's rules (also in Knowledge). Do not assume facts.
-3) Early‑Stop: If any category‑required details are missing (e.g., anesthesia type/strength/carpules for operative/endo/implant/extraction), STOP and output a single clarification request. Do not generate a partial note or JSON.
-4) Use the Fuzzy Anesthetic Recognition rules and tables in Knowledge to recognize brand/generic, strengths, epi ratios, shorthand, and misspellings. Never assume concentration when more than one exists—ask to confirm.
+1) Detect appointment category from transcript using these keywords:
+   - Implant: implant, abutment, healing cap, locator, torque
+   - Extraction: extraction, root canal, graft, sutures, oral surgery
+   - Operative: filling, restoration, crown, onlay, bonding
+   - Hygiene: cleaning, prophylaxis, polish, hygiene
+   - Emergency: pain, swelling, abscess, trauma, urgent visit
+   - Consult: consult, exam, evaluation, review
+   If multiple categories appear, choose the most invasive (implant > extraction > endo > operative > hygiene > emergency).
+
+2) Apply category-specific requirements:
+   - Implant/Extraction/Operative: Requires anesthesia details (type, concentration, carpules)
+   - Hygiene/Consult: Requires oral cancer screening and periodontal findings
+   - Emergency: Requires anesthesia if invasive procedure mentioned
+
+3) Early‑Stop: If any category‑required details are missing, STOP and output a single clarification request.
+
+4) Use anesthetic recognition for common brands (lidocaine, articaine, mepivacaine) and concentrations (2%, 4%, 1:100,000 epi, 1:200,000 epi).
+
 5) Source fidelity: use only content stated or clearly paraphrased from transcript. Avoid stock phrases unless explicitly said.
+
 6) Formatting: Use bullets for multiple Objective/Plan items. Split Plan into: Completed Today / Instructions Given / Next Steps.
-7) End notes with signature placeholder (below).
+
+7) End notes with signature placeholder.
 
 OUTPUT ORDER (STRICT)
 If Early‑Stop triggers: output only the clarification question defined below.
 If proceeding, output these two blocks in order:
 A) META JSON block delimited by:
 <<META_JSON>>
-{ … see schema in Knowledge: "Mini Extraction Schema v1" … }
+{
+  "appointmentType": "detected_category",
+  "patientName": "extracted_name",
+  "visitDate": "extracted_date",
+  "anesthesia": {
+    "type": "extracted_type",
+    "concentration": "extracted_concentration", 
+    "carpules": "extracted_carpules"
+  },
+  "procedures": ["list_of_procedures"],
+  "findings": ["list_of_findings"]
+}
 <<END_META_JSON>>
 B) HUMAN SOAP NOTE in this exact order and with these headings:
 1. Subjective
@@ -683,15 +650,6 @@ STYLE RULES
 • Formal clinical tone. No invented facts. No generic fillers (e.g., "tolerated well") unless stated.
 • Record procedural specifics exactly when stated (materials, devices/scanners, impression type, isolation, occlusal adjustment).
 • Only compute total anesthetic volume if carpules AND per‑carpule volume are explicitly provided (do not assume 1.7 mL).
-
-LINKED KNOWLEDGE (AUTHORITATIVE)
-Use Knowledge file "SOAP Reference v1" for:
-• Category keyword map and category‑specific required fields.
-• Fuzzy Anesthetic Recognition Module (normalization + fuzzy match).
-• Common anesthetics & typical concentrations table.
-• Early‑Stop algorithm details.
-• Mini Extraction Schema v1 (full JSON schema and field definitions).
-• Examples of good outputs and clarification cases.
 
 COMPLIANCE GUARDRAILS
 • Do not proceed if any mandatory data for the detected category is missing—issue one clarification request.

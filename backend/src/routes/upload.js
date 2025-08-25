@@ -242,13 +242,8 @@ const processFileWithOpenAI = async (
           );
         }
 
-        // Handle both old string format and new object format for SOAP note
-        if (typeof soapNoteResult === "string") {
-          notes.soapNote = soapNoteResult;
-        } else {
-          notes.soapNote = soapNoteResult.soapNote || soapNoteResult;
-          notes.isClarificationRequest = soapNoteResult.isClarificationRequest || false;
-        }
+        // ✅ FIXED: SOAP note result is now always a string
+        notes.soapNote = soapNoteResult;
         console.log(`✅ SOAP note generated successfully`);
       } catch (noteError) {
         console.error(`❌ SOAP note generation failed:`, noteError);
@@ -550,10 +545,15 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
         try {
           selectedNoteTypes = JSON.parse(req.body.selectedNoteTypes);
         } catch (error) {
-          console.warn("Failed to parse selectedNoteTypes, using default:", error);
+          console.warn(
+            "Failed to parse selectedNoteTypes, using default:",
+            error
+          );
         }
       }
-      console.log(`🔍 Selected note types: ${JSON.stringify(selectedNoteTypes)}`);
+      console.log(
+        `🔍 Selected note types: ${JSON.stringify(selectedNoteTypes)}`
+      );
 
       console.log(
         `🔍 DEBUG: customPrompt object created = ${JSON.stringify(
@@ -1161,10 +1161,15 @@ router.post("/finalize", optionalAuth, async (req, res) => {
         try {
           selectedNoteTypes = req.body.selectedNoteTypes;
         } catch (error) {
-          console.warn("Failed to parse selectedNoteTypes, using default:", error);
+          console.warn(
+            "Failed to parse selectedNoteTypes, using default:",
+            error
+          );
         }
       }
-      console.log(`🔍 Selected note types: ${JSON.stringify(selectedNoteTypes)}`);
+      console.log(
+        `🔍 Selected note types: ${JSON.stringify(selectedNoteTypes)}`
+      );
 
       // Validate custom prompt length
       if (customPromptObj && customPromptObj.systemPrompt.length > 10000) {
