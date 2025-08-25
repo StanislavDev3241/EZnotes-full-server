@@ -19,7 +19,7 @@ SET clinical_context = (
   SELECT json_build_object(
     'transcription', f.transcription,
     'notes', n.content,
-    'fileName', f.file_name,
+    'fileName', f.filename,
     'noteType', n.note_type,
     'fileId', f.id,
     'status', 'completed'

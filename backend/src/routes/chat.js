@@ -165,7 +165,7 @@ router.post("/", authenticateToken, async (req, res) => {
 
         // Fetch the actual note content from the database
         const noteResult = await pool.query(
-          `SELECT n.content, n.note_type, f.file_name, f.transcription, f.id as file_id
+          `SELECT n.content, n.note_type, f.filename, f.transcription, f.id as file_id
            FROM notes n
            LEFT JOIN files f ON n.file_id = f.id
            WHERE n.id = $1 AND n.user_id = $2`,
@@ -571,7 +571,7 @@ router.get(
       if (!clinicalContext && convData.note_id) {
         try {
           const noteResult = await pool.query(
-            `SELECT n.content, n.note_type, f.file_name, f.transcription, f.id as file_id
+            `SELECT n.content, n.note_type, f.filename, f.transcription, f.id as file_id
              FROM notes n
              LEFT JOIN files f ON n.file_id = f.id
              WHERE n.id = $1 AND n.user_id = $2`,
