@@ -643,14 +643,19 @@ END.`;
   }
 
   getDefaultUserPrompt(transcription, context) {
-    return `Based on the following dental transcript, generate a structured SOAP note following the system prompt guidelines.
-
-Dental Transcript:
+    return `Dental Transcript:
 ${transcription}
 
-Please follow the exact output format specified in the system prompt, including the META JSON block and structured SOAP note.
+Please analyze this transcript and generate a SOAP note following the system prompt instructions exactly.
 
-IMPORTANT: You are generating a CLINICAL SOAP NOTE for dental professionals. This is NOT a patient summary.`;
+CRITICAL: If any required information is missing (patient name, visit date, reason for visit, medical history, medications, or category-specific details like anesthesia for operative procedures or screenings for hygiene), STOP and ask for clarification using the exact clarification prompts from the system prompt.
+
+If all required information is present, generate the complete SOAP note with:
+1. META JSON block (<<META_JSON>>...<<END_META_JSON>>)
+2. Structured SOAP note with Subjective, Objective, Assessment, Plan sections
+3. Provider signature line
+
+Do not generate partial notes or make assumptions about missing information.`;
   }
 
   // ✅ NEW: Patient Visit Summary methods
