@@ -307,17 +307,19 @@ class OpenAIService {
 
       // ✅ NEW: Use custom prompt directly if provided, bypassing Early-Stop rules
       let systemPrompt, userPrompt;
-      
+
       if (customPrompt && customPrompt.systemPrompt) {
         // Use custom prompt - NO Early-Stop rules
         systemPrompt = customPrompt.systemPrompt;
-        userPrompt = customPrompt.userPrompt || `Based on the following dental transcript, generate notes according to your custom instructions:
+        userPrompt =
+          customPrompt.userPrompt ||
+          `Based on the following dental transcript, generate notes according to your custom instructions:
 
 Dental Transcript:
 ${transcription}
 
 Please follow your custom system prompt instructions.`;
-        
+
         console.log(`✅ Using custom prompt - Early-Stop rules DISABLED`);
       } else {
         // Use default prompt with Early-Stop rules
@@ -656,8 +658,6 @@ CLARIFICATION PROMPTS (USE VERBATIM WHEN NEEDED)
 "Before I generate the SOAP note, please provide the anesthetic type, concentration (e.g., 2% lidocaine with 1:100,000 epi), and number of carpules used for today's procedure."
 • Category unclear →
 "Can you confirm the appointment type (operative, check-up, implant, extraction, endodontic, emergency, other) before I proceed?"
-• Hygiene/check-up missing screenings (do not ask about anesthesia unless mentioned) →
-"Please confirm oral cancer screening findings and periodontal status/probing results."
 • Missing critical patient information →
 "I'm sorry, I can't generate a SOAP note without the patient's name, visit date, reason for visit, updated medical history, and updated medication list. Could you please provide these details?"
 
@@ -778,7 +778,9 @@ Do not include ADA/CDT codes.
 
 CLARIFICATION PROMPTS (USE VERBATIM WHEN NEEDED)
 • Missing critical patient information →
-"I'm sorry, I can't generate a summary without the patient's name, visit date, reason for visit, updated medical history, and updated medication list. Could you please provide these details?"`;
+"I'm sorry, I can't generate a summary without the patient's name, visit date, reason for visit, updated medical history, and updated medication list. Could you please provide these details?"
+• Hygiene/check-up missing screenings →
+"Please confirm oral cancer screening findings and periodontal status/probing results."`;
   }
 
   getPatientSummaryUserPrompt(transcription, context) {
@@ -800,25 +802,31 @@ IMPORTANT: You are generating a PATIENT-FRIENDLY SUMMARY for the patient. This i
 
       // ✅ NEW: Check if custom prompt is provided in context
       const customPrompt = context.customPrompt;
-      
+
       let systemPrompt, userPrompt;
-      
+
       if (customPrompt && customPrompt.systemPrompt) {
         // Use custom prompt - NO Early-Stop rules
         systemPrompt = customPrompt.systemPrompt;
-        userPrompt = customPrompt.userPrompt || `Based on the following dental transcript, generate a patient summary according to your custom instructions:
+        userPrompt =
+          customPrompt.userPrompt ||
+          `Based on the following dental transcript, generate a patient summary according to your custom instructions:
 
 Dental Transcript:
 ${transcription}
 
 Please follow your custom system prompt instructions.`;
-        
-        console.log(`✅ Using custom prompt for patient summary - Early-Stop rules DISABLED`);
+
+        console.log(
+          `✅ Using custom prompt for patient summary - Early-Stop rules DISABLED`
+        );
       } else {
         // Use default patient summary prompt with Early-Stop rules
         systemPrompt = this.getPatientSummarySystemPrompt();
         userPrompt = this.getPatientSummaryUserPrompt(transcription, context);
-        console.log(`✅ Using default patient summary prompt - Early-Stop rules ENABLED`);
+        console.log(
+          `✅ Using default patient summary prompt - Early-Stop rules ENABLED`
+        );
       }
 
       const response = await this.retryWithBackoff(
