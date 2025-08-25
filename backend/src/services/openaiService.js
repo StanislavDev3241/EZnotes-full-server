@@ -280,7 +280,9 @@ class OpenAIService {
 
       // Validate transcription
       if (!transcription || transcription.trim().length < 10) {
-        throw new Error("Transcription too short or empty for SOAP note generation");
+        throw new Error(
+          "Transcription too short or empty for SOAP note generation"
+        );
       }
 
       console.log(
@@ -320,12 +322,16 @@ ${transcription}
 
 Please follow your custom system prompt instructions.`;
 
-        console.log(`✅ Using custom prompt for SOAP note - Early-Stop rules DISABLED`);
+        console.log(
+          `✅ Using custom prompt for SOAP note - Early-Stop rules DISABLED`
+        );
       } else {
         // Use default SOAP note prompt with Early-Stop rules
         systemPrompt = this.getDefaultSystemPrompt();
         userPrompt = this.getDefaultUserPrompt(transcription, context);
-        console.log(`✅ Using default SOAP note prompt - Early-Stop rules ENABLED`);
+        console.log(
+          `✅ Using default SOAP note prompt - Early-Stop rules ENABLED`
+        );
       }
 
       console.log(
@@ -380,7 +386,9 @@ Please follow your custom system prompt instructions.`;
 
   // ✅ LEGACY: Keep generateNotes for backward compatibility (calls generateSoapNote)
   async generateNotes(transcription, customPrompt, context = {}) {
-    console.log(`⚠️ generateNotes() is deprecated. Use generateSoapNote() instead.`);
+    console.log(
+      `⚠️ generateNotes() is deprecated. Use generateSoapNote() instead.`
+    );
     return this.generateSoapNote(transcription, customPrompt, context);
   }
 
@@ -761,14 +769,22 @@ CLARIFICATION PROMPTS (USE VERBATIM WHEN NEEDED)
   }
 
   getPatientSummaryUserPrompt(transcription, context) {
-    return `Based on the following dental transcript, generate a patient-friendly visit summary following the system prompt guidelines.
-
-Dental Transcript:
+    return `Dental Transcript:
 ${transcription}
 
-Please follow the exact output format specified in the system prompt, including the patient-friendly summary and compliance check.
+Please analyze this transcript and generate a patient-friendly visit summary following the system prompt instructions exactly.
 
-IMPORTANT: You are generating a PATIENT-FRIENDLY SUMMARY for the patient. This is NOT a clinical SOAP note.`;
+CRITICAL: If any required information is missing (patient name, visit date, reason for visit, medical history, medications), STOP and ask for clarification using the exact clarification prompts from the system prompt.
+
+If all required information is present, generate the complete patient summary with:
+1. Patient Name
+2. Visit Overview
+3. What We Found
+4. What We Did for You
+5. Next Steps & Helpful Tips
+6. Compliance Check
+
+Do not generate partial summaries or make assumptions about missing information. Write in friendly, patient-friendly language (8th-10th grade level).`;
   }
 
   // ✅ NEW: Generate patient visit summary
