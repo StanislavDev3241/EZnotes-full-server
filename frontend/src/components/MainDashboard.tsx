@@ -92,6 +92,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
   >(null);
   const [showSaveNotesDialog, setShowSaveNotesDialog] = useState(false);
   const [showFullNotes, setShowFullNotes] = useState(false);
+  const [chatHistoryRefreshTrigger, setChatHistoryRefreshTrigger] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const API_BASE_URL =
@@ -280,7 +281,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
             // Update conversation ID if this is a new conversation
             if (result.conversationId) {
               setCurrentConversationId(result.conversationId);
-              console.log(`Conversation ID updated from edit: ${result.conversationId}`);
+              console.log(
+                `Conversation ID updated from edit: ${result.conversationId}`
+              );
             }
           } else {
             throw new Error(result.message || "Failed to get AI response");

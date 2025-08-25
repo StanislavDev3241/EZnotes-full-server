@@ -98,10 +98,28 @@ router.post("/", authenticateToken, async (req, res) => {
     // Find or create conversation
     let conversationId = null;
 
+    console.log("🔍 Chat request - noteContext:", {
+      conversationId: noteContext?.conversationId,
+      noteId: noteContext?.noteId,
+      fileName: noteContext?.fileName,
+    });
+
     if (noteContext && noteContext.conversationId) {
-      // Use existing conversation
-      conversationId = noteContext.conversationId;
-    } else if (noteContext && noteContext.noteId) {
+      // Use existing conversation - verify it exists
+      const existingConv = await pool.query(
+        `SELECT id FROM chat_conversations WHERE id = $1 AND user_id = $2`,
+        [noteContext.conversationId, userId]
+      );
+
+      if (existingConv.rows.length > 0) {
+        conversationId = noteContext.conversationId;
+        console.log(`✅ Using existing conversation: ${conversationId}`);
+      } else {
+        console.log(`❌ Conversation ${noteContext.conversationId} not found, will create new one`);
+      }
+    }
+
+    if (!conversationId && noteContext && noteContext.noteId) {
       // Find conversation by note ID
       const convResult = await pool.query(
         `SELECT id FROM chat_conversations WHERE note_id = $1 AND user_id = $2`,
@@ -110,6 +128,7 @@ router.post("/", authenticateToken, async (req, res) => {
 
       if (convResult.rows.length > 0) {
         conversationId = convResult.rows[0].id;
+        console.log(`✅ Found existing conversation by note ID: ${conversationId}`);
       } else {
         // Create new conversation for this note
         const newConvResult = await pool.query(
@@ -123,6 +142,7 @@ router.post("/", authenticateToken, async (req, res) => {
           ]
         );
         conversationId = newConvResult.rows[0].id;
+        console.log(`🆕 Created new conversation for note: ${conversationId}`);
       }
     } else {
       // Create new general conversation
@@ -133,6 +153,7 @@ router.post("/", authenticateToken, async (req, res) => {
         [userId, `General Chat - ${new Date().toLocaleDateString()}`]
       );
       conversationId = newConvResult.rows[0].id;
+      console.log(`🆕 Created new general conversation: ${conversationId}`);
     }
 
     // Save user message to database
@@ -144,6 +165,7 @@ router.post("/", authenticateToken, async (req, res) => {
     );
 
     const userMessageId = userMessageResult.rows[0].id;
+    console.log(`💬 Saved user message to conversation ${conversationId}, message ID: ${userMessageId}`);
 
     // Get conversation history for context
     const historyResult = await pool.query(
@@ -239,11 +261,15 @@ router.post("/", authenticateToken, async (req, res) => {
     );
 
     // Save AI response to database
-    await pool.query(
+    const aiMessageResult = await pool.query(
       `INSERT INTO chat_messages (conversation_id, sender_type, message_text, ai_response)
-       VALUES ($1, $2, $3, $4)`,
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
       [conversationId, "ai", "", aiResponse]
     );
+    
+    console.log(`🤖 Saved AI response to conversation ${conversationId}, message ID: ${aiMessageResult.rows[0].id}`);
+    console.log(`📊 Total messages in conversation ${conversationId}: ${historyResult.rows.length + 2}`);
 
     // Update conversation title if it's generic
     const convTitleResult = await pool.query(
