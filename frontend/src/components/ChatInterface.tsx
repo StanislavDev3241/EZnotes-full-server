@@ -11,12 +11,27 @@ interface Message {
 interface ChatInterfaceProps {
   user: any;
   onLogout: () => void;
+  noteContext?: {
+    conversationId?: number;
+    noteId?: number;
+    fileName?: string;
+    notes?: any;
+  };
+  onConversationUpdate?: (conversationId: number) => void;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
+  user, 
+  onLogout, 
+  noteContext,
+  onConversationUpdate 
+}) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<number | null>(
+    noteContext?.conversationId || null
+  );
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
     null
@@ -65,6 +80,43 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Load existing conversation history
+  const loadConversationHistory = async (conversationId: number) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/chat/conversation/${conversationId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.messages) {
+          const formattedMessages: Message[] = data.messages.map((msg: any) => ({
+            id: msg.id.toString(),
+            content: msg.sender_type === "user" ? msg.message_text : (msg.ai_response || msg.message_text),
+            role: msg.sender_type === "user" ? "user" : "assistant",
+            timestamp: new Date(msg.created_at),
+          }));
+          setMessages(formattedMessages);
+          console.log(`Loaded ${formattedMessages.length} messages from conversation ${conversationId}`);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load conversation history:", error);
+    }
+  };
+
+  // Load conversation history when component mounts or conversationId changes
+  useEffect(() => {
+    if (currentConversationId) {
+      loadConversationHistory(currentConversationId);
+    }
+  }, [currentConversationId]);
+
   const sendMessage = async (content: string) => {
     if (!content.trim()) return;
 
@@ -80,6 +132,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
     setIsLoading(true);
 
     try {
+      // Prepare conversation context and history
+      const conversationContext = {
+        conversationId: currentConversationId,
+        noteId: noteContext?.noteId,
+        fileName: noteContext?.fileName,
+        notes: noteContext?.notes,
+      };
+
+      // Format conversation history for the backend (last 20 messages for context)
+      const conversationHistory = messages.slice(-20).map(msg => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      console.log(`Sending message with conversation context:`, {
+        conversationId: currentConversationId,
+        noteId: noteContext?.noteId,
+        historyLength: conversationHistory.length,
+      });
+
       const response = await fetch(`${API_BASE_URL}/api/chat`, {
         method: "POST",
         headers: {
@@ -88,12 +160,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user, onLogout }) => {
         },
         body: JSON.stringify({
           message: content.trim(),
-          userId: user.id,
+          noteContext: conversationContext,
+          conversationHistory: conversationHistory,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
+        
+        // Update conversation ID if this is a new conversation
+        if (data.conversationId && !currentConversationId) {
+          setCurrentConversationId(data.conversationId);
+          onConversationUpdate?.(data.conversationId);
+          console.log(`New conversation created: ${data.conversationId}`);
+        }
+
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           content: data.response,

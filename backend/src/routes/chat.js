@@ -726,12 +726,16 @@ router.delete(
       // Delete related data first (due to foreign key constraints)
       // Delete chat messages
       try {
-        await pool.query("DELETE FROM chat_messages WHERE conversation_id = $1", [
-          conversationId,
-        ]);
+        await pool.query(
+          "DELETE FROM chat_messages WHERE conversation_id = $1",
+          [conversationId]
+        );
         console.log(`Deleted chat messages for conversation ${conversationId}`);
       } catch (error) {
-        console.log(`No chat_messages table or no messages to delete for conversation ${conversationId}:`, error.message);
+        console.log(
+          `No chat_messages table or no messages to delete for conversation ${conversationId}:`,
+          error.message
+        );
       }
 
       // Delete chat history checkpoints
@@ -740,9 +744,14 @@ router.delete(
           "DELETE FROM chat_history_checkpoints WHERE conversation_id = $1",
           [conversationId]
         );
-        console.log(`Deleted chat history checkpoints for conversation ${conversationId}`);
+        console.log(
+          `Deleted chat history checkpoints for conversation ${conversationId}`
+        );
       } catch (error) {
-        console.log(`No chat_history_checkpoints table or no checkpoints to delete for conversation ${conversationId}:`, error.message);
+        console.log(
+          `No chat_history_checkpoints table or no checkpoints to delete for conversation ${conversationId}:`,
+          error.message
+        );
       }
 
       // Delete note improvements
@@ -751,9 +760,14 @@ router.delete(
           "DELETE FROM note_improvements WHERE conversation_id = $1",
           [conversationId]
         );
-        console.log(`Deleted note improvements for conversation ${conversationId}`);
+        console.log(
+          `Deleted note improvements for conversation ${conversationId}`
+        );
       } catch (error) {
-        console.log(`No note_improvements table or no improvements to delete for conversation ${conversationId}:`, error.message);
+        console.log(
+          `No note_improvements table or no improvements to delete for conversation ${conversationId}:`,
+          error.message
+        );
       }
 
       // Finally delete the conversation
@@ -786,6 +800,69 @@ router.delete(
     }
   }
 );
+
+// Get conversation messages
+router.get("/conversation/:conversationId", authenticateToken, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const userId = req.user.userId;
+
+    // Get conversation to check permissions
+    const conversation = await pool.query(
+      "SELECT * FROM chat_conversations WHERE id = $1",
+      [conversationId]
+    );
+
+    if (conversation.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Conversation not found",
+      });
+    }
+
+    // Verify user can access this conversation
+    if (
+      req.user.role !== "admin" &&
+      req.user.userId !== conversation.rows[0].user_id
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
+    }
+
+    // Get all messages for this conversation
+    const messages = await pool.query(
+      `SELECT id, sender_type, message_text, ai_response, created_at 
+       FROM chat_messages 
+       WHERE conversation_id = $1 
+       ORDER BY created_at ASC`,
+      [conversationId]
+    );
+
+    // Log data access
+    await auditService.logDataAccess(
+      req.user.userId,
+      "chat_conversations",
+      conversationId,
+      "api"
+    );
+
+    res.json({
+      success: true,
+      conversation: conversation.rows[0],
+      messages: messages.rows,
+      messageCount: messages.rows.length,
+    });
+  } catch (error) {
+    console.error("Get conversation messages error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get conversation messages",
+      error: error.message,
+    });
+  }
+});
 
 // Edit chat message (new endpoint)
 router.put("/message/:messageId", authenticateToken, async (req, res) => {
