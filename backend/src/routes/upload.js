@@ -121,7 +121,8 @@ const processFileWithOpenAI = async (
   fileInfo,
   fileId,
   userId,
-  customPrompt = null
+  customPrompt = null,
+  selectedNoteTypes = ["soap", "summary"]
 ) => {
   try {
     console.log(`🤖 Processing file with OpenAI: ${fileInfo.filename}`);
@@ -205,101 +206,74 @@ const processFileWithOpenAI = async (
       )}`
     );
 
-    if (userId && customPrompt && customPrompt.systemPrompt) {
-      // Registered user with custom prompt
-      console.log(`👤 Using custom prompt for registered user`);
-      console.log(
-        `🔍 Custom prompt: ${customPrompt.systemPrompt.substring(0, 200)}...`
-      );
-      try {
-        // Generate SOAP note with custom prompt
-        const soapNoteResult = await openaiService.generateNotes(
-          transcription,
-          customPrompt,
-          {
-            userId: userId,
-            procedureType: "general",
-          }
-        );
+    // ✅ NEW: Generate only selected note types
+    notes = { soapNote: "", patientSummary: "" };
 
-        // Generate patient summary with dedicated method
-        const patientSummaryResult = await openaiService.generatePatientSummary(
-          transcription,
-          {
-            userId: userId,
-            procedureType: "general",
-          }
-        );
+    if (selectedNoteTypes.includes("soap")) {
+      console.log(`📝 Generating SOAP note...`);
+      try {
+        let soapNoteResult;
+        if (userId && customPrompt && customPrompt.systemPrompt) {
+          // Registered user with custom prompt
+          console.log(`👤 Using custom prompt for SOAP note`);
+          soapNoteResult = await openaiService.generateNotes(
+            transcription,
+            customPrompt,
+            {
+              userId: userId,
+              procedureType: "general",
+            }
+          );
+        } else {
+          // Unregistered user or default prompt
+          console.log(`👤 Using default prompt for SOAP note`);
+          const defaultPrompt = {
+            systemPrompt: openaiService.getDefaultSystemPrompt(),
+            userPrompt: openaiService.getDefaultUserPrompt(transcription, {
+              procedureType: "general",
+            }),
+          };
+          soapNoteResult = await openaiService.generateNotes(
+            transcription,
+            defaultPrompt,
+            {
+              procedureType: "general",
+            }
+          );
+        }
 
         // Handle both old string format and new object format for SOAP note
         if (typeof soapNoteResult === "string") {
-          notes = {
-            soapNote: soapNoteResult,
-            patientSummary: patientSummaryResult,
-          };
+          notes.soapNote = soapNoteResult;
         } else {
-          notes = {
-            soapNote: soapNoteResult.soapNote || soapNoteResult,
-            patientSummary: patientSummaryResult,
-          };
+          notes.soapNote = soapNoteResult.soapNote || soapNoteResult;
+          notes.isClarificationRequest = soapNoteResult.isClarificationRequest || false;
         }
+        console.log(`✅ SOAP note generated successfully`);
       } catch (noteError) {
-        console.error(`❌ Note generation failed:`, noteError);
+        console.error(`❌ SOAP note generation failed:`, noteError);
         throw new Error(
-          `Failed to generate notes: ${noteError.message}. Please try again or contact support.`
+          `Failed to generate SOAP note: ${noteError.message}. Please try again or contact support.`
         );
       }
-    } else {
-      // Unregistered user or default prompt
-      console.log(`👤 Using default prompt`);
-      console.log(`🔍 DEBUG: Reason for using default prompt:`);
-      console.log(`🔍 DEBUG: - userId exists: ${!!userId}`);
-      console.log(`🔍 DEBUG: - customPrompt exists: ${!!customPrompt}`);
-      console.log(
-        `🔍 DEBUG: - customPrompt.systemPrompt exists: ${!!customPrompt?.systemPrompt}`
-      );
+    }
 
-      const defaultPrompt = {
-        systemPrompt: openaiService.getDefaultSystemPrompt(),
-        userPrompt: openaiService.getDefaultUserPrompt(transcription, {
-          procedureType: "general",
-        }),
-      };
-
+    if (selectedNoteTypes.includes("summary")) {
+      console.log(`📝 Generating patient summary...`);
       try {
-        // Generate SOAP note with default prompt
-        const soapNoteResult = await openaiService.generateNotes(
-          transcription,
-          defaultPrompt,
-          {
-            procedureType: "general",
-          }
-        );
-
-        // Generate patient summary with dedicated method
         const patientSummaryResult = await openaiService.generatePatientSummary(
           transcription,
           {
+            userId: userId,
             procedureType: "general",
           }
         );
-
-        // Handle both old string format and new object format for SOAP note
-        if (typeof soapNoteResult === "string") {
-          notes = {
-            soapNote: soapNoteResult,
-            patientSummary: patientSummaryResult,
-          };
-        } else {
-          notes = {
-            soapNote: soapNoteResult.soapNote || soapNoteResult,
-            patientSummary: patientSummaryResult,
-          };
-        }
+        notes.patientSummary = patientSummaryResult;
+        console.log(`✅ Patient summary generated successfully`);
       } catch (noteError) {
-        console.error(`❌ Default note generation failed:`, noteError);
+        console.error(`❌ Patient summary generation failed:`, noteError);
         throw new Error(
-          `Failed to generate notes with default prompt: ${noteError.message}. Please try again or contact support.`
+          `Failed to generate patient summary: ${noteError.message}. Please try again or contact support.`
         );
       }
     }
@@ -570,6 +544,17 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
         ? { systemPrompt: req.body.customPrompt, userPrompt: null }
         : null;
 
+      // ✅ NEW: Parse selected note types from request
+      let selectedNoteTypes = ["soap", "summary"]; // Default to both
+      if (req.body.selectedNoteTypes) {
+        try {
+          selectedNoteTypes = JSON.parse(req.body.selectedNoteTypes);
+        } catch (error) {
+          console.warn("Failed to parse selectedNoteTypes, using default:", error);
+        }
+      }
+      console.log(`🔍 Selected note types: ${JSON.stringify(selectedNoteTypes)}`);
+
       console.log(
         `🔍 DEBUG: customPrompt object created = ${JSON.stringify(
           customPrompt
@@ -610,7 +595,8 @@ router.post("/", optionalAuth, upload.single("file"), async (req, res) => {
         fileInfo,
         fileId,
         userId,
-        customPrompt
+        customPrompt,
+        selectedNoteTypes
       );
 
       console.log(`✅ OpenAI processing completed successfully`);
@@ -1169,6 +1155,17 @@ router.post("/finalize", optionalAuth, async (req, res) => {
         ? { systemPrompt: customPrompt, userPrompt: null }
         : null;
 
+      // ✅ NEW: Parse selected note types from request
+      let selectedNoteTypes = ["soap", "summary"]; // Default to both
+      if (req.body.selectedNoteTypes) {
+        try {
+          selectedNoteTypes = req.body.selectedNoteTypes;
+        } catch (error) {
+          console.warn("Failed to parse selectedNoteTypes, using default:", error);
+        }
+      }
+      console.log(`🔍 Selected note types: ${JSON.stringify(selectedNoteTypes)}`);
+
       // Validate custom prompt length
       if (customPromptObj && customPromptObj.systemPrompt.length > 10000) {
         return res.status(400).json({
@@ -1196,7 +1193,8 @@ router.post("/finalize", optionalAuth, async (req, res) => {
         fileInfo,
         finalFileId,
         fileInfo.userId,
-        customPromptObj
+        customPromptObj,
+        selectedNoteTypes
       );
 
       console.log(`✅ OpenAI processing completed successfully`);

@@ -266,7 +266,8 @@ END.`
     fileType: string,
     fileSize: number,
     totalChunks: number,
-    customPrompt: string
+    customPrompt: string,
+    selectedNoteTypes: Set<"soap" | "summary">
   ): Promise<any> => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/upload/finalize`, {
@@ -281,6 +282,7 @@ END.`
           fileSize,
           totalChunks,
           customPrompt: customPrompt.trim() || undefined,
+          selectedNoteTypes: Array.from(selectedNoteTypes),
         }),
       });
 
@@ -391,7 +393,8 @@ END.`
         file.type,
         file.size,
         totalChunks,
-        customPrompt
+        customPrompt,
+        selectedNoteTypes
       );
 
       setUploadProgress({
@@ -442,6 +445,9 @@ END.`
     if (customPrompt.trim()) {
       uploadData.append("customPrompt", customPrompt.trim());
     }
+
+    // ✅ NEW: Send selected note types to backend
+    uploadData.append("selectedNoteTypes", JSON.stringify(Array.from(selectedNoteTypes)));
 
     setUploadProgress({
       stage: "uploading",
