@@ -341,12 +341,14 @@ const processFileWithOpenAI = async (
             conversationId,
             "ai",
             "",
-            `Generated SOAP Note:\n\n${notes.soapNote}`
+            `Generated SOAP Note:\n\n${notes.soapNote}`,
           ]
         );
         noteGenerationMessages.push(aiMessageResult.rows[0].id);
 
-        console.log(`✅ Created conversation ${conversationId} for note generation`);
+        console.log(
+          `✅ Created conversation ${conversationId} for note generation`
+        );
         console.log(`✅ Saved SOAP note generation as AI message`);
       }
     }
@@ -376,18 +378,22 @@ const processFileWithOpenAI = async (
             conversationId,
             "ai",
             "",
-            `Generated Patient Summary:\n\n${notes.patientSummary}`
+            `Generated Patient Summary:\n\n${notes.patientSummary}`,
           ]
         );
         noteGenerationMessages.push(aiMessageResult.rows[0].id);
 
-        console.log(`✅ Added patient summary to conversation ${conversationId}`);
+        console.log(
+          `✅ Added patient summary to conversation ${conversationId}`
+        );
       }
     }
 
     // Also create "Saved Notes" entries for the generated notes
     if (userId && notes.soapNote) {
-      console.log(`🔐 Creating saved SOAP note for user ${userId}, file ${fileId}`);
+      console.log(
+        `🔐 Creating saved SOAP note for user ${userId}, file ${fileId}`
+      );
       const encrypted = encryptionUtils.encryptData(notes.soapNote, userId);
       const contentHash = encryptionUtils.hashData(notes.soapNote);
 
@@ -408,11 +414,15 @@ const processFileWithOpenAI = async (
           null,
         ]
       );
-      console.log(`✅ Saved SOAP note created with ID: ${savedNoteResult.rows[0].id}`);
+      console.log(
+        `✅ Saved SOAP note created with ID: ${savedNoteResult.rows[0].id}`
+      );
     }
 
     if (userId && notes.patientSummary) {
-      console.log(`🔐 Creating saved Patient Summary for user ${userId}, file ${fileId}`);
+      console.log(
+        `🔐 Creating saved Patient Summary for user ${userId}, file ${fileId}`
+      );
       const encrypted = encryptionUtils.encryptData(
         notes.patientSummary,
         userId
@@ -436,7 +446,9 @@ const processFileWithOpenAI = async (
           null,
         ]
       );
-      console.log(`✅ Saved Patient Summary created with ID: ${savedSummaryResult.rows[0].id}`);
+      console.log(
+        `✅ Saved Patient Summary created with ID: ${savedSummaryResult.rows[0].id}`
+      );
     }
 
     console.log(`✅ Notes generated and saved successfully`);
