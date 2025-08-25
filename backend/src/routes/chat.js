@@ -173,13 +173,13 @@ router.post("/", authenticateToken, async (req, res) => {
       `💬 Saved user message to conversation ${conversationId}, message ID: ${userMessageId}`
     );
 
-    // Get conversation history for context
+    // Get conversation history for context (excluding the current user message)
     const historyResult = await pool.query(
       `SELECT sender_type, message_text, ai_response 
        FROM chat_messages 
-       WHERE conversation_id = $1 
+       WHERE conversation_id = $1 AND id != $2
        ORDER BY created_at ASC`,
-      [conversationId]
+      [conversationId, userMessageId]
     );
 
     // Format conversation history for OpenAI API
@@ -190,6 +190,9 @@ router.post("/", authenticateToken, async (req, res) => {
           ? msg.message_text
           : msg.ai_response || msg.message_text,
     }));
+
+    console.log(`📚 Conversation history: ${formattedHistory.length} messages`);
+    console.log(`📚 History content:`, formattedHistory.map(h => `${h.role}: ${h.content.substring(0, 50)}...`));
 
     // Enhanced note context: Fetch actual note content if noteId is provided
     let enhancedNoteContext = noteContext;
@@ -260,6 +263,17 @@ router.post("/", authenticateToken, async (req, res) => {
     }
 
     // Generate AI response with enhanced note context
+    console.log(`🤖 Calling AI with:`, {
+      message: message.substring(0, 100) + "...",
+      noteContext: {
+        fileName: enhancedNoteContext?.fileName,
+        noteId: enhancedNoteContext?.noteId,
+        hasNotes: !!enhancedNoteContext?.notes,
+        hasTranscription: !!enhancedNoteContext?.transcription,
+      },
+      historyLength: formattedHistory.length,
+    });
+
     const aiResponse = await openaiService.generateChatResponse(
       message,
       enhancedNoteContext,
