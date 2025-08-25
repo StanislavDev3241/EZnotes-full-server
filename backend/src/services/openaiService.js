@@ -271,16 +271,16 @@ class OpenAIService {
     }
   }
 
-  // ✅ IMPROVED: Generate notes with custom prompt
-  async generateNotes(transcription, customPrompt, context = {}) {
+  // ✅ NEW: Generate SOAP notes specifically
+  async generateSoapNote(transcription, customPrompt, context = {}) {
     try {
       console.log(
-        `🤖 Generating notes with custom prompt for ${transcription.length} characters`
+        `🤖 Generating SOAP note for ${transcription.length} characters`
       );
 
       // Validate transcription
       if (!transcription || transcription.trim().length < 10) {
-        throw new Error("Transcription too short or empty for note generation");
+        throw new Error("Transcription too short or empty for SOAP note generation");
       }
 
       console.log(
@@ -313,19 +313,19 @@ class OpenAIService {
         systemPrompt = customPrompt.systemPrompt;
         userPrompt =
           customPrompt.userPrompt ||
-          `Based on the following dental transcript, generate notes according to your custom instructions:
+          `Based on the following dental transcript, generate a SOAP note according to your custom instructions:
 
 Dental Transcript:
 ${transcription}
 
 Please follow your custom system prompt instructions.`;
 
-        console.log(`✅ Using custom prompt - Early-Stop rules DISABLED`);
+        console.log(`✅ Using custom prompt for SOAP note - Early-Stop rules DISABLED`);
       } else {
-        // Use default prompt with Early-Stop rules
+        // Use default SOAP note prompt with Early-Stop rules
         systemPrompt = this.getDefaultSystemPrompt();
         userPrompt = this.getDefaultUserPrompt(transcription, context);
-        console.log(`✅ Using default prompt - Early-Stop rules ENABLED`);
+        console.log(`✅ Using default SOAP note prompt - Early-Stop rules ENABLED`);
       }
 
       console.log(
@@ -358,7 +358,7 @@ Please follow your custom system prompt instructions.`;
             seed: Math.floor(Math.random() * 1000000), // Add randomness to prevent caching
           }),
         3,
-        "Note generation"
+        "SOAP note generation"
       );
 
       const response = completion.choices[0]?.message?.content;
@@ -371,12 +371,17 @@ Please follow your custom system prompt instructions.`;
         `✅ SOAP note generated successfully: ${response.length} characters`
       );
 
-      // ✅ FIXED: Return only the SOAP note, no automatic patient summary generation
       return response;
     } catch (error) {
-      console.error("❌ GPT API error:", error);
-      throw new Error(`Note generation failed: ${error.message}`);
+      console.error("❌ SOAP note generation error:", error);
+      throw new Error(`SOAP note generation failed: ${error.message}`);
     }
+  }
+
+  // ✅ LEGACY: Keep generateNotes for backward compatibility (calls generateSoapNote)
+  async generateNotes(transcription, customPrompt, context = {}) {
+    console.log(`⚠️ generateNotes() is deprecated. Use generateSoapNote() instead.`);
+    return this.generateSoapNote(transcription, customPrompt, context);
   }
 
   // ✅ NEW: Method that chat routes actually call

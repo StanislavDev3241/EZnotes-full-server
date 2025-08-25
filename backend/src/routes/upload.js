@@ -229,7 +229,7 @@ const processFileWithOpenAI = async (
         if (userId && customPrompt && customPrompt.systemPrompt) {
           // Registered user with custom prompt
           console.log(`👤 Using custom prompt for SOAP note`);
-          soapNoteResult = await openaiService.generateNotes(
+          soapNoteResult = await openaiService.generateSoapNote(
             transcription,
             customPrompt,
             {
@@ -246,7 +246,7 @@ const processFileWithOpenAI = async (
               procedureType: "general",
             }),
           };
-          soapNoteResult = await openaiService.generateNotes(
+          soapNoteResult = await openaiService.generateSoapNote(
             transcription,
             defaultPrompt,
             {
