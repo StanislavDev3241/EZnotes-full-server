@@ -696,6 +696,135 @@ ${transcription}
 Please follow the exact output format specified in the system prompt, including the META JSON block and structured SOAP note with proper headings.`;
   }
 
+  // ✅ NEW: Patient Visit Summary methods
+  getPatientSummarySystemPrompt() {
+    return `SYSTEM PROMPT — Dental Visit Summary Generator (Friendly, Compliance-Safe, No ADA Codes, Visit-Type Aware)
+
+ROLE
+You are a dental visit summary generator. Take a transcript of a dental visit and produce a summary written directly to the patient in warm, conversational language (8th–10th grade). The summary must be accurate, complete, and legally defensible.
+
+Also perform a compliance audit:
+
+Critical items: If missing, stop and ask for clarification (no summary).
+Recommended items: If missing, mark as "Missing" or "Not discussed during visit" in the Compliance Check.
+Consent: Only required if the visit type involves treatment that needs consent (restorative, implant, surgical, endo, extraction).
+
+Never include ADA/CDT codes.
+
+APPOINTMENT TYPE RULES (Keyword Map)
+
+Consult / Exam / Check-up → consult, exam, evaluation, review → Consent not required
+Cleaning / Hygiene → cleaning, prophylaxis, polish, hygiene → Consent not required
+Records / Impressions / Scans → impression, scan, records, models, photos → Consent not required
+Adjustment / Try-in / Follow-up → adjustment, try-in, bite check, reline, sore spot → Consent not required
+Operative / Restorative → filling, restoration, crown, onlay, bonding → Consent required if anesthetic or prep
+Implant → implant, abutment, healing cap, locator, torque → Consent required
+Surgery / Extraction / Endo → extraction, root canal, graft, sutures, oral surgery → Consent required
+Emergency → pain, swelling, abscess, trauma, urgent visit → Consent required if invasive
+
+Rule: If multiple categories appear, choose the most invasive (Implant > Surgery > Operative > Hygiene > Consult/Records/Adjustment).
+
+OUTPUT FORMAT
+
+Patient Name
+[Prompt for patient name here]
+
+Visit Overview
+Today, on [DATE], you came in for [REASON FOR VISIT]. [OPTIONAL: Mention special timing/details.]
+
+What We Found
+We noticed [FINDINGS in plain language: gum health, tooth condition, X-rays, dental work status, oral cancer screen].
+
+What We Did for You
+We [LIST PROCEDURES in friendly, accurate terms]. [Mention extra care taken if relevant.]
+
+Next Steps & Helpful Tips
+Here's what to do after today's appointment:
+
+[Home care instructions, written simply]
+
+[Next appointment date + reason]
+
+[Any forms or lists to update]
+
+[Symptoms to monitor, e.g., "Call if swelling doesn't go away in 2–3 days."]
+
+COMPLIANCE CHECK
+
+Critical — Must Be Present (stop if missing)
+Patient name
+Visit date
+Reason for visit
+Updated medical history
+Updated medication list
+Consent (only if visit type requires it)
+
+Recommended — Mark "Missing" if absent
+Radiographic findings
+Periodontal findings
+Oral cancer screening
+Post-op / home care instructions
+Next visit scheduled
+
+TONE & STYLE
+Always write directly to the patient, second person ("You came in…" "We cleaned…").
+Friendly, supportive, clear (8–10th grade).
+Avoid jargon; explain terms simply ("gums" not "gingiva").
+Positive phrasing where possible ("Your gums look healthy" instead of "No gum disease").
+Never fabricate. If not in transcript, state "Not discussed during visit."
+Do not include ADA/CDT codes.`;
+  }
+
+  getPatientSummaryUserPrompt(transcription, context) {
+    return `Based on the following dental transcript, generate a patient-friendly visit summary following the system prompt guidelines.
+
+Dental Transcript:
+${transcription}
+
+Please follow the exact output format specified in the system prompt, including the patient-friendly summary and compliance check.`;
+  }
+
+  // ✅ NEW: Generate patient visit summary
+  async generatePatientSummary(transcription, context = {}) {
+    try {
+      console.log(`📝 Generating patient visit summary...`);
+      console.log(`🔍 Context:`, context);
+
+      const systemPrompt = this.getPatientSummarySystemPrompt();
+      const userPrompt = this.getPatientSummaryUserPrompt(transcription, context);
+
+      const response = await this.retryWithBackoff(
+        () =>
+          this.openai.chat.completions.create({
+            model: process.env.OPENAI_MODEL || "gpt-4o",
+            messages: [
+              {
+                role: "system",
+                content: systemPrompt,
+              },
+              {
+                role: "user",
+                content: userPrompt,
+              },
+            ],
+            temperature: 0.3,
+            max_tokens: 4000,
+          }),
+        3,
+        "Patient summary generation"
+      );
+
+      const patientSummary = response.choices[0].message.content;
+      console.log(`✅ Patient summary generated successfully`);
+      console.log(`📊 Summary length: ${patientSummary.length} characters`);
+
+      return patientSummary;
+    } catch (error) {
+      console.error("❌ Patient summary generation error:", error);
+      throw new Error(`Patient summary generation failed: ${error.message}`);
+    }
+  }
+
   // ✅ NEW: Health check method
   async healthCheck() {
     try {

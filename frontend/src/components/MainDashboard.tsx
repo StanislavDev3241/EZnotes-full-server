@@ -1241,10 +1241,10 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
         <ResultsDisplay
           result={currentNote}
           onClose={() => setShowResults(false)}
-                    onNextToChat={async () => {
+          onNextToChat={async () => {
             setShowResults(false);
             setActiveSectionWithGuard("chat");
- 
+
             // Add the AI's response based on selected note types
             const messages: Message[] = [];
 
@@ -1276,7 +1276,7 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
 
             if (messages.length > 0) {
               setMessages(messages);
- 
+
               // ✅ NEW: Create conversation in database with initial AI messages
               // Only for authenticated users
               const userToken = localStorage.getItem("userToken");
@@ -1310,12 +1310,19 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
                     );
                   }
                 } catch (error) {
-                  console.error("Error creating conversation from notes:", error);
+                  console.error(
+                    "Error creating conversation from notes:",
+                    error
+                  );
                 }
               } else {
-                console.log("ℹ️ User not authenticated - conversation not saved to database");
+                console.log(
+                  "ℹ️ User not authenticated - conversation not saved to database"
+                );
                 // Show user-friendly message
-                alert("💡 Tip: Sign up or log in to save your conversations and access chat history!");
+                alert(
+                  "💡 Tip: Sign up or log in to save your conversations and access chat history!"
+                );
               }
             }
           }}

@@ -212,7 +212,8 @@ const processFileWithOpenAI = async (
         `🔍 Custom prompt: ${customPrompt.systemPrompt.substring(0, 200)}...`
       );
       try {
-        const noteResult = await openaiService.generateNotes(
+        // Generate SOAP note with custom prompt
+        const soapNoteResult = await openaiService.generateNotes(
           transcription,
           customPrompt,
           {
@@ -221,16 +222,25 @@ const processFileWithOpenAI = async (
           }
         );
 
-        // Handle both old string format and new object format
-        if (typeof noteResult === "string") {
+        // Generate patient summary with dedicated method
+        const patientSummaryResult = await openaiService.generatePatientSummary(
+          transcription,
+          {
+            userId: userId,
+            procedureType: "general",
+          }
+        );
+
+        // Handle both old string format and new object format for SOAP note
+        if (typeof soapNoteResult === "string") {
           notes = {
-            soapNote: noteResult,
-            patientSummary: noteResult, // Fallback for backward compatibility
+            soapNote: soapNoteResult,
+            patientSummary: patientSummaryResult,
           };
         } else {
           notes = {
-            soapNote: noteResult.soapNote,
-            patientSummary: noteResult.patientSummary,
+            soapNote: soapNoteResult.soapNote || soapNoteResult,
+            patientSummary: patientSummaryResult,
           };
         }
       } catch (noteError) {
@@ -257,7 +267,8 @@ const processFileWithOpenAI = async (
       };
 
       try {
-        const noteResult = await openaiService.generateNotes(
+        // Generate SOAP note with default prompt
+        const soapNoteResult = await openaiService.generateNotes(
           transcription,
           defaultPrompt,
           {
@@ -265,16 +276,24 @@ const processFileWithOpenAI = async (
           }
         );
 
-        // Handle both old string format and new object format
-        if (typeof noteResult === "string") {
+        // Generate patient summary with dedicated method
+        const patientSummaryResult = await openaiService.generatePatientSummary(
+          transcription,
+          {
+            procedureType: "general",
+          }
+        );
+
+        // Handle both old string format and new object format for SOAP note
+        if (typeof soapNoteResult === "string") {
           notes = {
-            soapNote: noteResult,
-            patientSummary: noteResult, // Fallback for backward compatibility
+            soapNote: soapNoteResult,
+            patientSummary: patientSummaryResult,
           };
         } else {
           notes = {
-            soapNote: noteResult.soapNote,
-            patientSummary: noteResult.patientSummary,
+            soapNote: soapNoteResult.soapNote || soapNoteResult,
+            patientSummary: patientSummaryResult,
           };
         }
       } catch (noteError) {
