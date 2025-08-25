@@ -802,67 +802,71 @@ router.delete(
 );
 
 // Get conversation messages
-router.get("/conversation/:conversationId", authenticateToken, async (req, res) => {
-  try {
-    const { conversationId } = req.params;
-    const userId = req.user.userId;
+router.get(
+  "/conversation/:conversationId",
+  authenticateToken,
+  async (req, res) => {
+    try {
+      const { conversationId } = req.params;
+      const userId = req.user.userId;
 
-    // Get conversation to check permissions
-    const conversation = await pool.query(
-      "SELECT * FROM chat_conversations WHERE id = $1",
-      [conversationId]
-    );
+      // Get conversation to check permissions
+      const conversation = await pool.query(
+        "SELECT * FROM chat_conversations WHERE id = $1",
+        [conversationId]
+      );
 
-    if (conversation.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Conversation not found",
-      });
-    }
+      if (conversation.rows.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Conversation not found",
+        });
+      }
 
-    // Verify user can access this conversation
-    if (
-      req.user.role !== "admin" &&
-      req.user.userId !== conversation.rows[0].user_id
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied",
-      });
-    }
+      // Verify user can access this conversation
+      if (
+        req.user.role !== "admin" &&
+        req.user.userId !== conversation.rows[0].user_id
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "Access denied",
+        });
+      }
 
-    // Get all messages for this conversation
-    const messages = await pool.query(
-      `SELECT id, sender_type, message_text, ai_response, created_at 
+      // Get all messages for this conversation
+      const messages = await pool.query(
+        `SELECT id, sender_type, message_text, ai_response, created_at 
        FROM chat_messages 
        WHERE conversation_id = $1 
        ORDER BY created_at ASC`,
-      [conversationId]
-    );
+        [conversationId]
+      );
 
-    // Log data access
-    await auditService.logDataAccess(
-      req.user.userId,
-      "chat_conversations",
-      conversationId,
-      "api"
-    );
+      // Log data access
+      await auditService.logDataAccess(
+        req.user.userId,
+        "chat_conversations",
+        conversationId,
+        "api"
+      );
 
-    res.json({
-      success: true,
-      conversation: conversation.rows[0],
-      messages: messages.rows,
-      messageCount: messages.rows.length,
-    });
-  } catch (error) {
-    console.error("Get conversation messages error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to get conversation messages",
-      error: error.message,
-    });
+      res.json({
+        success: true,
+        conversation: conversation.rows[0],
+        messages: messages.rows,
+        messageCount: messages.rows.length,
+      });
+    } catch (error) {
+      console.error("Get conversation messages error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get conversation messages",
+        error: error.message,
+      });
+    }
   }
-});
+);
 
 // Edit chat message (new endpoint)
 router.put("/message/:messageId", authenticateToken, async (req, res) => {

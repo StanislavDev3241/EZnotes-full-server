@@ -159,7 +159,10 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
         },
         body: JSON.stringify({
           message: inputMessage,
-          noteContext: currentNote,
+          noteContext: {
+            ...currentNote,
+            conversationId: currentConversationId,
+          },
           conversationHistory: messages.slice(-10), // Send last 10 messages for context
         }),
       });
@@ -183,8 +186,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
         setMessages((prev) => [...prev, aiMessage]);
 
         // Update conversation ID if this is a new conversation
-        if (result.conversationId && !currentConversationId) {
+        if (result.conversationId) {
           setCurrentConversationId(result.conversationId);
+          console.log(`Conversation ID updated: ${result.conversationId}`);
         }
       } else {
         throw new Error(result.message || "Failed to get AI response");
@@ -242,7 +246,10 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
             },
             body: JSON.stringify({
               message: newText,
-              noteContext: currentNote,
+              noteContext: {
+                ...currentNote,
+                conversationId: currentConversationId,
+              },
               conversationHistory: conversationHistory.slice(-10), // Send last 10 messages for context
             }),
           });
@@ -271,8 +278,9 @@ const MainDashboard: React.FC<MainDashboardProps> = ({
             });
 
             // Update conversation ID if this is a new conversation
-            if (result.conversationId && !currentConversationId) {
+            if (result.conversationId) {
               setCurrentConversationId(result.conversationId);
+              console.log(`Conversation ID updated from edit: ${result.conversationId}`);
             }
           } else {
             throw new Error(result.message || "Failed to get AI response");

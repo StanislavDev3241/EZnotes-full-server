@@ -20,18 +20,18 @@ interface ChatInterfaceProps {
   onConversationUpdate?: (conversationId: number) => void;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
-  user, 
-  onLogout, 
+const ChatInterface: React.FC<ChatInterfaceProps> = ({
+  user,
+  onLogout,
   noteContext,
-  onConversationUpdate 
+  onConversationUpdate,
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [currentConversationId, setCurrentConversationId] = useState<number | null>(
-    noteContext?.conversationId || null
-  );
+  const [currentConversationId, setCurrentConversationId] = useState<
+    number | null
+  >(noteContext?.conversationId || null);
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
     null
@@ -95,14 +95,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.messages) {
-          const formattedMessages: Message[] = data.messages.map((msg: any) => ({
-            id: msg.id.toString(),
-            content: msg.sender_type === "user" ? msg.message_text : (msg.ai_response || msg.message_text),
-            role: msg.sender_type === "user" ? "user" : "assistant",
-            timestamp: new Date(msg.created_at),
-          }));
+          const formattedMessages: Message[] = data.messages.map(
+            (msg: any) => ({
+              id: msg.id.toString(),
+              content:
+                msg.sender_type === "user"
+                  ? msg.message_text
+                  : msg.ai_response || msg.message_text,
+              role: msg.sender_type === "user" ? "user" : "assistant",
+              timestamp: new Date(msg.created_at),
+            })
+          );
           setMessages(formattedMessages);
-          console.log(`Loaded ${formattedMessages.length} messages from conversation ${conversationId}`);
+          console.log(
+            `Loaded ${formattedMessages.length} messages from conversation ${conversationId}`
+          );
         }
       }
     } catch (error) {
@@ -141,7 +148,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       };
 
       // Format conversation history for the backend (last 20 messages for context)
-      const conversationHistory = messages.slice(-20).map(msg => ({
+      const conversationHistory = messages.slice(-20).map((msg) => ({
         role: msg.role,
         content: msg.content,
       }));
@@ -167,7 +174,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       if (response.ok) {
         const data = await response.json();
-        
+
         // Update conversation ID if this is a new conversation
         if (data.conversationId && !currentConversationId) {
           setCurrentConversationId(data.conversationId);
