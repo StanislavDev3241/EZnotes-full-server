@@ -16,6 +16,10 @@ interface ChatInterfaceProps {
     noteId?: number;
     fileName?: string;
     notes?: any;
+    transcription?: string;
+    noteType?: string;
+    fileId?: number;
+    status?: string;
   };
   onConversationUpdate?: (conversationId: number) => void;
 }
@@ -107,6 +111,29 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             })
           );
           setMessages(formattedMessages);
+
+          // ✅ NEW: Update note context with clinical context from conversation
+          if (data.clinicalContext) {
+            console.log(
+              `🔍 Loading clinical context for conversation ${conversationId}:`,
+              {
+                fileName: data.clinicalContext.fileName,
+                hasTranscription: !!data.clinicalContext.transcription,
+                hasNotes: !!data.clinicalContext.notes,
+              }
+            );
+
+            // Update the note context with the clinical context from the conversation
+            if (noteContext) {
+              noteContext.transcription = data.clinicalContext.transcription;
+              noteContext.notes = data.clinicalContext.notes;
+              noteContext.fileName = data.clinicalContext.fileName;
+              noteContext.noteType = data.clinicalContext.noteType;
+              noteContext.fileId = data.clinicalContext.fileId;
+              noteContext.status = data.clinicalContext.status;
+            }
+          }
+
           console.log(
             `Loaded ${formattedMessages.length} messages from conversation ${conversationId}`
           );

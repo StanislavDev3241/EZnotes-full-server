@@ -155,6 +155,89 @@ router.post("/", authenticateToken, async (req, res) => {
       }
     }
 
+    // Enhanced note context: Fetch actual note content if noteId is provided
+    let enhancedNoteContext = noteContext;
+    if (noteContext && noteContext.noteId) {
+      try {
+        console.log(
+          `🔍 Fetching note content for noteId: ${noteContext.noteId}`
+        );
+
+        // Fetch the actual note content from the database
+        const noteResult = await pool.query(
+          `SELECT n.content, n.note_type, f.file_name, f.transcription, f.id as file_id
+           FROM notes n
+           LEFT JOIN files f ON n.file_id = f.id
+           WHERE n.id = $1 AND n.user_id = $2`,
+          [noteContext.noteId, userId]
+        );
+
+        if (noteResult.rows.length > 0) {
+          const noteData = noteResult.rows[0];
+          console.log(
+            `✅ Found note content: ${noteData.content.length} characters`
+          );
+
+          // Parse the note content
+          let parsedNotes = {};
+          try {
+            parsedNotes = JSON.parse(noteData.content);
+          } catch (parseError) {
+            console.warn(
+              `⚠️ Failed to parse note content as JSON: ${parseError.message}`
+            );
+            // Fallback: treat as string
+            parsedNotes = {
+              soapNote: noteData.content,
+              patientSummary: noteData.content,
+            };
+          }
+
+          // Enhance the note context with actual content
+          enhancedNoteContext = {
+            ...noteContext,
+            notes: parsedNotes,
+            transcription: noteData.transcription,
+            fileName: noteData.file_name,
+            noteType: noteData.note_type,
+            fileId: noteData.file_id,
+            status: "completed",
+          };
+
+          console.log(`🔍 Enhanced note context with actual content`);
+          console.log(
+            `🔍 SOAP Note length: ${
+              parsedNotes.soapNote?.length || 0
+            } characters`
+          );
+          console.log(
+            `🔍 Patient Summary length: ${
+              parsedNotes.patientSummary?.length || 0
+            } characters`
+          );
+        } else {
+          console.warn(`⚠️ No note found for noteId: ${noteContext.noteId}`);
+        }
+      } catch (error) {
+        console.error(`❌ Error fetching note content: ${error.message}`);
+        // Continue with original noteContext
+      }
+    }
+
+    // ✅ NEW: Store clinical context when creating conversation
+    let clinicalContext = null;
+    if (enhancedNoteContext && Object.keys(enhancedNoteContext).length > 0) {
+      clinicalContext = {
+        transcription: enhancedNoteContext.transcription,
+        notes: enhancedNoteContext.notes,
+        fileName: enhancedNoteContext.fileName,
+        noteType: enhancedNoteContext.noteType,
+        fileId: enhancedNoteContext.fileId,
+        customPrompt: enhancedNoteContext.customPrompt,
+        status: enhancedNoteContext.status,
+      };
+    }
+
     if (!conversationId && noteContext && noteContext.noteId) {
       // Find conversation by note ID
       const convResult = await pool.query(
@@ -167,31 +250,62 @@ router.post("/", authenticateToken, async (req, res) => {
         console.log(
           `✅ Found existing conversation by note ID: ${conversationId}`
         );
+
+        // ✅ NEW: Update clinical context if it's missing
+        if (clinicalContext) {
+          await pool.query(
+            `UPDATE chat_conversations 
+             SET clinical_context = $1, transcription = $2, file_id = $3
+             WHERE id = $4`,
+            [
+              JSON.stringify(clinicalContext),
+              clinicalContext.transcription,
+              clinicalContext.fileId,
+              conversationId,
+            ]
+          );
+          console.log(
+            `✅ Updated clinical context for conversation ${conversationId}`
+          );
+        }
       } else {
-        // Create new conversation for this note
+        // Create new conversation for this note with clinical context
         const newConvResult = await pool.query(
-          `INSERT INTO chat_conversations (user_id, note_id, title)
-           VALUES ($1, $2, $3)
+          `INSERT INTO chat_conversations (user_id, note_id, title, clinical_context, transcription, file_id)
+           VALUES ($1, $2, $3, $4, $5, $6)
            RETURNING id`,
           [
             userId,
             noteContext.noteId,
             `Chat for ${noteContext.fileName || "Note"}`,
+            clinicalContext ? JSON.stringify(clinicalContext) : null,
+            clinicalContext?.transcription || null,
+            clinicalContext?.fileId || null,
           ]
         );
         conversationId = newConvResult.rows[0].id;
-        console.log(`🆕 Created new conversation for note: ${conversationId}`);
+        console.log(
+          `🆕 Created new conversation for note with context: ${conversationId}`
+        );
       }
     } else if (!conversationId) {
       // Create new general conversation
       const newConvResult = await pool.query(
-        `INSERT INTO chat_conversations (user_id, title)
-         VALUES ($1, $2)
+        `INSERT INTO chat_conversations (user_id, title, clinical_context, transcription, file_id)
+         VALUES ($1, $2, $3, $4, $5)
          RETURNING id`,
-        [userId, `General Chat - ${new Date().toLocaleDateString()}`]
+        [
+          userId,
+          `General Chat - ${new Date().toLocaleDateString()}`,
+          clinicalContext ? JSON.stringify(clinicalContext) : null,
+          clinicalContext?.transcription || null,
+          clinicalContext?.fileId || null,
+        ]
       );
       conversationId = newConvResult.rows[0].id;
-      console.log(`🆕 Created new general conversation: ${conversationId}`);
+      console.log(
+        `🆕 Created new general conversation with context: ${conversationId}`
+      );
     }
 
     // Save user message to database
@@ -230,74 +344,6 @@ router.post("/", authenticateToken, async (req, res) => {
       `📚 History content:`,
       formattedHistory.map((h) => `${h.role}: ${h.content.substring(0, 50)}...`)
     );
-
-    // Enhanced note context: Fetch actual note content if noteId is provided
-    let enhancedNoteContext = noteContext;
-    if (noteContext && noteContext.noteId) {
-      try {
-        console.log(
-          `🔍 Fetching note content for noteId: ${noteContext.noteId}`
-        );
-
-        // Fetch the actual note content from the database
-        const noteResult = await pool.query(
-          `SELECT n.content, n.note_type, f.file_name, f.transcription
-           FROM notes n
-           LEFT JOIN files f ON n.file_id = f.id
-           WHERE n.id = $1 AND n.user_id = $2`,
-          [noteContext.noteId, userId]
-        );
-
-        if (noteResult.rows.length > 0) {
-          const noteData = noteResult.rows[0];
-          console.log(
-            `✅ Found note content: ${noteData.content.length} characters`
-          );
-
-          // Parse the note content
-          let parsedNotes = {};
-          try {
-            parsedNotes = JSON.parse(noteData.content);
-          } catch (parseError) {
-            console.warn(
-              `⚠️ Failed to parse note content as JSON: ${parseError.message}`
-            );
-            // Fallback: treat as string
-            parsedNotes = {
-              soapNote: noteData.content,
-              patientSummary: noteData.content,
-            };
-          }
-
-          // Enhance the note context with actual content
-          enhancedNoteContext = {
-            ...noteContext,
-            notes: parsedNotes,
-            transcription: noteData.transcription,
-            fileName: noteData.file_name,
-            noteType: noteData.note_type,
-            status: "completed",
-          };
-
-          console.log(`🔍 Enhanced note context with actual content`);
-          console.log(
-            `🔍 SOAP Note length: ${
-              parsedNotes.soapNote?.length || 0
-            } characters`
-          );
-          console.log(
-            `🔍 Patient Summary length: ${
-              parsedNotes.patientSummary?.length || 0
-            } characters`
-          );
-        } else {
-          console.warn(`⚠️ No note found for noteId: ${noteContext.noteId}`);
-        }
-      } catch (error) {
-        console.error(`❌ Error fetching note content: ${error.message}`);
-        // Continue with original noteContext
-      }
-    }
 
     // Generate AI response with enhanced note context
     console.log(`🤖 Calling AI with:`, {
@@ -506,6 +552,65 @@ router.get(
         [conversationId]
       );
 
+      // ✅ NEW: Extract clinical context from conversation
+      const convData = conversation.rows[0];
+      let clinicalContext = null;
+
+      if (convData.clinical_context) {
+        try {
+          clinicalContext = JSON.parse(convData.clinical_context);
+          console.log(
+            `🔍 Retrieved clinical context for conversation ${conversationId}`
+          );
+        } catch (error) {
+          console.warn(`⚠️ Failed to parse clinical context: ${error.message}`);
+        }
+      }
+
+      // ✅ NEW: If no clinical context in conversation, try to fetch from note
+      if (!clinicalContext && convData.note_id) {
+        try {
+          const noteResult = await pool.query(
+            `SELECT n.content, n.note_type, f.file_name, f.transcription, f.id as file_id
+             FROM notes n
+             LEFT JOIN files f ON n.file_id = f.id
+             WHERE n.id = $1 AND n.user_id = $2`,
+            [convData.note_id, req.user.userId]
+          );
+
+          if (noteResult.rows.length > 0) {
+            const noteData = noteResult.rows[0];
+            let parsedNotes = {};
+
+            try {
+              parsedNotes = JSON.parse(noteData.content);
+            } catch (parseError) {
+              parsedNotes = {
+                soapNote: noteData.content,
+                patientSummary: noteData.content,
+              };
+            }
+
+            clinicalContext = {
+              transcription: noteData.transcription,
+              notes: parsedNotes,
+              fileName: noteData.file_name,
+              noteType: noteData.note_type,
+              fileId: noteData.file_id,
+              status: "completed",
+            };
+
+            console.log(
+              `🔍 Reconstructed clinical context from note for conversation ${conversationId}`
+            );
+          }
+        } catch (error) {
+          console.warn(
+            `⚠️ Failed to reconstruct clinical context: ${error.message}`
+          );
+        }
+      }
+
       // Log data access
       await auditService.logDataAccess(
         req.user.userId,
@@ -518,6 +623,7 @@ router.get(
         success: true,
         conversation: conversation.rows[0],
         messages: messages.rows,
+        clinicalContext: clinicalContext, // ✅ NEW: Include clinical context in response
       });
     } catch (error) {
       console.error("Conversation messages error:", error);
